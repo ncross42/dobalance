@@ -1,0 +1,27 @@
+[submodule "includes/Taxonomy_Core"]
+	path = includes/Taxonomy_Core
+	url = https://github.com/WebDevStudios/Taxonomy_Core.git
+[submodule "includes/CPT_Core"]
+	path = includes/CPT_Core
+	url = https://github.com/WebDevStudios/CPT_Core.git
+[submodule "admin/includes/CMB2"]
+	path = admin/includes/CMB2
+	url = https://github.com/WebDevStudios/CMB2.git
+[submodule "admin/includes/CMB2-Shortcode"]
+	path = admin/includes/CMB2-Shortcode
+	url = https://github.com/jtsternberg/Shortcode_Button.git
+[submodule "admin/includes/CMB2-grid"]
+	path = admin/includes/CMB2-grid
+	url = https://github.com/origgami/CMB2-grid.git
+[submodule "admin/includes/WP-Admin-Notice"]
+	path = admin/includes/WP-Admin-Notice
+	url = https://github.com/nathanielks/wordpress-admin-notice.git
+[submodule "admin/includes/WP-Contextual-Help"]
+	path = admin/includes/WP-Contextual-Help
+	url = https://github.com/voceconnect/wp-contextual-help.git
+[submodule "admin/includes/PointerPlus"]
+	path = admin/includes/PointerPlus
+	url = https://github.com/Mte90/pointerplus.git
+[submodule "admin/includes/CronPlus"]
+	path = admin/includes/CronPlus
+	url = https://github.com/Mte90/CronPlus.git
