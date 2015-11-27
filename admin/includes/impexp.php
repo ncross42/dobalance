@@ -2,7 +2,7 @@
 /**
  * Provide Import and Export of the settings of the plugin
  *
- * @package   Plugin_Name
+ * @package   DoBalance
  * @author  Mte90 <mte90net@gmail.com>
  * @license   GPL-2.0+
  * @copyright 2014-2015
@@ -18,7 +18,7 @@ class Pn_ImpExp {
 	 * @since     1.0.0
 	 */
 	public function __construct() {
-		$plugin = Plugin_Name::get_instance();
+		$plugin = DoBalance::get_instance();
 		$this->plugin_slug = $plugin->get_plugin_slug();
 		$this->plugin_name = $plugin->get_plugin_name();
 		//Add the export settings method

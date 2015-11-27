@@ -34,9 +34,9 @@ class DoBalance_Admin {
 	 * Slug of the plugin screen.
 	 *
 	 * @since    1.0.0
-	 * @var      string
+	 * @var      array
 	 */
-	protected $plugin_screen_hook_suffix = null;
+	protected $plugin_screen_hook_suffix = array();
 
 	/**
 	 * Initialize the plugin by loading admin scripts & styles and adding a
@@ -58,7 +58,7 @@ class DoBalance_Admin {
 		 */
 		$plugin = DoBalance::get_instance();
 		$this->plugin_slug = $plugin->get_plugin_slug();
-		$this->dobalance = $plugin->get_dobalance();
+		$this->plugin_name = $plugin->get_plugin_name();
 		$this->version = $plugin->get_plugin_version();
 		$this->cpts = $plugin->get_cpts();
 
@@ -138,14 +138,13 @@ class DoBalance_Admin {
 
 		/**
 		 * Load Wp_Admin_Notice for the notices in the backend
-		 * 
 		 * First parameter the HTML, the second is the css class
-		 */
 		if ( !class_exists( 'WP_Admin_Notice' ) ) {
 			require_once( plugin_dir_path( __FILE__ ) . 'includes/WP-Admin-Notice/WP_Admin_Notice.php' );
 		}
 		new WP_Admin_Notice( __( 'Updated Messages' ), 'updated' );
 		new WP_Admin_Notice( __( 'Error Messages' ), 'error' );
+		 */
 
 		/**
 		 * Load PointerPlus for the Wp Pointer
@@ -239,7 +238,10 @@ class DoBalance_Admin {
 		}
 
 		$screen = get_current_screen();
-		if ( $this->plugin_screen_hook_suffix == $screen->id || strpos( $_SERVER[ 'REQUEST_URI' ], 'index.php' ) || strpos( $_SERVER[ 'REQUEST_URI' ], get_bloginfo( 'wpurl' ) . '/wp-admin/' ) ) {
+		if ( in_array($screen->id,$this->plugin_screen_hook_suffix)	// $this->plugin_screen_hook_suffix == $screen->id 
+			|| strpos( $_SERVER[ 'REQUEST_URI' ], 'index.php' ) 
+			|| strpos( $_SERVER[ 'REQUEST_URI' ], get_bloginfo( 'wpurl' ) . '/wp-admin/' ) 
+		) {
 			wp_enqueue_style( $this->plugin_slug . '-admin-styles', plugins_url( 'assets/css/admin.css', __FILE__ ), array( 'dashicons' ), DoBalance::VERSION );
 		}
 	}
@@ -257,7 +259,8 @@ class DoBalance_Admin {
 		}
 
 		$screen = get_current_screen();
-		if ( $this->plugin_screen_hook_suffix == $screen->id ) {
+		// if ( 	$this->plugin_screen_hook_suffix == $screen->id ) {
+		if ( in_array($screen->id,$this->plugin_screen_hook_suffix) ) {
 			wp_enqueue_script( $this->plugin_slug . '-admin-script', plugins_url( 'assets/js/admin.js', __FILE__ ), array( 'jquery', 'jquery-ui-tabs' ), DoBalance::VERSION );
 		}
 	}
@@ -271,35 +274,78 @@ class DoBalance_Admin {
 
 		/**
 		 * Add a settings page for this plugin to the Settings menu.
+		 * Administration Menus: http://codex.wordpress.org/Administration_Menus
 		 *
-		 * NOTE:  Alternative menu locations are available via WordPress administration menu functions.
+		 * add_menu_page('Page title', 'Top-level menu title', 'manage_options', 'my-top-level-handle', 'my_magic_function');
+		 * add_submenu_page( 'my-top-level-handle', 'Page title', 'Sub-menu title', 'manage_options', 'my-submenu-handle', 'my_magic_function');
 		 *
-		 *        Administration Menus: http://codex.wordpress.org/Administration_Menus
-		 *
-		 * @TODO:
-		 *
-		 * - Change 'Page Title' to the title of your plugin admin page
-		 * - Change '$this->dobalance' to the text for menu item for the plugin settings page
-		 * - Change 'manage_options' to the capability you see fit
-		 *   For reference: http://codex.wordpress.org/Roles_and_Capabilities
+		 * 'manage_options' : http://codex.wordpress.org/Roles_and_Capabilities
 		 */
-		$this->plugin_screen_hook_suffix = add_options_page(
-			__( 'Page Title', $this->plugin_slug ), $this->dobalance, 'manage_options', $this->plugin_slug, array( $this, 'display_plugin_admin_page' )
+		$this->plugin_screen_hook_suffix[] = add_options_page(
+			__( 'aa Page Title', $this->plugin_slug ), $this->plugin_name, 'manage_options', $this->plugin_slug
+			, array( $this, 'display_plugin_admin_page' )
 		);
-		/**
-		 * Settings page in the menu
-		 * 
-		 */
-		$this->plugin_screen_hook_suffix = add_menu_page( __( 'Page Title', $this->plugin_slug ), $this->dobalance, 'manage_options', $this->plugin_slug, array( $this, 'display_plugin_admin_page' ), 'dashicons-hammer', 90 );
+
+		// add_menu_page
+		$this->plugin_screen_hook_suffix[] = add_menu_page( 
+			__('DoBalance',$this->plugin_slug), __('DoBalance',$this->plugin_slug), 'manage_options', $this->plugin_slug
+			, array($this,'display_plugin_admin_page'), 'dashicons-hammer', 3
+		);
+
+		// add_submenu_page : bulk
+		$this->plugin_screen_hook_suffix[] = add_submenu_page( 
+			$this->plugin_slug, __('DoBalance',$this->plugin_slug), __('add bulk category',$this->plugin_slug),
+		 	'manage_options', $this->plugin_slug.'_bulk', array( $this, 'display_plugin_admin_bulk' )
+		);
+		// add_submenu_page : jsTree
+		$this->plugin_screen_hook_suffix[] = add_submenu_page( 
+			$this->plugin_slug, __('DoBalance',$this->plugin_slug), __('jsTree category',$this->plugin_slug),
+		 	'manage_options', $this->plugin_slug.'_jstree', array( $this, 'display_plugin_admin_jstree' )
+		);
 	}
 
 	/**
-	 * Render the settings page for this plugin.
-	 *
+	 * Render the admin page for this plugin.
 	 * @since    1.0.0
 	 */
 	public function display_plugin_admin_page() {
-		include_once( 'views/admin.php' );
+		include_once( "views/admin.php" );
+	}
+
+	/**
+	 * Render the admin page for this plugin.
+	 * @since    1.0.0
+	 */
+	public function display_plugin_admin_bulk() {
+		include_once( "views/bulk.php" );
+	}
+
+	/**
+	 * Render the admin page for this plugin.
+	 * @since    1.0.0
+	 */
+	public function display_plugin_admin_jstree() {
+		wp_enqueue_style( 'dob-jstree-css', plugins_url('/assets/jstree/themes/default/style.min.css',__DIR__) );
+		wp_enqueue_script( 'dob-jstree-js', plugins_url('/assets/jstree/jstree.min.js',__DIR__), array( 'jquery' ), 1.0, true );
+		wp_enqueue_script( 'dob-admin-jstree-js', plugins_url('/assets/js/jstree.js',__FILE__), array( 'dob-jstree-js' ), 1.0, true );
+		// localize js-messages
+		$locale = array(
+			'success' => 'Congrats! The terms are added successfully!',
+			'failed'  => 'Something went wrong... are you sure you have enough permission to add terms?',
+			'notax'   => 'Please select a taxonomy first!',
+			'noterm'  => 'Please input some terms!',
+			'confirm' => 'Are you sure you want to add these terms?',
+			/*'success' => __( 'Congrats! The terms are added successfully!', 'dob_domain' ),
+			'failed'  => __( 'Something went wrong... are you sure you have enough permission to add terms?', 'dob_domain' ),
+			'notax'   => __( 'Please select a taxonomy first!', 'dob_domain' ),
+			'noterm'  => __( 'Please input some terms!', 'dob_domain' ),
+			'confirm' => __( 'Are you sure you want to add these terms?', 'dob_domain' ),*/
+			// 'ajax_url' => admin_url( 'admin-ajax.php' ), // just use 'ajaxurl'
+			'nonce' => wp_create_nonce('dob_admin_jstree_ajax'),
+		);
+		wp_localize_script( 'dob-admin-jstree-js', 'locale_strings', $locale );
+
+		include_once( "views/jstree.php" );
 	}
 
 	/**

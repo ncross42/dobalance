@@ -34,12 +34,12 @@ class DoBalance {
 	/**
 	 * Unique identifier for your plugin.
 	 *
-	 *
 	 * The variable name is used as the text domain when internationalizing strings
 	 * of text. Its value should match the Text Domain file header in the main
 	 * plugin file.
 	 *
 	 * @since    1.0.0
+	 *
 	 * @var      string
 	 */
 	protected static $plugin_slug = 'dobalance';
@@ -52,7 +52,7 @@ class DoBalance {
 	 *
 	 * @var      string
 	 */
-	protected static $dobalance = 'DoBalance';
+	protected static $plugin_name = 'DoBalance';
 
 	/**
 	 * Instance of this class.
@@ -110,28 +110,38 @@ class DoBalance {
 
 		// Create Custom Post Type https://github.com/jtsternberg/CPT_Core/blob/master/README.md
 		register_via_cpt_core(
-				array( __( 'Demo', $this->get_plugin_slug() ), __( 'Demos', $this->get_plugin_slug() ), 'demo' ), array(
-			'taxonomies' => array( 'demo-section' ),
-			'capabilities' => array(
-				'edit_post' => 'edit_demo',
-				'edit_others_posts' => 'edit_others_demo',
-			),
-			'map_meta_cap' => true
-				)
+			array( __( 'Demo', $this->get_plugin_slug() ), __( 'Demos', $this->get_plugin_slug() ), 'demo' ), array(
+				'taxonomies' => array( 'demo-section' ),
+				'capabilities' => array(
+					'edit_post' => 'edit_demo',
+					'edit_others_posts' => 'edit_others_demo',
+				),
+				'map_meta_cap' => true
+			)
 		);
 
 		add_filter( 'pre_get_posts', array( $this, 'filter_search' ) );
 
 		// Create Custom Taxonomy https://github.com/jtsternberg/Taxonomy_Core/blob/master/README.md
 		register_via_taxonomy_core(
-				array( __( 'Demo Section', $this->get_plugin_slug() ), __( 'Demo Sections', $this->get_plugin_slug() ), 'demo-section' ), array(
-			'public' => true,
-			'capabilities' => array(
-				'assign_terms' => 'edit_posts',
-			)
-				), array( 'demo' )
+			array( 
+				__( 'Demo Section', $this->get_plugin_slug() ), 
+				__( 'Demo Sections', $this->get_plugin_slug() ), 
+				'demo-section' 
+			), 
+			array(
+				'public' => true,
+				'capabilities' => array(
+					'assign_terms' => 'edit_posts',
+				)
+			), 
+			array( 'demo' )
 		);
 
+		/**
+		 * add_filter : https://codex.wordpress.org/Function_Reference/add_filter
+		 * body_class : https://codex.wordpress.org/Plugin_API/Filter_Reference/body_class
+		 */
 		add_filter( 'body_class', array( $this, 'add_pn_class' ), 10, 3 );
 
 		//Override the template hierarchy for load /templates/content-demo.php
@@ -169,8 +179,8 @@ class DoBalance {
 	 *
 	 * @return    Plugin name variable.
 	 */
-	public function get_dobalance() {
-		return self::$dobalance;
+	public function get_plugin_name() {
+		return self::$plugin_name;
 	}
 
 	/**
@@ -293,7 +303,7 @@ class DoBalance {
 		self::single_activate();
 		restore_current_blog();
 	}
-	
+
 	/**
 	 * Add support for custom CPT on the search box
 	 *
@@ -340,12 +350,13 @@ class DoBalance {
 	private static function single_activate() {
 		//Requirements Detection System - read the doc/example in the library file
 		require_once( plugin_dir_path( __FILE__ ) . 'includes/requirements.php' );
-		new Plugin_Requirements( self::$dobalance, self::$plugin_slug, array(
-			'WP' => new WordPress_Requirement( '4.1.0' )
-				) );
+		new Plugin_Requirements( 
+			self::$plugin_name, self::$plugin_slug
+			, array( 'WP' => new WordPress_Requirement('4.1.0') ) 
+		);
 
 		// @TODO: Define activation functionality here
-		
+
 		global $wp_roles;
 		if ( !isset( $wp_roles ) ) {
 			$wp_roles = new WP_Roles;
@@ -402,9 +413,8 @@ class DoBalance {
 	 * @since    1.0.0
 	 */
 	public function enqueue_js_vars() {
-		wp_localize_script( $this->get_plugin_slug() . '-plugin-script', 'pn_js_vars', array(
-			'alert' => __( 'Hey! You have clicked the button!', $this->get_plugin_slug() )
-				)
+		wp_localize_script( $this->get_plugin_slug() . '-plugin-script', 'pn_js_vars', 
+			array( 'alert' => __( 'Hey! You have clicked the button!', $this->get_plugin_slug() ) )
 		);
 	}
 

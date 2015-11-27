@@ -6,7 +6,7 @@
  * @since    1.0.0
  */
 function pn_load_plugin_textdomain() {
-	$plugin = Plugin_Name::get_instance();
+	$plugin = DoBalance::get_instance();
 	$domain = $plugin->get_plugin_slug();
 	$locale = apply_filters( 'plugin_locale', get_locale(), $domain );
 
