@@ -43,14 +43,14 @@ $cmb->add_field( array(
 	'desc' => __( 'ROOT Hierarchy Category SLUG (requirement)', $this->plugin_slug ),
 	'id' => $this->plugin_slug . '_root_hierarchy',
 	'type' => 'text',
-	'default' => 'hierarchy',
+	'default' => 'hierarchy-default',
 ) );
 $cmb->add_field( array(
 	'name' => __( 'Subject ROOT-SLUG', $this->plugin_slug ),
 	'desc' => __( 'ROOT Subject Category SLUG (requirement)', $this->plugin_slug ),
 	'id' => $this->plugin_slug . '_root_subject',
 	'type' => 'text_medium',
-	'default' => 'subject',
+	'default' => 'subject-default',
 	// 'repeatable' => true,
 ) );
 ?>

@@ -4,7 +4,7 @@
  */
 
 if ( !class_exists( 'jsTree' ) ) {
-	require_once('jstree_class.php');
+	require_once('jstree.class.php');
 }
 
 add_action( 'wp_ajax_dob_admin_jstree', 'dob_admin_jstree_ajax' );

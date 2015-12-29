@@ -41,7 +41,7 @@ if ( is_array($_POST)
 	&& wp_verify_nonce( $_POST['dobalance_admin_bulk'], 'dobalance_admin_bulk' ) 
 ) {
 
-	include_once __DIR__."/../../includes/jstree_class.php";
+	include_once __DIR__."/../../includes/jstree.class.php";
 	$jstree = new jsTree();
 
 	$added = $updated = $skipped = 0;

@@ -116,7 +116,16 @@ add_action( 'plugins_loaded', array( 'DoBalance', 'get_instance' ), 9999 );
 if ( is_admin() && (!defined( 'DOING_AJAX' ) || !DOING_AJAX ) ) {
 	require_once( plugin_dir_path( __FILE__ ) . 'admin/class-dobalance-admin.php' );
 	add_action( 'plugins_loaded', array( 'DoBalance_Admin', 'get_instance' ) );
+} else {
+	require_once( plugin_dir_path( __FILE__ ) . 'public/dob_site.php' );
+	require_once( plugin_dir_path( __FILE__ ) . 'public/dob_ajax.php' );
 }
+require_once( plugin_dir_path( __FILE__ ) . 'public/dob_widgets.php' );
 
 
-include_once( "includes/jstree_ajax.php" );	// operation
+include_once( "includes/jstree.ajax.php" );	// operation
+
+include_once( "includes/Dob_Field_Plugin.class.php" );	// BuddyPress Xprofile Custom Fields Type
+
+require_once( plugin_dir_path( __FILE__ ) . 'public/dob_register_form.inc.php' );
+

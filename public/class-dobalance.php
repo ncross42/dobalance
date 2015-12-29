@@ -26,7 +26,6 @@ class DoBalance {
 	 * Plugin version, used for cache-busting of style and script file references.
 	 *
 	 * @since   1.0.0
-	 *
 	 * @var     string
 	 */
 	const VERSION = '1.0.0';
@@ -39,7 +38,6 @@ class DoBalance {
 	 * plugin file.
 	 *
 	 * @since    1.0.0
-	 *
 	 * @var      string
 	 */
 	protected static $plugin_slug = 'dobalance';
@@ -47,9 +45,7 @@ class DoBalance {
 	/**
 	 * Unique identifier for your plugin.
 	 *
-	 *
 	 * @since    1.0.0
-	 *
 	 * @var      string
 	 */
 	protected static $plugin_name = 'DoBalance';
@@ -58,7 +54,6 @@ class DoBalance {
 	 * Instance of this class.
 	 *
 	 * @since    1.0.0
-	 *
 	 * @var      object
 	 */
 	protected static $instance = null;
@@ -67,7 +62,6 @@ class DoBalance {
 	 * Array of cpts of the plugin
 	 *
 	 * @since    1.0.0
-	 *
 	 * @var      object
 	 */
 	protected $cpts = array( 'demo' );
@@ -76,7 +70,6 @@ class DoBalance {
 	 * Array of capabilities by roles
 	 * 
 	 * @since 1.0.0
-	 * 
 	 * @var array
 	 */
 	protected static $plugin_roles = array(
@@ -104,10 +97,10 @@ class DoBalance {
 	 *
 	 * @since     1.0.0
 	 */
-	private function __construct() {
+	private function __construct() {/*{{{*/
 		// Activate plugin when new blog is added
 		add_action( 'wpmu_new_blog', array( $this, 'activate_new_site' ) );
-
+/*
 		// Create Custom Post Type https://github.com/jtsternberg/CPT_Core/blob/master/README.md
 		register_via_cpt_core(
 			array( __( 'Demo', $this->get_plugin_slug() ), __( 'Demos', $this->get_plugin_slug() ), 'demo' ), array(
@@ -138,34 +131,29 @@ class DoBalance {
 			array( 'demo' )
 		);
 
-		/**
-		 * add_filter : https://codex.wordpress.org/Function_Reference/add_filter
-		 * body_class : https://codex.wordpress.org/Plugin_API/Filter_Reference/body_class
-		 */
+		// add_filter : https://codex.wordpress.org/Function_Reference/add_filter
+		// body_class : https://codex.wordpress.org/Plugin_API/Filter_Reference/body_class
 		add_filter( 'body_class', array( $this, 'add_pn_class' ), 10, 3 );
 
 		//Override the template hierarchy for load /templates/content-demo.php
 		add_filter( 'template_include', array( $this, 'load_content_demo' ) );
-
+*/
 		// Load public-facing style sheet and JavaScript.
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_styles' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_js_vars' ) );
 
-		/*
-		 * Define custom functionality.
-		 * Refer To http://codex.wordpress.org/Plugin_API#Hooks.2C_Actions_and_Filters
-		 */
-		add_action( '@TODO', array( $this, 'action_method_name' ) );
-		add_filter( '@TODO', array( $this, 'filter_method_name' ) );
-		add_shortcode( '@TODO', array( $this, 'shortcode_method_name' ) );
-	}
+		// Define custom functionality.
+		// Refer To http://codex.wordpress.org/Plugin_API#Hooks.2C_Actions_and_Filters
+		#add_action( '@TODO', array( $this, 'action_method_name' ) );
+		#add_filter( '@TODO', array( $this, 'filter_method_name' ) );
+		#add_shortcode( '@TODO', array( $this, 'shortcode_method_name' ) );
+	}/*}}}*/
 
 	/**
 	 * Return the plugin slug.
 	 *
 	 * @since    1.0.0
-	 *
 	 * @return    Plugin slug variable.
 	 */
 	public function get_plugin_slug() {
@@ -176,7 +164,6 @@ class DoBalance {
 	 * Return the plugin name.
 	 *
 	 * @since    1.0.0
-	 *
 	 * @return    Plugin name variable.
 	 */
 	public function get_plugin_name() {
@@ -187,7 +174,6 @@ class DoBalance {
 	 * Return the version
 	 *
 	 * @since    1.0.0
-	 *
 	 * @return    Version const.
 	 */
 	public function get_plugin_version() {
@@ -198,7 +184,6 @@ class DoBalance {
 	 * Return the cpts
 	 *
 	 * @since    1.0.0
-	 *
 	 * @return    Cpts array
 	 */
 	public function get_cpts() {
@@ -209,7 +194,6 @@ class DoBalance {
 	 * Return an instance of this class.
 	 *
 	 * @since     1.0.0
-	 *
 	 * @return    object    A single instance of this class.
 	 */
 	public static function get_instance() {
@@ -225,7 +209,6 @@ class DoBalance {
 	 * Fired when the plugin is activated.
 	 *
 	 * @since    1.0.0
-	 *
 	 * @param    boolean    $network_wide    True if WPMU superadmin uses
 	 *                                       "Network Activate" action, false if
 	 *                                       WPMU is disabled or plugin is
@@ -258,7 +241,6 @@ class DoBalance {
 	 * Fired when the plugin is deactivated.
 	 *
 	 * @since    1.0.0
-	 *
 	 * @param    boolean    $network_wide    True if WPMU superadmin uses
 	 *                                       "Network Deactivate" action, false if
 	 *                                       WPMU is disabled or plugin is
@@ -291,7 +273,6 @@ class DoBalance {
 	 * Fired when a new site is activated with a WPMU environment.
 	 *
 	 * @since    1.0.0
-	 *
 	 * @param    int    $blog_id    ID of the new blog.
 	 */
 	public function activate_new_site( $blog_id ) {
@@ -308,7 +289,6 @@ class DoBalance {
 	 * Add support for custom CPT on the search box
 	 *
 	 * @since    1.0.0
-	 *
 	 * @param    object    $query   
 	 */
 	public function filter_search( $query ) {
@@ -327,7 +307,6 @@ class DoBalance {
 	 * - not deleted
 	 *
 	 * @since    1.0.0
-	 *
 	 * @return   array|false    The blog ids, false if no matches.
 	 */
 	private static function get_blog_ids() {
@@ -341,6 +320,38 @@ class DoBalance {
 
 		return $wpdb->get_col( $sql );
 	}
+
+	/**
+	 * Init DB Schema
+	 */
+	private function init_db() {/*{{{*/
+		$sql = array();
+
+		$sql[] = <<<SQL
+ALTER TABLE `{$wpdb->prefix}_term_taxonomy` 
+	ADD COLUMN `lft` INT NOT NULL DEFAULT '0' COMMENT '' AFTER `count`,
+	ADD COLUMN `rgt` INT NOT NULL DEFAULT '0' COMMENT '' AFTER `lft`,
+	ADD COLUMN `lvl` INT NOT NULL DEFAULT '0' COMMENT '' AFTER `rgt`,
+	ADD COLUMN `pos` INT NOT NULL DEFAULT '0' COMMENT '' AFTER `lvl`,
+	ADD INDEX `IDX_taxonomy_parent_pos` ( `taxonomy`, `parent`, `pos` )
+;
+SQL;
+		$sql[] = <<<SQL
+CREATE TABLE `{$wpdb->prefix}_dob_user_hierarchy` (
+  `user_id` int(11) NOT NULL DEFAULT '0' COMMENT 'wp_bp_xprofile_data',
+  `field_id` int(11) NOT NULL DEFAULT '0' COMMENT 'wp_bp_xprofile_data',
+  `term_taxonomy_id` int(11) NOT NULL DEFAULT '0' COMMENT 'wp_term_taxonomy',
+  PRIMARY KEY (`user_id`,`field_id`),
+  KEY `IDX_category_field` (`term_taxonomy_id`,`field_id`)
+);
+SQL;
+		// uninstall
+		$sql[] = <<<SQL
+ALTER TABLE `{$wpdb->prefix}wp_term_taxonomy` 
+	DROP `lft`, DROP `rgt`, DROP `lvl`, DROP `pos` 
+;
+SQL;
+	}/*}}}*/
 
 	/**
 	 * Fired for each blog when the plugin is activated.
