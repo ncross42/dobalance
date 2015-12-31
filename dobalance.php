@@ -59,20 +59,6 @@ require_once( plugin_dir_path( __FILE__ ) . 'includes/Widgets-Helper/wph-widget-
 require_once( plugin_dir_path( __FILE__ ) . 'includes/widgets/sample.php' );
 
 /**
- * Load Fake Page class
- */
-
-require_once( plugin_dir_path( __FILE__ ) . 'includes/fake-page.php' );
-
-new Fake_Page(
-	array(
-    'slug' => 'fake_slug',
-    'post_title' => 'Fake Page Title',
-    'post_content' => 'This is the fake page content'
-	)
-);
-
-/**
  * Load Language wrapper function for WPML/Ceceppa Multilingua/Polylang
  */
 
@@ -124,8 +110,6 @@ require_once( plugin_dir_path( __FILE__ ) . 'public/dob_widgets.php' );
 
 
 include_once( "includes/jstree.ajax.php" );	// operation
-
-include_once( "includes/Dob_Field_Plugin.class.php" );	// BuddyPress Xprofile Custom Fields Type
 
 require_once( plugin_dir_path( __FILE__ ) . 'public/dob_register_form.inc.php' );
 

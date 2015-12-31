@@ -22,8 +22,8 @@ class jsTree
 	protected $db = null;
 	protected $options = null;
 	protected $default = array(
-		't_base'		=> 'wp_term_taxonomy',	// the base table (containing the id, left, right, level, parent_id and position fields)
-		't_data'		=> 'wp_terms',		// table for additional fields (apart from base ones, can be the same as t_base)
+		't_base'		=> 'term_taxonomy',	// the base table (containing the id, left, right, level, parent_id and position fields)
+		't_data'		=> 'terms',		// table for additional fields (apart from base ones, can be the same as t_base)
 		'k_d2b'			=> 'term_id',		// which key(field) from the data table maps to the base table
 		'taxonomy'	=> 'category',	// default taxonomy
 		'base' => array(			// which field (value) maps to what in the base (key)
@@ -45,6 +45,8 @@ class jsTree
 	public function __construct( $options = array() ) {/*{{{*/
 		global $wpdb;
 		$this->db = $wpdb;
+		$this->default['t_base'] = $wpdb->prefix.$this->default['t_base'];
+		$this->default['t_data'] = $wpdb->prefix.$this->default['t_data'];
 		$this->options = array_merge($this->default, $options);
 	}/*}}}*/
 
@@ -138,10 +140,24 @@ class jsTree
 	public function mk($parent_id, $position = 0, $input = array()) {/*{{{*/
 		extract($this->options);
 		$parent_id = (int)$parent_id;
-		if($parent_id == 0) { throw new Exception('Parent_id is 0'); }
-		$parent = $this->get_node($parent_id, array('with_children'=> true));
-		if(!$parent['children']) { $position = 0; }
-		if($parent['children'] && $position >= count($parent['children'])) { $position = count($parent['children']); }
+		if($parent_id == 0) { 
+			//throw new Exception('Parent_id is 0'); 
+			$parent = array (
+				$base['id'] => 0,
+				$base['parent_id'] => 0,
+				$base['left'] => 0,
+				$base['right'] => 1,
+				$base['level'] => 0,
+				$base['position'] => 0,
+			);
+		} else {
+			$parent = $this->get_node($parent_id, array('with_children'=> true));
+		}
+		if( isset($parent['children']) && $position >= count($parent['children']) ) { 
+			$position = count($parent['children']); 
+		} else {
+			$position = 0;
+		}
 
 		$sql = array();
 		$par = array();
@@ -159,7 +175,7 @@ class jsTree
 
 		// update left indexes
 		$ref_lft = false;
-		if(!$parent['children']) {
+		if( ! isset($parent['children']) ) {
 			$ref_lft = $parent[$base['right']];
 		}
 		else if(!isset($parent['children'][$position])) {
@@ -178,7 +194,7 @@ class jsTree
 
 		// update right indexes
 		$ref_rgt = false;
-		if(!$parent['children']) {
+		if( ! isset($parent['children']) ) {
 			$ref_rgt = $parent[$base['right']];
 		}
 		else if(!isset($parent['children'][$position])) {

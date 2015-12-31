@@ -46,8 +46,8 @@ if ( is_array($_POST)
 
 	$added = $updated = $skipped = 0;
 	$current_lvl = 0;
-	$lvl_ids = array();
-	$lines = split( "\n", $_REQUEST['textarea_terms'] );
+	$lvl_ids = array(0=>0);
+	$lines = explode( "\n", $_REQUEST['textarea_terms'] );
 
 	foreach( $lines as $line ) {
 		$a_line = trim( preg_replace( "![\r\n]+!", '', $line ) );
@@ -55,6 +55,7 @@ if ( is_array($_POST)
 
 		$splits = preg_split( "/^\-+/", $a_line );	// split indent and category data
 		$args = array();
+		$parent = 0;
 		if( isset( $splits[1] ) ) {
 			$sp_line = $splits[1];
 			preg_match( "/^\-+/", $line, $indentors );

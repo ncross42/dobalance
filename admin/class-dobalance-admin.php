@@ -82,6 +82,8 @@ class DoBalance_Admin {
 		$plugin_basename = plugin_basename( plugin_dir_path( realpath( dirname( __FILE__ ) ) ) . $this->plugin_slug . '.php' );
 		add_filter( 'plugin_action_links_' . $plugin_basename, array( $this, 'add_action_links' ) );
 
+		require_once( plugin_dir_path( __FILE__ ) . 'views/user_hierarchy.php' );
+
 		/**
 		 * CMB 2 for metabox and many other cool things!
 		 * https://github.com/WebDevStudios/CMB2
