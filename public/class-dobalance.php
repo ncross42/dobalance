@@ -322,38 +322,6 @@ class DoBalance {
 	}
 
 	/**
-	 * Init DB Schema
-	 */
-	private function init_db() {/*{{{*/
-		$sql = array();
-
-		$sql[] = <<<SQL
-ALTER TABLE `{$wpdb->prefix}_term_taxonomy` 
-	ADD COLUMN `lft` INT NOT NULL DEFAULT '0' COMMENT '' AFTER `count`,
-	ADD COLUMN `rgt` INT NOT NULL DEFAULT '0' COMMENT '' AFTER `lft`,
-	ADD COLUMN `lvl` INT NOT NULL DEFAULT '0' COMMENT '' AFTER `rgt`,
-	ADD COLUMN `pos` INT NOT NULL DEFAULT '0' COMMENT '' AFTER `lvl`,
-	ADD INDEX `IDX_taxonomy_parent_pos` ( `taxonomy`, `parent`, `pos` )
-;
-SQL;
-		$sql[] = <<<SQL
-CREATE TABLE `{$wpdb->prefix}_dob_user_hierarchy` (
-  `user_id` int(11) NOT NULL DEFAULT '0' COMMENT 'wp_bp_xprofile_data',
-  `field_id` int(11) NOT NULL DEFAULT '0' COMMENT 'wp_bp_xprofile_data',
-  `term_taxonomy_id` int(11) NOT NULL DEFAULT '0' COMMENT 'wp_term_taxonomy',
-  PRIMARY KEY (`user_id`,`field_id`),
-  KEY `IDX_category_field` (`term_taxonomy_id`,`field_id`)
-);
-SQL;
-		// uninstall
-		$sql[] = <<<SQL
-ALTER TABLE `{$wpdb->prefix}wp_term_taxonomy` 
-	DROP `lft`, DROP `rgt`, DROP `lvl`, DROP `pos` 
-;
-SQL;
-	}/*}}}*/
-
-	/**
 	 * Fired for each blog when the plugin is activated.
 	 *
 	 * @since    1.0.0

@@ -12,8 +12,9 @@ if( !function_exists( 'dob_admin_jstree_ajax' ) ) :
 	function dob_admin_jstree_ajax() {
 		if ( isset($_REQUEST) ) {
 			if ( !isset( $_REQUEST['nonce'] ) 
-				|| !wp_verify_nonce( $_REQUEST['nonce'], 'dob_admin_jstree_ajax' ) 
+				|| !wp_verify_nonce( $_REQUEST['nonce'], 'dob_admin_jstree_ajax'.DOBver ) 
 			) {
+				exit('error nonce');
 				return;
 			}
 		}
@@ -43,6 +44,8 @@ if( !function_exists( 'dob_admin_jstree_ajax' ) ) :
 							'a_attr'	=> array (
 								'slug'	=> $v['slug'],
 								'pos'		=> $v['pos'],
+								'draggable'=>'true', 
+								'ondragstart'=>'drag(event)',
 							),
 						);
 					}

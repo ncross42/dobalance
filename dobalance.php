@@ -31,40 +31,47 @@ if ( !defined( 'WPINC' ) ) {
 	die;
 }
 
+// define 
+define( 'DOBver', '0.0.1');				// 'DOBALANCE_VERSION'
+define( 'DOBslug', 'dobalance' );	// 'DOBALANCE_SLUG'
+define( 'DOBname', 'DoBalance' );	// 'DOBALANCE_NAME'
+define( 'DOBtable', $wpdb->prefix.'dob_' );
+define( 'DOBpath', plugin_dir_path(__FILE__) );
+
 /**
  * ------------------------------------------------------------------------------
  * Public-Facing Functionality
  * ------------------------------------------------------------------------------
  */
-require_once( plugin_dir_path( __FILE__ ) . 'includes/load_textdomain.php' );
+require_once( DOBpath . 'includes/load_textdomain.php' );
 
 /**
  * Load library for simple and fast creation of Taxonomy and Custom Post Type
  */
 
-require_once( plugin_dir_path( __FILE__ ) . 'includes/Taxonomy_Core/Taxonomy_Core.php' );
-require_once( plugin_dir_path( __FILE__ ) . 'includes/CPT_Core/CPT_Core.php' );
+require_once( DOBpath . 'includes/Taxonomy_Core/Taxonomy_Core.php' );
+require_once( DOBpath . 'includes/CPT_Core/CPT_Core.php' );
 
 /**
  * Load template system
  */
 
-require_once( plugin_dir_path( __FILE__ ) . 'includes/template.php' );
+require_once( DOBpath . 'includes/template.php' );
 
 /**
  * Load Widgets Helper
  */
 
-require_once( plugin_dir_path( __FILE__ ) . 'includes/Widgets-Helper/wph-widget-class.php' );
-require_once( plugin_dir_path( __FILE__ ) . 'includes/widgets/sample.php' );
+require_once( DOBpath . 'includes/Widgets-Helper/wph-widget-class.php' );
+require_once( DOBpath . 'includes/widgets/sample.php' );
 
 /**
  * Load Language wrapper function for WPML/Ceceppa Multilingua/Polylang
  */
 
-require_once( plugin_dir_path( __FILE__ ) . 'includes/language.php' );
+require_once( DOBpath . 'includes/language.php' );
 
-require_once( plugin_dir_path( __FILE__ ) . 'public/class-dobalance.php' );
+require_once( DOBpath . 'public/class-dobalance.php' );
 
 /**
  * Register hooks that are fired when the plugin is activated or deactivated.
@@ -100,16 +107,17 @@ add_action( 'plugins_loaded', array( 'DoBalance', 'get_instance' ), 9999 );
  */
 
 if ( is_admin() && (!defined( 'DOING_AJAX' ) || !DOING_AJAX ) ) {
-	require_once( plugin_dir_path( __FILE__ ) . 'admin/class-dobalance-admin.php' );
-	add_action( 'plugins_loaded', array( 'DoBalance_Admin', 'get_instance' ) );
+	require_once( DOBpath . 'admin/main.php' );
+	#require_once( DOBpath . 'admin/class-dobalance-admin.php' );
+	#add_action( 'plugins_loaded', array( 'DoBalance_Admin', 'get_instance' ) );
 } else {
-	require_once( plugin_dir_path( __FILE__ ) . 'public/dob_site.php' );
-	require_once( plugin_dir_path( __FILE__ ) . 'public/dob_ajax.php' );
+	require_once( DOBpath . 'public/dob_site.php' );
+	require_once( DOBpath . 'public/dob_ajax.php' );
 }
-require_once( plugin_dir_path( __FILE__ ) . 'public/dob_widgets.php' );
+require_once( DOBpath . 'public/dob_widgets.php' );
 
 
 include_once( "includes/jstree.ajax.php" );	// operation
 
-require_once( plugin_dir_path( __FILE__ ) . 'public/dob_register_form.inc.php' );
+require_once( DOBpath . 'public/dob_register_form.inc.php' );
 
