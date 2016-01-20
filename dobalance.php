@@ -116,8 +116,9 @@ if ( is_admin() && (!defined( 'DOING_AJAX' ) || !DOING_AJAX ) ) {
 }
 require_once( DOBpath . 'public/dob_widgets.php' );
 
+require_once( DOBpath.'includes/cpt_offer.php' );
 
-include_once( "includes/jstree.ajax.php" );	// operation
+include_once( 'includes/jstree.ajax.php' );	// operation
 
 require_once( DOBpath . 'public/dob_register_form.inc.php' );
 

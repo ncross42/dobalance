@@ -37,7 +37,7 @@ jQuery(document).ready(function($){
 		'core' : {
 			'data' : {
 				//'url' : ajaxurl + '?action=dob_admin_jstree&operation=get_node',
-				'url' : ajaxurl + '?action=dob_admin_jstree&operation=get_node&nonce='+locale_strings.nonce,
+				'url' : ajaxurl + '?action=dob_admin_jstree&operation=get_node&ondrag=1&taxonomy[]=topic&taxonomy[]=hierarchy&nonce='+locale_strings.nonce,
 				'data' : function (node) {
 					return { 'id' : node.id };
 				}

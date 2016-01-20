@@ -11,28 +11,22 @@
  * @link      http://example.com
  * @copyright 2015 Your Name or Company Name
  */
-/*{{{*/ /*
-$cmb = new_cmb2_box( array(
-	'id' => $this->plugin_slug . '_bulk',
-	'hookup' => false,
-	'show_on' => array( 'key' => 'options-page', 'value' => array( $this->plugin_slug ), ),
-	'show_names' => true,
-) );
-$cmb->add_field( array(
-	'name' => __( 'Category Terms', $this->plugin_slug ),
-	'desc' => __( 'add only, overwite if duplicated', $this->plugin_slug ),
-	'id' => $this->plugin_slug . '_bulk_category',
-	'type' => 'textarea',
-	'default' => 'hierarchy',
-) );
-$form = cmb2_get_metabox_form( $this->plugin_slug . '_bulk', $this->plugin_slug . '_bulk' );
- */ /*}}}*/
-
 $message = '[message] ';
 
 #$message = '<pre>'.print_r($_REQUEST,true).'</pre>';
 #$message .= wp_verify_nonce( $_POST['dobalance_admin_bulk'], 'dobalance_admin_bulk' ) ? 'yes' : 'no';
 #$message .= "\n<br>";
+
+global $wpdb;
+
+$sql = "SELECT COLUMN_TYPE FROM information_schema.COLUMNS
+	WHERE TABLE_NAME='{$wpdb->prefix}dob_user_category' AND COLUMN_NAME='taxonomy'";
+$COLUMN_TYPE = $wpdb->get_var($sql);
+eval( '$taxonomy_db = '.str_replace('enum','array',$COLUMN_TYPE).';' );
+
+$taxonomy = isset($_REQUEST['taxonomy']) 
+	&& in_array( $_REQUEST['taxonomy'], $taxonomy_db ) 
+	? $_REQUEST['taxonomy'] : 'category';
 
 # add bulk process
 if ( is_array($_POST) 
@@ -41,8 +35,8 @@ if ( is_array($_POST)
 	&& wp_verify_nonce( $_POST['dobalance_admin_bulk'], 'dobalance_admin_bulk' ) 
 ) {
 
-	include_once __DIR__."/../../includes/jstree.class.php";
-	$jstree = new jsTree();
+	require_once( DOBpath.'includes/jstree.class.php' );
+	$jstree = new jsTree(array('taxonomy'=>$taxonomy));
 
 	$added = $updated = $skipped = 0;
 	$current_lvl = 0;
@@ -54,7 +48,7 @@ if ( is_array($_POST)
 		if ( empty($a_line) ) continue;
 
 		$splits = preg_split( "/^\-+/", $a_line );	// split indent and category data
-		$args = array();
+		$args = array('taxonomy'=>$taxonomy);
 		$parent = 0;
 		if( isset( $splits[1] ) ) {
 			$sp_line = $splits[1];
@@ -85,14 +79,14 @@ if ( is_array($_POST)
 		}
 
 		// execute by checking SLUG duplication 
-		$wp_term = get_term_by('slug',$slug,'category');
+		$wp_term = get_term_by('slug',$slug,$taxonomy);
 		if ( $wp_term === false ) {
-			$lvl_ids[$current_lvl] = $jstree->mk( $parent, 9999, $args ); // wp_insert_term( $name, 'category', $args );
+			$lvl_ids[$current_lvl] = $jstree->mk( $parent, 9999, $args ); // wp_insert_term( $name, $taxonomy, $args );
 			++$added;
 		} else if ( $wp_term->name != $name 
 			|| $wp_term->description != $description 
 		) {
-			$ret = wp_update_term($wp_term->term_id, 'category', $args);
+			$ret = wp_update_term($wp_term->term_id, $taxonomy, $args);
 			$lvl_ids[$current_lvl] = $ret['term_taxonomy_id'];
 			++$updated;
 		} else {
@@ -100,7 +94,8 @@ if ( is_array($_POST)
 			++$skipped;
 		}
 	}
-	$message .= " Added: $added // Updated: $updated // Skipped: $skipped";
+	$last_index = $jstree->rebuild_mptt_index();
+	$message .= " Added: $added // Updated: $updated // Skipped: $skipped // Last_Index: $last_index";
 } else {
 	$message .= 'ADD ONLY, Overwite if duplicated';
 }
@@ -119,10 +114,17 @@ if ( is_array($_POST)
 
 		<div id="tabs-1" class="wrap">
 			<div class="postbox">
-				<h3 class="hndle"><span><?php _e( 'Add Bulk Category', DOBslug ); ?></span></h3>
+				<h3 class="hndle"><span><?php _e( 'Bulk MPTT Category', DOBslug ); ?></span></h3>
 				<div class="inside">
-					<span style="background-color:#F2DEDE"><?php echo $message; ?></span>
 					<form method="post">
+					<div class="container">
+						<b> Select Taxonomy : </b>
+						<label><input type="radio" name="taxonomy" value="category" <?php echo $taxonomy=='category' ? 'CHECKED' : ''; ?> >Category(일반)</label>
+						<label><input type="radio" name="taxonomy" value="hierarchy" <?php echo $taxonomy=='hierarchy' ? 'CHECKED' : ''; ?> >Hierarchy(계층별)</label>
+						<label><input type="radio" name="taxonomy" value="topic" <?php echo $taxonomy=='topic' ? 'CHECKED' : ''; ?> >Topic(주제별)</label>
+					</div>
+					<br>
+					<span style="background-color:#F2DEDE"><?php echo $message; ?></span>
 					<div class="container">
 					<?php wp_nonce_field( 'dobalance_admin_bulk', 'dobalance_admin_bulk' ); ?>
 						<textarea name="textarea_terms" id="textarea_terms" cols="50" rows="12"></textarea>

@@ -19,10 +19,13 @@ if( !function_exists( 'dob_admin_jstree_ajax' ) ) :
 			}
 		}
 
+		$taxonomy = isset($_REQUEST['taxonomy']) ? $_REQUEST['taxonomy'] : '';
+		$ondrag = isset($_REQUEST['ondrag']);
+
 		//$terms = $_REQUEST['terms'];
 		if(isset($_GET['operation'])) {
 			//$fs = new tree(db::get('mysqli://root@127.0.0.1/wp'), array('structure_table' => 'tree_struct', 'data_table' => 'tree_data', 'data' => array('nm')));
-			$fs = new jsTree();
+			$fs = new jsTree( array('taxonomy'=>$taxonomy) );
 			try {
 				$rslt = null;
 				switch($_GET['operation']) {
@@ -35,18 +38,23 @@ if( !function_exists( 'dob_admin_jstree_ajax' ) ) :
 					$temp = $fs->get_children($node);
 					$rslt = array();
 					foreach($temp as $v) {
+						switch ( $v['taxonomy'] ) {
+							case 'hierarchy': $icon = 'dashicons dashicons-networking'; break;
+							case 'topic': $icon = 'dashicons dashicons-editor-paste-text'; break;
+							case 'category': default: $icon = 'dashicons dashicons-category';
+						}
+						$a_attr = array ( 'slug'=>$v['slug'], 'pos'=>$v['pos'], 'taxonomy'=>$v['taxonomy'] );
+						if ( $ondrag ) {
+							$a_attr['draggable'] = 'true';
+							$a_attr['ondragstart'] = 'drag(event)';
+						}
 						$rslt[] = array(
-							'id'			=> $v['term_taxonomy_id'],
-							'text'		=> $v['name'].'//'.$v['slug'],
-							'children'=> ($v['rgt'] - $v['lft'] > 1),
-							'icon'		=> 'dashicons dashicons-category',
-							'li_attr'	=> array (),
-							'a_attr'	=> array (
-								'slug'	=> $v['slug'],
-								'pos'		=> $v['pos'],
-								'draggable'=>'true', 
-								'ondragstart'=>'drag(event)',
-							),
+							'id'					=> $v['term_taxonomy_id'],
+							'text'				=> $v['name'].'//'.$v['slug'],
+							'children'		=> ($v['rgt'] - $v['lft'] > 1),
+							'icon'				=> $icon,
+							'li_attr'			=> array (),
+							'a_attr'			=> $a_attr,
 						);
 					}
 					break;
@@ -57,7 +65,10 @@ if( !function_exists( 'dob_admin_jstree_ajax' ) ) :
 						$rslt = array('content' => 'Multiple selected');
 					} else {
 						$temp = $fs->get_node((int)$node[0], array('with_path' => true));
-						$rslt = array('content' => 'Selected: /' . implode('/',array_map(function ($v) { return $v['name']; }, $temp['path'])). '/'.$temp['name']);
+						$content = 'Selected: /' . implode('/',array_map(function($v){ return $v['name']; }, $temp['path'])). '/'.$temp['name'];
+						$rslt = array(
+							'content' => $content,
+						);
 					}
 					break;
 				case 'create_node':
@@ -76,8 +87,7 @@ if( !function_exists( 'dob_admin_jstree_ajax' ) ) :
 				case 'rename_node':
 					$node = isset($_GET['id']) && $_GET['id'] !== '#' ? (int)$_GET['id'] : 0;
 					$text = trim($_GET['text']);
-					if ( 1 <= strpos($text,'//') 
-					) {
+					if ( 1 <= strpos($text,'//') ) {
 						list($name,$slug) = explode('//',$text);
 						$rslt = $fs->rn( $node, array('name'=>$name,'slug'=>$slug) );
 					}

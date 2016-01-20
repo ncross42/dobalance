@@ -16,7 +16,7 @@ register_setting('dob_setting', 'dob_root_subject'  , 'trim' );
 $table_name = $wpdb->prefix.'dob_user_category';
 $sql = "CREATE TABLE IF NOT EXISTS `$table_name` (
 	`user_id` int(11) NOT NULL DEFAULT '0',
-	`taxonomy` enum('category','favorite','hierarchy','party','union') NOT NULL DEFAULT 'category',
+	`taxonomy` enum('category','favorite','hierarchy','topic','party','union') NOT NULL DEFAULT 'category',
 	`term_taxonomy_id` int(11) NOT NULL DEFAULT '0',
 	PRIMARY KEY (`user_id`,`taxonomy`,`term_taxonomy_id`),
 	KEY `term_taxonomy_id` (`term_taxonomy_id`,`taxonomy`,`user_id`)
@@ -47,10 +47,10 @@ $wpdb->query($sql);
 $table_name = $wpdb->prefix.'term_taxonomy';
 if ( empty($wpdb->get_var("SHOW COLUMNS FROM $table_name LIKE 'lft';") ) ) {
 	$sql = "ALTER TABLE `$table_name` 
-		ADD COLUMN `lft` INT NOT NULL DEFAULT '0' COMMENT 'MPTT columns used by DoBalance' AFTER `count`,
-		ADD COLUMN `rgt` INT NOT NULL DEFAULT '0' COMMENT 'MPTT columns used by DoBalance' AFTER `lft`,
-		ADD COLUMN `lvl` INT NOT NULL DEFAULT '0' COMMENT 'MPTT columns used by DoBalance' AFTER `rgt`,
-		ADD COLUMN `pos` INT NOT NULL DEFAULT '0' COMMENT 'MPTT columns used by DoBalance' AFTER `lvl`,
+		ADD COLUMN `lft` SMALLINT UNSIGNED NOT NULL DEFAULT '0' COMMENT 'MPTT columns used by DoBalance' AFTER `count`,
+		ADD COLUMN `rgt` SMALLINT UNSIGNED NOT NULL DEFAULT '0' COMMENT 'MPTT columns used by DoBalance' AFTER `lft`,
+		ADD COLUMN `lvl` TINYINT UNSIGNED NOT NULL DEFAULT '0' COMMENT 'MPTT columns used by DoBalance' AFTER `rgt`,
+		ADD COLUMN `pos` TINYINT UNSIGNED NOT NULL DEFAULT '0' COMMENT 'MPTT columns used by DoBalance' AFTER `lvl`,
 		ADD INDEX `IDX_taxonomy_parent_pos` ( `taxonomy`, `parent`, `pos` )
 	"; 
 	$wpdb->query($sql);

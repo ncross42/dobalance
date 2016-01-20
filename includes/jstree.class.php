@@ -1,33 +1,18 @@
 <?php
-/*{{{ALTER_TABLE_SQL*/
-$SQL_ALTER_ADD = <<<SQL
-ALTER TABLE `wp`.`wp_term_taxonomy` 
-	ADD COLUMN `lft` INT NOT NULL DEFAULT '0' COMMENT '' AFTER `count`,
-	ADD COLUMN `rgt` INT NOT NULL DEFAULT '0' COMMENT '' AFTER `lft`,
-	ADD COLUMN `lvl` INT NOT NULL DEFAULT '0' COMMENT '' AFTER `rgt`,
-	ADD COLUMN `pos` INT NOT NULL DEFAULT '0' COMMENT '' AFTER `lvl`,
-	ADD INDEX `IDX_taxonomy_parent_pos` ( `taxonomy`, `parent`, `pos` )
-;
-SQL;
-$SQL_ALTER_DROP = <<<SQL
-ALTER TABLE `wp`.`wp_term_taxonomy` 
-	DROP `lft`, DROP `rgt`, DROP `lvl`, DROP `pos` 
-;
-SQL;
-/*}}}*/
-
 // TO DO: better exceptions, use params
 class jsTree
 {
 	protected $db = null;
 	protected $options = null;
 	protected $default = array(
-		't_base'		=> 'term_taxonomy',	// the base table (containing the id, left, right, level, parent_id and position fields)
-		't_data'		=> 'terms',		// table for additional fields (apart from base ones, can be the same as t_base)
-		'k_d2b'			=> 'term_id',		// which key(field) from the data table maps to the base table
-		'taxonomy'	=> 'category',	// default taxonomy
+		't_base'			=> 'term_taxonomy',	// the base structural table (containing the id, left, right, level, parent_id and position fields)
+		't_data'			=> 'terms',					// table for data fields (apart from base ones, can be the same as t_base)
+		't_meta'			=> 'termmeta',			// table for more additional fields 
+		'k_d2b'				=> 'term_id',				// which key(field) from the data table maps to the base table
+		'taxonomy'		=> array('category'),	// default taxonomy
 		'base' => array(			// which field (value) maps to what in the base (key)
 			'id'				=> 'term_taxonomy_id',
+			'taxonomy'	=> 'taxonomy',
 			'parent_id'	=> 'parent',
 			'left'			=> 'lft',
 			'right'			=> 'rgt',
@@ -47,13 +32,36 @@ class jsTree
 		$this->db = $wpdb;
 		$this->default['t_base'] = $wpdb->prefix.$this->default['t_base'];
 		$this->default['t_data'] = $wpdb->prefix.$this->default['t_data'];
+		$this->default['t_meta'] = $wpdb->prefix.$this->default['t_data'];
 		$this->options = array_merge($this->default, $options);
+		$this->validate_taxonomy();
+	}/*}}}*/
+
+	private function validate_taxonomy() {/*{{{*/
+		/**
+		 * enum('category','favorite','hierarchy','party','union')
+		 * $sql = "SELECT COLUMN_TYPE FROM information_schema.COLUMNS 
+		 *   WHERE TABLE_NAME='wp2_dob_user_category' AND COLUMN_NAME='taxonomy'"
+		 * $COLUMN_TYPE = $this->db->get_var($sql);
+		 * eval( '$taxonomy_db = '.str_replace('enum','array',$COLUMN_TYPE).';' );
+		 */
+		$taxonomy_db = array('category','favorite','hierarchy','topic','party','union');
+		$taxonomy = $this->options['taxonomy'];
+		if ( is_array($taxonomy) ) {
+			$this->options['taxonomy'] = array_intersect($taxonomy,$taxonomy_db);
+		} else if ( ! in_array($taxonomy,$taxonomy_db) ) {
+			$this->options['taxonomy'] = '';
+		}
 	}/*}}}*/
 
 	public function get_node($id, $options = array()) {/*{{{*/
 		extract($this->options);
 		$fields_base = implode("`, s.`", $base);
 		$fields_data = implode("`, d.`", $data);
+		$sql_taxonomy = empty($taxonomy) ? '' 
+			: ( is_string($taxonomy) ?  "s.`taxonomy` = '$taxonomy' AND "
+				: "s.`taxonomy` IN ('".implode("','",$taxonomy)."') AND"
+			);
 		$sql = "
 			SELECT
 				s.`$fields_base`,
@@ -61,7 +69,7 @@ class jsTree
 			FROM
 				`$t_base` s JOIN `$t_data` d USING (`$k_d2b`)
 			WHERE
-				s.`taxonomy` = '$taxonomy' AND
+				$sql_taxonomy 
 				s.`{$base['id']}` = d.`$k_d2b` AND
 				s.`{$base['id']}` = ".(int)$id;
 		$node = $this->db->get_row($sql, ARRAY_A);
@@ -81,6 +89,10 @@ class jsTree
 		extract($this->options);
 		$fields_base = implode("`, s.`", $base);
 		$fields_data = implode("`, d.`", $data);
+		$sql_taxonomy = empty($taxonomy) ? '' 
+			: ( is_string($taxonomy) ?  "s.`taxonomy` = '$taxonomy' AND "
+				: "s.`taxonomy` IN ('".implode("','",$taxonomy)."') AND"
+			);
 		$sql = false;
 		if($recursive) {
 			$node = $this->get_node($id);
@@ -91,7 +103,7 @@ class jsTree
 				FROM
 					`$t_base` s JOIN `$t_data` d USING (`$k_d2b`)
 				WHERE
-					s.`taxonomy` = '$taxonomy' AND
+					$sql_taxonomy
 					s.".$base['left']." > ".(int)$node[$base['left']]." AND
 					s.".$base['right']." < ".(int)$node[$base['right']]."
 				ORDER BY
@@ -106,7 +118,7 @@ class jsTree
 				FROM
 					`$t_base` s JOIN `$t_data` d USING (`$k_d2b`)
 				WHERE
-					s.`taxonomy` = '$taxonomy' AND
+					$sql_taxonomy
 					s.".$base['parent_id']." = ".(int)$id."
 				ORDER BY
 					s.".$base['position']."
@@ -118,6 +130,7 @@ class jsTree
 	public function get_path($id) {/*{{{*/
 		extract($this->options);
 		$node = $this->get_node($id);
+		$sql_taxonomy = ''; // empty($taxonomy) ? '' : "s.`taxonomy` IN ('".implode("','",$taxonomy)."') AND";
 		$sql = false;
 		if($node) {
 			$sql = "
@@ -127,7 +140,7 @@ class jsTree
 				FROM
 					`$t_base` s JOIN `$t_data` d USING (`$k_d2b`)
 				WHERE
-					s.`taxonomy` = '$taxonomy' AND
+					$sql_taxonomy
 					s.{$base['left']} < ".(int)$node[$base['left']]." AND
 					s.{$base['right']} > ".(int)$node[$base['right']]."
 				ORDER BY
@@ -225,7 +238,7 @@ class jsTree
 			'parent'	=> $parent_id,	// $parent[$base['id']]
 			'description'	=> empty($input['description']) ? '' : $input['description'],
 		);
-		$ret = wp_insert_term( $input['name'], 'category', $args );
+		$ret = wp_insert_term( $input['name'], $taxonomy, $args );
 		if ( is_wp_error($ret) && $ret->get_error_message() )
 			wp_die( $ret->get_error_message() );
 		$term_id = $ret['term_id'];
@@ -417,7 +430,7 @@ class jsTree
       DELETE tt, t, tm 
       FROM $t_base tt 
         JOIN $t_data t ON tt.term_id = t.term_id
-        LEFT JOIN wp_termmeta tm ON tt.term_id=tm.term_id
+        LEFT JOIN $t_meta tm ON tt.term_id=tm.term_id
       WHERE `taxonomy` = '$taxonomy' 
         AND {$base['left']} >= $lft AND {$base['right']} <= $rgt
 		";
@@ -452,7 +465,7 @@ class jsTree
       DELETE tt, t, tm 
       FROM $t_base tt 
         JOIN $t_data t ON tt.term_id = t.term_id
-        LEFT JOIN wp_termmeta tm ON tt.term_id=tm.term_id
+        LEFT JOIN $t_meta tm ON tt.term_id=tm.term_id
       WHERE `taxonomy` = '$taxonomy' 
         AND tt.`$k_d2b` IN (".implode(',',$tmp).")";
 		}
@@ -469,8 +482,9 @@ class jsTree
 		return true;
 	}/*}}}*/
 
-	public function rn($id, $data) {/*{{{*/
-		$updated = wp_update_term($id, 'category', $data);
+	public function rn($id, $args) {/*{{{*/
+		extract($this->options);
+		$updated = wp_update_term($id, $taxonomy, $args);
 		if ( is_wp_error($updated) && $updated->get_error_message() )
 			wp_die( $updated->get_error_message() );
 
@@ -479,7 +493,7 @@ class jsTree
 			throw new Exception('Could not rename non-existing node');
 		}
 		if ( $updated && !is_wp_error($updated) ) {
-			$tag = get_term( $updated['term_id'], 'category' );
+			$tag = get_term( $updated['term_id'], $taxonomy );
 			if ( !$tag || is_wp_error( $tag ) ) {
 				if ( is_wp_error($tag) && $tag->get_error_message() )
 					wp_die( $tag->get_error_message() );
@@ -941,4 +955,5 @@ class jsTree
 
 		return $index;
 	}/*}}}*/
+
 }

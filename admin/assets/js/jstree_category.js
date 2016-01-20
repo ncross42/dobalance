@@ -16,6 +16,8 @@ jQuery(document).ready(function($){
 		'nonce' : locale_strings.nonce
 	};
 
+	var g_taxonomy = '';
+
 	$('#jstree_category').jstree({
 		'core' : {
 			'data' : {
@@ -35,7 +37,7 @@ jQuery(document).ready(function($){
 	})
 	.on('delete_node.jstree', function (e, data) {
 		$.get( ajaxurl + '?action=dob_admin_jstree&nonce='+locale_strings.nonce, 
-			{'operation':'delete_node','id':data.node.id })
+			{ 'operation':'delete_node', 'id':data.node.id, 'taxonomy':g_taxonomy })
 		.fail(function () {
 			data.instance.refresh();
 		});
@@ -48,31 +50,32 @@ jQuery(document).ready(function($){
 		var new_text = 'name-' + time2 + '//' + 'slug-'+time2;
 		data.node.text = new_text;
 		$.get( ajaxurl + '?action=dob_admin_jstree&nonce='+locale_strings.nonce, 
-			{'operation':'create_node','id' : data.node.parent, 'position' : data.position, 'text' : data.node.text })
+			{'operation':'create_node', 'id':data.node.parent, 'taxonomy':g_taxonomy, 'position':data.position, 'text':data.node.text }
+		)
 		.done(function (d) {
 			data.instance.set_id(data.node, d.id);
 		})
-	.fail(function () {
-		data.instance.refresh();
-	});
+		.fail(function () {
+			data.instance.refresh();
+		});
 	})
 	.on('rename_node.jstree', function (e, data) {
 		$.get( ajaxurl + '?action=dob_admin_jstree&nonce='+locale_strings.nonce, 
-			{'operation':'rename_node','id' : data.node.id, 'text' : data.text })
+			{'operation':'rename_node','id' : data.node.id, 'taxonomy':g_taxonomy, 'text' : data.text })
 		.fail(function () {
 			data.instance.refresh();
 		});
 	})
 	.on('move_node.jstree', function (e, data) {
 		$.get( ajaxurl + '?action=dob_admin_jstree&nonce='+locale_strings.nonce, 
-			{'operation':'move_node','id' : data.node.id, 'parent' : data.parent, 'position' : data.position })
+			{'operation':'move_node','id' : data.node.id, 'taxonomy':g_taxonomy, 'parent' : data.parent, 'position' : data.position })
 		.fail(function () {
 			data.instance.refresh();
 		});
 	})
 	.on('copy_node.jstree', function (e, data) {
 		$.get( ajaxurl + '?action=dob_admin_jstree&nonce='+locale_strings.nonce, 
-			{'operation':'copy_node','id' : data.original.id, 'parent' : data.parent, 'position' : data.position })
+			{'operation':'copy_node','id' : data.original.id, 'taxonomy':g_taxonomy, 'parent' : data.parent, 'position' : data.position })
 		.always(function () {
 			data.instance.refresh();
 		});
@@ -88,6 +91,10 @@ jQuery(document).ready(function($){
 			$('#data .content').hide();
 			$('#data .default').text('Select a file from the tree.').show();
 		}
+	})
+	.on('select_node.jstree', function (e, data) {
+		$node = $('#'+data.node.a_attr.id);
+		g_taxonomy = $node.attr('taxonomy');
 	});
 
 });

@@ -96,17 +96,25 @@ function dob_admin_add_menu() {/*{{{*/
 	);
 	// SUB menu 1 : bulk
 	$dob_screen_hook[] = add_submenu_page( 
-		DOBslug, __('DoBalance',DOBslug), __('add bulk category',DOBslug),
+		DOBslug, __('DoBalance',DOBslug), __('bulk mptt category',DOBslug),
 		'manage_options', DOBslug.'_bulk', 'dob_admin_bulk'
 	);
+
 	// SUB menu 2 : jsTree category
 	$dob_screen_hook[] = add_submenu_page( 
-		DOBslug, __('DoBalance',DOBslug), __('jsTree category',DOBslug),
+		DOBslug, __('DoBalance',DOBslug), 'jsTree '.__('category',DOBslug),
 		'manage_options', DOBslug.'_jstree_category', 'dob_admin_jstree_category'
 	);
-	// SUB menu 2 : jsTree user
+
+	/* SUB menu 3 : jsTree hierarchy
 	$dob_screen_hook[] = add_submenu_page( 
-		DOBslug, __('DoBalance',DOBslug), __('jsTree favorite',DOBslug),
+		DOBslug, __('DoBalance',DOBslug), 'jsTree '.__('hierarchy',DOBslug),
+		'manage_options', DOBslug.'_jstree_hierarchy', 'dob_admin_jstree_hierarchy'
+	);*/
+
+	// SUB menu 4 : jsTree user
+	$dob_screen_hook[] = add_submenu_page( 
+		DOBslug, __('DoBalance',DOBslug), 'jsTree '.__('favorite',DOBslug),
 		'manage_options', DOBslug.'_jstree_favorite', 'dob_admin_jstree_favorite'
 	);
 }/*}}}*/
@@ -135,6 +143,25 @@ function dob_admin_jstree_category() {/*{{{*/
 	wp_localize_script( DOBslug.'-admin-jstree-category-js', 'locale_strings', $locale );
 
 	require_once( DOBpathAdmin.'pages/jstree_category.php' );
+}/*}}}*/
+function dob_admin_jstree_hierarchy() {/*{{{*/
+	$plugins_url = plugins_url('/', __FILE__);
+	wp_enqueue_script( DOBslug.'-jstree-js', $plugins_url.'../assets/jstree/jstree.min.js', array( 'jquery' ), DOBver, true );
+	wp_enqueue_script( DOBslug.'-admin-jstree-hierarchy-js', $plugins_url.'assets/js/jstree_hierarchy.js', array( DOBslug.'-jstree-js' ), DOBver, true );
+	wp_enqueue_style( DOBslug.'-jstree-css', $plugins_url.'../assets/jstree/themes/default/style.min.css' );
+	// localize js-messages
+	$locale = array(
+		'success' => __( 'Congrats! The terms are added successfully!', DOBslug ),
+		'failed'  => __( 'Something went wrong... are you sure you have enough permission to add terms?', DOBslug ),
+		'notax'   => __( 'Please select a taxonomy first!', DOBslug ),
+		'noterm'  => __( 'Please input some terms!', DOBslug ),
+		'confirm' => __( 'Are you sure you want to add these terms?', DOBslug ),
+		//'ajax_url' => admin_url( 'admin-ajax.php' ), // just use 'ajaxurl'
+		'nonce' => wp_create_nonce('dob_admin_jstree_ajax'.DOBver),
+	);
+	wp_localize_script( DOBslug.'-admin-jstree-hierarchy-js', 'locale_strings', $locale );
+
+	require_once( DOBpathAdmin.'pages/jstree_hierarchy.php' );
 }/*}}}*/
 function dob_admin_jstree_favorite() {/*{{{*/
 	$plugins_url = plugins_url('/', __FILE__);
