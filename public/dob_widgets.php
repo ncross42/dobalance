@@ -43,7 +43,9 @@ class Dob_Widget extends WP_Widget {
 	function widget( $args, $instance ) {
 		extract($args);
 
-		$title = apply_filters('widget_title', $instance['title']);
+		$title = isset($instance['title']) ?
+			apply_filters('widget_title', $instance['title'])
+			: __('DoBalance Vote Result', DOBslug);
 
 		// show only if single post
 		if ( ! is_single() ) {
@@ -101,7 +103,7 @@ $content = '<pre>'.htmlentities(print_r($text_chart,true)).'</pre>';
 
 		echo $before_widget;
 		echo $before_title.$title.$after_title;
-		echo $contents;
+		//echo $contents;
 		echo $content;
 		echo $after_widget;
 	}

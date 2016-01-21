@@ -37,6 +37,19 @@ function dob_register_taxonomy() {
 
 }
 
+// for valid mptt ordering
+add_filter( 'get_terms_orderby', 'dob_filter_taxonomy_orderby', 10, 3 ); 
+function dob_filter_taxonomy_orderby( $orderby, $args, $taxonomies ) {
+	foreach ( $taxonomies as $one ) {
+		if ( $orderby == 't.name' &&
+			( $one == 'hierarchy' || $one == 'topic' ) 
+		) {
+			return 'tt.lft';
+		}
+	}
+	return $orderby;
+}
+
 add_action( 'init', 'dob_register_cpt_offer' );
 function dob_register_cpt_offer() {
 

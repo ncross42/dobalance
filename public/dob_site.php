@@ -6,10 +6,8 @@
 add_action( 'wp', 'dob_wp_init' );
 function dob_wp_init() {/*{{{*/
 	// Load js file
-	wp_register_script('bdd-js', plugins_url('assets/js/bdd.js',__FILE__), array('jquery'));
-	#wp_localize_script('bdd-js', 'bddjs', array( 'ajax_url' => admin_url( 'admin-ajax.php' )));
-	wp_enqueue_script('jquery');
-	wp_enqueue_script('bdd-js');
+	wp_enqueue_script('bdd-js', plugins_url('assets/js/bdd.js',__FILE__), array('jquery'));
+	//wp_localize_script('bdd-js', 'bddjs', array( 'ajaxurl' => admin_url( 'admin-ajax.php' )));
 
 	// Load css file
 	wp_enqueue_style( 'bdd-css', plugins_url( 'assets/css/bdd.css', __FILE__ ) );

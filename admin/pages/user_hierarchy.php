@@ -12,7 +12,7 @@ function dob_get_hierarchy_rows($bJson = false) {
 	$sql = "SELECT term_taxonomy_id, lvl, slug, name 
 			/* CONCAT( REPEAT('\t',lvl), slug ) AS slug_full */
 		FROM {$wpdb->prefix}term_taxonomy JOIN {$wpdb->prefix}terms USING (term_id) 
-		WHERE slug LIKE '{$root}%' 
+		WHERE taxonomy = 'hierarchy'
 		ORDER BY lft";
 
 	$ret = $wpdb->get_results( $sql/*, ARRAY_A*/ );
