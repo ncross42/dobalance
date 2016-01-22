@@ -39,7 +39,7 @@ function dob_register_taxonomy() {
 
 // for valid mptt ordering
 add_filter( 'get_terms_orderby', 'dob_filter_taxonomy_orderby', 10, 3 ); 
-function dob_filter_taxonomy_orderby( $orderby, $args, $taxonomies ) {
+function dob_filter_taxonomy_orderby( $orderby, $args, $taxonomies ) {/*{{{*/
 	foreach ( $taxonomies as $one ) {
 		if ( $orderby == 't.name' &&
 			( $one == 'hierarchy' || $one == 'topic' ) 
@@ -48,7 +48,7 @@ function dob_filter_taxonomy_orderby( $orderby, $args, $taxonomies ) {
 		}
 	}
 	return $orderby;
-}
+}/*}}}*/
 
 add_action( 'init', 'dob_register_cpt_offer' );
 function dob_register_cpt_offer() {
@@ -92,4 +92,51 @@ function dob_register_cpt_offer() {
 	);/*}}}*/
 
 	register_post_type( 'offer', $args );
+}
+
+add_action( 'add_meta_boxes', 'dob_add_meta_boxes' );
+function dob_add_meta_boxes() {
+	add_meta_box( 'dob_cmb_pros', __( 'Pros', DOBslug ), 'dob_cmb_pros_html', 'offer', 'normal', 'high' );
+	add_meta_box( 'dob_cmb_cons', __( 'Cons', DOBslug ), 'dob_cmb_cons_html', 'offer', 'normal', 'high' );
+	add_meta_box( 'dob_cmb_vote', __( 'Voting Method', DOBslug ), 'dob_cmb_vote_html', 'offer', 'normal', 'high' );
+}
+
+function dob_cmb_text_area ( $post_id, $name ) {/*{{{*/
+	$text = __($name, DOBslug );
+	$content = get_post_meta($post_id, $name, true);
+	return <<<HTML
+		<!--label for="$name">$text</label><br /--><textarea style="width:95%;" ROWS=5 name="$name">$content</textarea>
+HTML;
+}/*}}}*/
+// echo '<input type="text" name="new_field" value="'.esc_attr($value).'" size="25" />';
+function dob_cmb_pros_html($post) { echo dob_cmb_text_area($post->ID,'dob_cmb_pros'); }
+function dob_cmb_cons_html($post) { echo dob_cmb_text_area($post->ID,'dob_cmb_cons'); }
+
+function dob_cmb_vote_html( $post ) {
+	// Add a nonce field so we can check for it later.
+	wp_nonce_field( 'dob_meta_box_nonce', 'dob_cmb_nonce' );
+
+	$dob_cmb_vote_json = get_post_meta( $post->ID, 'dob_cmb_vote_json', true );
+
+	echo '<label for="dob_new_field">';
+	_e( 'Description for this field', DOBslug );
+	echo '</label> ';
+}
+
+add_action( 'save_post', 'dob_save_cmb_data' );
+function dob_save_cmb_data( $post_id ) {
+	// Check Environments
+	if ( empty($_POST['post_type']) || 'offer'!=$_POST['post_type'] 
+		|| empty($_POST['dob_cmb_nonce']) || ! wp_verify_nonce($_POST['dob_cmb_nonce'],'dob_meta_box_nonce') 
+		|| ! current_user_can('edit_post',$post_id)
+		|| ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) 
+		|| empty($_POST['dob_cmb_vote'])
+	) return;
+
+	//$my_data = sanitize_text_field( $_POST['dob_new_field'] ); // Sanitize user input.
+
+	// https://codex.wordpress.org/Function_Reference/update_post_meta
+	// Update the meta field in the database.
+	update_post_meta( $post_id, 'dob_cmb_pros', $_POST['dob_cmb_pros'] );
+	update_post_meta( $post_id, 'dob_cmb_cons', $_POST['dob_cmb_cons'] );
 }
