@@ -111,7 +111,8 @@ if ( is_admin() && (!defined( 'DOING_AJAX' ) || !DOING_AJAX ) ) {
 	#require_once( DOBpath . 'admin/class-dobalance-admin.php' );
 	#add_action( 'plugins_loaded', array( 'DoBalance_Admin', 'get_instance' ) );
 } else {
-	require_once( DOBpath . 'public/dob_site.php' );
+	#require_once( DOBpath . 'public/dob_site.php' );
+	require_once( DOBpath . 'public/dob_vote.php' );
 	require_once( DOBpath . 'public/dob_ajax.php' );
 }
 require_once( DOBpath . 'public/dob_widgets.php' );

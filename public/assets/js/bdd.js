@@ -8,8 +8,8 @@ jQuery(document).ready(function($){
 		jQuery(".status-" + post_id).html("&nbsp;&nbsp;").addClass("loading-img").show();
 
 		jQuery.post(
-			//bddjs.ajax_url
-			ajaxurl
+			bddjs.ajaxurl
+			//ajaxurl
 			, {action: "bdd", task : task, post_id : post_id, nonce: nonce}
 			, function( response ) {
 				window.console.log(response);

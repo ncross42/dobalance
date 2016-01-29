@@ -59,3 +59,40 @@ SQL;
 	return $ret = $wpdb->get_row($prepare,ARRAY_A);
 }/*}}}*/
 
+function dob_get_voted_data($post_id,$user_id=0) {/*{{{*/
+	global $wpdb;
+	if ( empty($user_id) ) $user_id = get_current_user_id();
+
+	$table_name = $wpdb->prefix . 'dob_vote_post_latest';
+	$sql = <<<SQL
+SELECT *
+FROM `{$table_name}`
+WHERE post_id = %d AND user_id = %d
+SQL;
+	$prepare = $wpdb->prepare($sql, $post_id, $user_id);
+	return $ret = $wpdb->get_row($prepare,ARRAY_A);
+}/*}}}*/
+
+function dob_get_vote_count($post_id) {/*{{{*/
+	global $wpdb;
+	$table_name = $wpdb->prefix . 'dob_vote_post_latest';
+
+	$sql = <<<SQL
+SELECT 
+	SUM(IF(value=1,1,0)) AS `like`
+	, SUM(IF(value=-1,-1,0)) AS `unlike`
+FROM `{$table_name}`
+WHERE post_id = %d
+SQL;
+	$prepare = $wpdb->prepare($sql, $post_id);
+	$ret = $wpdb->get_row($prepare,ARRAY_A);
+
+	if ( empty($ret) ) $ret = array ( 'like'=>0, 'unlike'=>0 );
+	else {
+		if ( !isset($ret['like']) ) $ret['like'] = 0;
+		if ( !isset($ret['unlike']) ) $ret['unlike'] = 0;
+	}
+	
+	return $ret;
+}/*}}}*/
+
