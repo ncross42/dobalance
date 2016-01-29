@@ -123,6 +123,8 @@ function dob_ajax_callback() {
 		$result = array(
 			'msg' => $msg,
 			'error' => $error,
+			'old' => $old_value,
+			'task' => $task,
 			'like' => $arr_vote_count['like'],
 			'unlike' => $arr_vote_count['unlike']
 		);

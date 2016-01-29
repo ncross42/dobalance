@@ -367,12 +367,10 @@ echo '<pre>';
 #file_put_contents('/tmp/in.php',PHP_EOL.(microtime(true)-$ts),FILE_APPEND);
 	//useless, $post_leaf_hierarchy = dob_vote_get_post_hierarchy_leaf($post_id,$influences);
 
-	$vote_latest = dob_vote_get_post_latest($post_id);	// user_id => rows	// for login_name
 	$aDelegate = array();
 	$nDelegate = $nHierarchy = $nDirect = 0;
 	$hierarchy_voter = dob_vote_get_hierarchy_voter($post_id);	// order by lft
 #print_r($hierarchy_voter);
-#print_r($vote_latest);
 	foreach ( $hierarchy_voter as $ttid => $v ) {
 		$tname		= $v['tname'];
 		$slug			= $v['slug'];
@@ -429,8 +427,12 @@ echo '<pre>';
 	}
 #print_r($hierarchy_voter);
 
+	$vote_latest = dob_vote_get_post_latest($post_id);	// user_id => rows	// for login_name
+#print_r($vote_latest);
+
 	$h_chart = array();
 	foreach ( $hierarchy_voter as $ttid => $v ) {
+		$indent = ' ~ '.str_repeat(' ~ ',$v['lvl']);
 		if ( $v['bLeaf'] ) {
 			$h_chart[] = $indent.$v['tname']."({$v['inf']}) : direct";
 		} else {
@@ -441,7 +443,6 @@ echo '<pre>';
 			if ( ! $v['bLeaf'] ) {
 				$no = array_diff($v['all_ids'],array_keys($v['uid_vals']));
 			}
-			$indent = ' ~ '.str_repeat(' ~ ',$v['lvl']);
 			$yes = implode(',',$yes);
 			$no = empty($no) ? '' : '//'.implode(',',$no);
 			$h_chart[] = $indent.$v['tname']."({$v['inf']}) : {$v['value']} ($yes) $no";
@@ -450,9 +451,10 @@ echo '<pre>';
 	$content_chart = implode('<br>',$h_chart);
 
 	// build final vote results.
+	$myval = empty($vote_latest[$user_id]) ? '0' : $vote_latest[$user_id]['value'];
 	$result_stat = array();
 	if ( $dob_vm_type == 'updown' ) {
-		$result_stat = array('1'=>0, '0'=>0, '-1'=>0);
+		$result_stat = array('myval'=>$myval, '1'=>0, '0'=>0, '-1'=>0);
 		foreach ( $hierarchy_voter as $ttid => $v ) {
 			if ( $v['bLeaf'] ) {
 				foreach ( $v['uid_vals'] as $uid => $val ) {
@@ -464,6 +466,7 @@ echo '<pre>';
 			}
 		}
 	}
+#print_r($result_stat);
 
 echo '</pre>';
 	##############
@@ -549,8 +552,9 @@ HTML;
 }
 
 function dob_vote_display_updown($post_id,$result_stat,$user_id=0) {/*{{{*/
+	$myval				= $result_stat['myval'];
 	$like_count		= $result_stat['1'];
-	$unlike_count	= $result_stat['-1'];
+	$unlike_count	= -($result_stat['-1']);
 	$title_text_like = 'Like';
 	$title_text_unlike = 'Unlike';
 	$nonce = wp_create_nonce('dob_vote_vote_nonce');
@@ -564,13 +568,13 @@ function dob_vote_display_updown($post_id,$result_stat,$user_id=0) {/*{{{*/
 	<div class='watch-action'>
 		<div class='watch-position align-$alignment'>
 			<div class='action-like'>
-				<a class='lbg-$style like-$post_id jlk' href='javascript:void(0)' data-task='like' data-post_id='$post_id' data-user_id='$user_id' data-nonce='$nonce' rel='nofollow'>
+				<a class='lbg-$style like-$post_id jlk' href='javascript:void(0)' data-task='like' data-myval='$myval' data-post_id='$post_id' data-user_id='$user_id' data-nonce='$nonce' rel='nofollow'>
 					<img src='$url_pixel' title='$title_text_like' />
 					<span class='lc-$post_id lc'>$like_count</span>
 				</a>
 			</div>
 			<div class='action-unlike'>
-				<a class='unlbg-$style unlike-$post_id jlk' href='javascript:void(0)' data-task='unlike' data-post_id='$post_id' data-user_id='$user_id' data-nonce='$nonce' rel='nofollow'>
+				<a class='unlbg-$style unlike-$post_id jlk' href='javascript:void(0)' data-task='unlike' data-myval='$myval' data-post_id='$post_id' data-user_id='$user_id' data-nonce='$nonce' rel='nofollow'>
 					<img src='$url_pixel' title='$title_text_unlike' />
 					<span class='unlc-$post_id unlc'>$unlike_count</span>
 				</a>
