@@ -37,6 +37,7 @@ define( 'DOBslug', 'dobalance' );	// 'DOBALANCE_SLUG'
 define( 'DOBname', 'DoBalance' );	// 'DOBALANCE_NAME'
 define( 'DOBtable', $wpdb->prefix.'dob_' );
 define( 'DOBpath', plugin_dir_path(__FILE__) );
+define( 'DOBmaxbit', 7 );
 
 /**
  * ------------------------------------------------------------------------------

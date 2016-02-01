@@ -3,7 +3,8 @@
  * Create site pages for this plugin
  */
 
-require_once('dob_user_hierarchy.inc.php');
+#require_once('dob_user_hierarchy.inc.php');
+#require_once('dob_vote_update.php');
 
 add_action( 'wp', 'dob_vote_wp_init' );
 function dob_vote_wp_init() {/*{{{*/
@@ -42,10 +43,13 @@ function dob_vote_get_post_latest($post_id,$user_id=0) {/*{{{*/
 	$sql_user = empty($user_id) ? '' : ' AND user_id='.$user_id;
 
 	$t_latest = $wpdb->prefix . 'dob_vote_post_latest';
+	$t_category = $wpdb->prefix . 'dob_user_category';
 	$t_users = $wpdb->prefix . 'users';
 	$sql = <<<SQL
-SELECT $t_latest.*, user_login
-FROM `{$t_latest}` JOIN $t_users ON user_id=ID
+SELECT $t_latest.*, term_taxonomy_id AS ttid, user_login
+FROM `$t_latest` 
+	JOIN $t_category USING (user_id)
+	JOIN $t_users ON user_id=ID
 WHERE post_id = %d $sql_user
 SQL;
 	$prepare = $wpdb->prepare($sql, $post_id);
@@ -215,7 +219,6 @@ function dob_vote_get_hierarchy_influence($parent_id=0,$ancestor=array()) {/*{{{
 		'nSelf'			=> $nSelf,
 		'nLow'			=> $nLow,
 		'nTotal'		=> $nSelf+$nLow,
-		'nRecalc'		=> $nSelf+$nLow,
 		'bLeaf'			=> $bLeaf,
 		'ancestor'	=> $ancestor,
 	);
@@ -228,7 +231,7 @@ function dob_vote_get_user_hierarchy($term_taxonomy_id) {/*{{{*/
 
 	$sql = "SELECT user_id
 		FROM $t_user_hierarchy
-		WHERE term_taxonomy_id=$term_taxonomy_id";
+		WHERE taxonomy='hierarchy' AND term_taxonomy_id=$term_taxonomy_id";
 	$rows = $wpdb->get_results($sql,ARRAY_N);
 	return array_column($rows, 0);
 }/*}}}*/
@@ -297,69 +300,146 @@ SQL;
 	return $ret;
 }/*}}}*/
 
-function dob_vote_decide_updown( $point, $user_votes ) {/*{{{*/
-	$ret = 0;
-	$values = array();
-	foreach( $user_votes as $uid => $value ) {
-		$str = (string)$value;
-		if ( isset($values[$str]) ) {
-			$values[$str] += 1;
-		} else {
-			$values[$str] = 1;
-		}
+function dob_vote_aggregate_updown( $point, $user_votes ) {/*{{{*/
+	$stat = array();
+	foreach( $user_votes as /*$uid =>*/ $val ) {
+		$stat[$val] = isset($stat[$val]) ? 1+$stat[$val] : 1;
 	}
-
 	// check the critical point
-	foreach( $values as $str => $cnt ) {
-		if ( $cnt >= $point ) {
-			return (int)$str;
+	foreach( $stat as $val => $cnt ) {
+		if ( $point <= $cnt ) {
+			return $val;
 		}
 	}
 	return 0;
 }/*}}}*/
 
-function dob_vote_calc_choice( $point, $uid_vals ) {/*{{{*/
-	$ret = 0;
-	$values = array();
+function dob_vote_aggregate_choice( $point, $uid_vals ) {/*{{{*/
+	$sorted = array();
+	foreach( $uid_vals as /*$uid =>*/ $val ) {
+		$sorted[$val] = isset($sorted[$val]) ? 1+$sorted[$val] : 1;
+	}
+	// sort by reverse order
+	arsort($sorted);
+	// first
+	list( $k1, $v1 ) = each($sorted);
+	// check approaching to the critical points
+	if ( $v1 < $point ) return 0;
+	// second
+	if ( false===current($sorted) ) return $k1;	// only one
+	list( $k2, $v2 ) = current($sorted);
+	if ( $v1 == $v2 ) return 0;	// same count
+	else return $k1;
+}/*}}}*/
+
+function dob_vote_aggregate_plural( $point, $uid_vals ) {/*{{{*/
+	$stat = array();
 	foreach( $uid_vals as $uid => $value ) {
 		$arr1 = str_split(base_convert($value,10,2));
 		$arr2 = array_map('intval',$arr1);
 		foreach( $arr2 as $k => $v ) {
-			if ( isset($values[$k]) ) {
-				$values[$k][] = $v;
+			if ( isset($stat[$k]) ) {
+				$stat[$k][] = $v;
 			} else {
-				$values[$k] = array($v);
+				$stat[$k] = array($v);
 			}
 		}
 	}
-
 	// check the critical point
 	$results = array();
-	foreach( $values as $k => $v ) {
-		$results[$k] = ($point<=array_sum($v)) ? '1' : '0';
+	foreach( $stat as $k => $v ) {
+		$results[$k] = ($point <= array_sum($v)) ? '1' : '0';
 	}
 	$result = implode('',$results);
-	$ret = base_convert($result,2,10);
-
-	return $ret;
+	return (int)base_convert($result,2,10);
 }/*}}}*/
 
-function dob_vote_filter_choice( $value, $dob_vm_data ) {/*{{{*/
-	$ret = array();
-	$arr1 = base_convert($value,10,2);
-	$arr2 = array_reverse($arr1);
-	foreach ( $arr2 as $k=>$v ) {
-		if ( '1' == $v ) {
-			$ret[] = $dob_vm_data[$k];
+function dob_vote_update( $user_id, $post_id ) {/*{{{*/
+	global $wpdb, $global_real_ip;
+
+	// check required argument
+	if ( ! isset($_POST['dob_vote_type'])
+		|| ! isset($_POST['dob_vote_val'])
+		|| ! isset($_POST['dob_vote_nonce'])
+	) {
+		return 'check1';
+	}
+
+	$type		= $_POST['dob_vote_type'];
+	$val		= $_POST['dob_vote_val'];
+	$nonce	= $_POST['dob_vote_nonce'];
+	if ( ! wp_verify_nonce( $nonce, 'dob_vote_nonce_'.$type)
+		|| ! in_array( $type, array('updown','choice','plural') )
+	) {
+		return 'check2';
+	}
+
+	$ret = '';
+	$value = $val; 
+	if ( $type=='plural' ) { // normalize plural value
+		if ( ! is_array($val) ) return 'check2';
+		$bit = '';
+		for ( $i=1; $i<=DOBmaxbit; ++$i ) {
+			$bit .= isset($val[$i]) ? $val[$i] : '0';
+		}
+		$rev = strrev($bit);
+		$value = base_convert($rev,2,10);
+	}
+
+	// INSERT dob_vote_post_log
+	$sql = sprintf("INSERT IGNORE INTO `{$wpdb->prefix}dob_vote_post_log` 
+		SET user_id = %d, post_id = %d, value = %d, ip = '%s'",
+		$user_id, $post_id, $value, $global_real_ip 
+	);
+	$success = $wpdb->query( $sql );	// success == 1 (affected_rows)
+	if ( empty($success) ) { // failed (duplicated)
+		$ret = "TOO FAST CLICK~!! ";
+		$ret .= "DB ERROR(SQL)<br>\n: ".$sql;
+	}
+
+	$t_latest = $wpdb->prefix.'dob_vote_post_latest';
+	$sql = "SELECT value FROM `$t_latest` 
+		WHERE post_id = $post_id AND user_id = $user_id";
+	$old_val = $wpdb->get_var($sql);
+	// UPDATE dob_vote_post_latest
+	if ( is_null($old_val) ) {
+		$sql = sprintf("INSERT INTO `$t_latest` SET
+			post_id = %d, user_id = %d, value = %d",
+			$post_id, $user_id, $value 
+		);
+	} else {			
+		$sql = sprintf("UPDATE `$t_latest` SET value = %d
+			WHERE post_id = %d AND user_id = %d",
+			$value, $post_id, $user_id 
+		);
+	}
+
+	$success = $wpdb->query( $sql );	// success == 1 (affected_rows)
+	if ($success) {
+		$ret = '';
+	} else {
+		$ret = "DB ERROR(SQL)<br>\n: ".$sql;
+	}
+}/*}}}*/
+
+function dob_vote_accum_stat( &$stat, $type, $value, $cnt=1) {/*{{{*/
+	if ( $type=='updown' || $type=='choice' || $value <= 1 ) { 
+		$stat[$value] = isset($stat[$value]) ? $stat[$value]+$cnt : $cnt;
+	} else {
+		$arr1 = str_split(base_convert($value,10,2));
+		foreach ( $arr1 as $k=>$v ) {
+			if ( '1' == $v ) $stat[$k+1] = isset($stat[$k+1]) ? $stat[$k+1]+$cnt : $cnt;
 		}
 	}
-	return $ret;
 }/*}}}*/
 
 function dob_vote_contents( $dob_vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 echo '<pre>';
 	global $wpdb;
 	$user_id = get_current_user_id();
+	if ( ! empty($_POST) ) {
+		dob_vote_update($user_id,$post_id);
+	}
 
 #$ts = microtime(true);
 	$influences = dob_vote_get_hierarchy_influence();	// influences by term_taxonomy_id
@@ -371,12 +451,14 @@ echo '<pre>';
 	$nDelegate = $nHierarchy = $nDirect = 0;
 	$hierarchy_voter = dob_vote_get_hierarchy_voter($post_id);	// order by lft
 #print_r($hierarchy_voter);
-	foreach ( $hierarchy_voter as $ttid => $v ) {
-		$tname		= $v['tname'];
+	foreach ( $hierarchy_voter as $ttid => $v ) {/*{{{*/
+		/*$tname		= $v['tname'];
 		$slug			= $v['slug'];
-		$lvl			= $v['lvl'];
+		$lvl			= $v['lvl'];*/
 		$uid_vals	= $v['uid_vals'];
 		$uv_count	= count($uid_vals);
+		$all_ids = dob_vote_get_user_hierarchy($ttid);
+		$total = count($all_ids);
 
 		// check direct voting
 		if ( $influences[$ttid]['bLeaf'] ) {
@@ -389,22 +471,21 @@ echo '<pre>';
 			}
 			// self added leaf data
 			$hierarchy_voter[$ttid]['value'] = null;
+			$hierarchy_voter[$ttid]['inf'] = $total;
 		} else {
 			$value = 0;	// decision value
 			// check minimum turnout
-			$all_ids = dob_vote_get_user_hierarchy($ttid);
-			$total = count($all_ids);
 			if ( 1 == $total ) {
 				$value = current($uid_vals);
 			} elseif ( 1 < $total ) {
 				$point = $total*(2/3);
 				if ( $point <= $uv_count ) {
 					if ( $dob_vm_type == 'updown' ) {
-						$value = dob_vote_decide_updown($point,$uid_vals);
+						$value = dob_vote_aggregate_updown($point,$uid_vals);
 					} elseif ( $dob_vm_type == 'choice' ) {
-						$value = dob_vote_calc_choice($point,$uid_vals);
+						$value = dob_vote_aggregate_choice($point,$uid_vals);
 					} elseif ( $dob_vm_type == 'plural' ) {
-						$value = dob_vote_calc_plural($point,$uid_vals);
+						$value = dob_vote_aggregate_plural($point,$uid_vals);
 					}
 				}
 			} else {	// nobody is in this hierarchy
@@ -419,22 +500,28 @@ echo '<pre>';
 			// self added non-leaf data
 			$hierarchy_voter[$ttid]['value'] = $value;
 			$hierarchy_voter[$ttid]['all_ids'] = $all_ids;
+			$hierarchy_voter[$ttid]['inf'] = $influences[$ttid]['nLow'];
 		}
 		// self added common data
-		$hierarchy_voter[$ttid]['inf'] = $influences[$ttid]['nTotal'];
 		$hierarchy_voter[$ttid]['bLeaf'] = $influences[$ttid]['bLeaf'];
 		$hierarchy_voter[$ttid]['count'] = $uv_count;
-	}
+	}/*}}}*/
 #print_r($hierarchy_voter);
 
-	$vote_latest = dob_vote_get_post_latest($post_id);	// user_id => rows	// for login_name
-#print_r($vote_latest);
 
-	$h_chart = array();
+	$h_chart = array();/*{{{*/
+	$vote_latest = dob_vote_get_post_latest($post_id);	// user_id => rows	// for login_name
 	foreach ( $hierarchy_voter as $ttid => $v ) {
 		$indent = ' ~ '.str_repeat(' ~ ',$v['lvl']);
+		$inherit = 0;
+		foreach ( $influences[$ttid]['ancestor'] as $a_ttid ) {
+			if ( isset($hierarchy_voter[$a_ttid]['value']) ) {
+				$inherit = $hierarchy_voter[$a_ttid]['value'];
+			}
+		}
 		if ( $v['bLeaf'] ) {
-			$h_chart[] = $indent.$v['tname']."({$v['inf']}) : direct";
+			$myval = isset($v['uid_vals'][$user_id]) ? " ({$vote_latest[$user_id]['user_login']}:{$v['uid_vals'][$user_id]})" : '';
+			$h_chart[] = $indent.$v['tname']."({$v['inf']}) : [$inherit]".$myval;
 		} else {
 			$yes = $no = array();
 			foreach ( $v['uid_vals'] as $uid => $val ) {
@@ -444,42 +531,46 @@ echo '<pre>';
 				$no = array_diff($v['all_ids'],array_keys($v['uid_vals']));
 			}
 			$yes = implode(',',$yes);
-			$no = empty($no) ? '' : '//'.implode(',',$no);
+			$no = empty($no) ? '' : '#'.implode(',',$no);
 			$h_chart[] = $indent.$v['tname']."({$v['inf']}) : {$v['value']} ($yes) $no";
 		}
-	}
+	}/*}}}*/
 	$content_chart = implode('<br>',$h_chart);
 
 	// build final vote results.
-	$myval = empty($vote_latest[$user_id]) ? '0' : $vote_latest[$user_id]['value'];
 	$result_stat = array();
-	if ( $dob_vm_type == 'updown' ) {
-		$result_stat = array('myval'=>$myval, '1'=>0, '0'=>0, '-1'=>0);
-		foreach ( $hierarchy_voter as $ttid => $v ) {
-			if ( $v['bLeaf'] ) {
-				foreach ( $v['uid_vals'] as $uid => $val ) {
-					$result_stat[(string)$val] += 1;
-				}
-			} else if ( $v['value'] ) {	// non-leaf
-				$nHierarchy+=$v['inf'];
-				$result_stat[(string)$v['value']] += $v['inf'];
+	foreach ( $hierarchy_voter as $ttid => $v ) {
+		if ( $v['bLeaf'] ) {
+			foreach ( $v['uid_vals'] as $uid => $val ) {
+				dob_vote_accum_stat($result_stat,$dob_vm_type,$val,1);
+			}
+		} else if ( $val=$v['value'] ) {	// non-leaf
+			$nHierarchy += $inf = $v['inf'];
+			dob_vote_accum_stat($result_stat,$dob_vm_type,$val,$inf);
+		} elseif ( !empty($v['uid_vals']) ) {	// manager's private vote value
+			$nHierarchy += 1;
+			foreach ( $v['uid_vals'] as $uid => $val ) {
+				dob_vote_accum_stat($result_stat,$dob_vm_type,$val,1);
 			}
 		}
+	}
+	if ( isset($vote_latest[$user_id]) ) {
+		$result_stat['myval'] = $vote_latest[$user_id]['value'];
 	}
 #print_r($result_stat);
 
 echo '</pre>';
 	##############
-	# build HTML #
+	# build HTML #/*{{{*/
 	##############
-	// Get the nonce for security purpose and create the like and unlike urls
+	/* Get the nonce for security purpose and create the like and unlike urls
 	$args = http_build_query( array (
 		'post_id'	=> $post_id,
 		'nonce'		=> wp_create_nonce('dob_vote_nonce'),
 		'action'	=> '',
 		'task'		=> '',
 	) );
-	$ajax_url = admin_url('admin-ajax.php?'.$args);
+	$ajax_url = admin_url('admin-ajax.php?'.$args);*/
 
 	//$label_title		= '균형 투표';		//__('Balance Voting', DOBslug);
 	$label_stat			= '균형투표 통계';	//__('Statistics', DOBslug);
@@ -494,14 +585,31 @@ echo '</pre>';
 	$nTotal = dob_vote_get_users_count();	// get all user count
 	$nValid = $nHierarchy+$nDelegate+$nDirect;
 	$fValid = number_format(100*($nValid/$nTotal),1);
-	$fHierarchy = number_format(100*($nHierarchy/$nValid),1);
-	$fDelegate = 0;//number_format(100*($nDelegate/$nValid),2);
-	$fDirect = number_format(100*($nDirect/$nValid),1);
+	$fHierarchy = $fDelegate = $fDirect = 0.0;
+	if ( $nValid ) {
+		$fHierarchy = number_format(100*($nHierarchy/$nValid),1);
+		$fDelegate = 0;//number_format(100*($nDelegate/$nValid),2);
+		$fDirect = number_format(100*($nDirect/$nValid),1);
+	}/*}}}*/
 
-	$contents_ajax = dob_vote_display_updown($post_id,$result_stat,$user_id);
+	$contents_form = '';
+	if ( is_single() ) {
+		$html_form = '';
+		if ( $dob_vm_type == 'updown' ) {
+			$html_form = dob_vote_display_updown($post_id,$result_stat,$user_id);
+		} elseif ( $dob_vm_type == 'choice' ) {
+			$html_form = dob_vote_display_choice($post_id,$dob_vm_data,$result_stat,$user_id);
+		} elseif ( $dob_vm_type == 'plural' ) {
+			$html_form = dob_vote_display_plural($post_id,$dob_vm_data,$result_stat,$user_id);
+		}
+		$contents_form = "<li>
+			<h3># $label_my</h3>
+			<div class='panel'> $html_form </div>
+		</li>";
+	}
 
 	$dob_vote = <<<HTML
-<ul id="toggle-view">
+<ul id="toggle-view"><!--{{{-->
 	<li class="toggle">
 		<h3># $label_stat <small> // $label_turnout : $fValid% </small></h3><span class="toggler">[close]</span>
 		<div class="panel">
@@ -515,36 +623,10 @@ echo '</pre>';
 	</li>
 	<li class="toggle">
 		<h3># $label_chart</h3><span class="toggler">[close]</span>
-		<div class="panel">
-			$content_chart
-		</div>
+		<div class="panel"> $content_chart </div>
 	</li>
-	<li>
-		<h3># $label_my</h3>
-		<div class="panel">
-			$contents_ajax 
-			<!--form name="post" action="http://wp2.ncross.net/wp-admin/post.php" method="post" id="quick-press" class="initial-form hide-if-no-js">
-				<div class="input-text-wrap" id="title-wrap">
-					<label class="prompt" for="title" id="title-prompt-text"> 제목</label>
-					<input type="text" name="post_title" id="title" autocomplete="off">
-				</div>
-
-				<div class="textarea-wrap" id="description-wrap">
-					<label class="prompt" for="content" id="content-prompt-text">무슨 생각을 하고 계신가요?</label>
-					<textarea name="content" id="content" class="mceEditor" rows="3" cols="15" autocomplete="off"></textarea>
-				</div>
-
-				<p class="submit">
-					<input type="hidden" name="action" id="quickpost-action" value="post-quickdraft-save">
-					<input type="hidden" name="post_ID" value="7">
-					<input type="hidden" name="post_type" value="post">
-					<input type="hidden" id="_wpnonce" name="_wpnonce" value="212c60aba9"><input type="hidden" name="_wp_http_referer" value="/wp-admin/">
-					<input type="submit" name="save" id="save-post" class="button button-primary" value="임시 글로 저장하기">
-				</p>
-			</form-->
-		</div>
-	</li>
-</ul>
+	$contents_form
+</ul><!--}}}-->
 HTML;
 
 	if ($bEcho) echo $dob_vote;
@@ -552,9 +634,9 @@ HTML;
 }
 
 function dob_vote_display_updown($post_id,$result_stat,$user_id=0) {/*{{{*/
-	$myval				= $result_stat['myval'];
-	$like_count		= $result_stat['1'];
-	$unlike_count	= -($result_stat['-1']);
+	$myval				= isset($result_stat['myval']) ? $result_stat['myval'] : '';
+	$like_count		= isset($result_stat['1']) ? $result_stat['1'] : '0';
+	$unlike_count	= isset($result_stat['-1']) ? -($result_stat['-1']) : '0';
 	$title_text_like = 'Like';
 	$title_text_unlike = 'Unlike';
 	$nonce = wp_create_nonce('dob_vote_vote_nonce');
@@ -584,4 +666,75 @@ function dob_vote_display_updown($post_id,$result_stat,$user_id=0) {/*{{{*/
 	</div>
 	<div class='wti-clear'></div>
 HTML;
+}/*}}}*/
+
+function dob_vote_display_choice($post_id,$dob_vm_data,$result_stat,$user_id=0) {/*{{{*/
+	ob_start();
+	// display area
+	echo '<div class="panel"><table>';
+	foreach ( $dob_vm_data as $k => $label ) {
+		$stat = isset($result_stat[$k+1]) ? $result_stat[$k+1] : 0;
+		echo "<tr><td class='left'>$label</td><td>$stat</td></tr>";
+	}
+	echo ' </table> </div>';
+	// form area
+	if ( empty($user_id) ) {
+		$label_login = '로그인 해주세요';		//__('Statistics', DOBslug);
+		echo "<div>$label_login</div>";
+	} else {
+		$myval = isset($result_stat['myval']) ? $result_stat['myval'] : '';
+		echo '<div style="text-align:right"><form id="formDobVote" method="post">';
+		echo '<input type="hidden" name="dob_vote_type" value="choice">';
+		wp_nonce_field( 'dob_vote_nonce_choice', 'dob_vote_nonce' );
+		$label_objection = '모두반대';	//__('Objection', DOBslug);
+		$checked = (-1==$myval) ? 'CHECKED' : '';
+		echo "<label><input type='radio' name='dob_vote_val' value='-1' $checked>$label_objection</label>";
+		foreach ( $dob_vm_data as $k => $label ) {
+			$i = $k+1;
+			$checked = ($i==$myval) ? 'CHECKED' : '';
+			echo "<label><input type='radio' name='dob_vote_val' value='$i' $checked>$label</label>";
+		}
+		$label_vote = '투표';	//__('Statistics', DOBslug);
+		$style = 'width:50px; height:20px; background:#ccc; color:black; text-decoration: none; font-size: 13px; margin: 0; padding: 0 10px 1px;';
+		echo "<input type='submit' value='$label_vote' style='$style'>";
+		echo '</form></div>';
+	}
+	$ret = ob_get_contents();
+	ob_end_clean();
+	return $ret;
+}/*}}}*/
+
+function dob_vote_display_plural($post_id,$dob_vm_data,$result_stat,$user_id=0) {/*{{{*/
+	ob_start();
+	// display area
+	echo '<div class="panel"><table>';
+	foreach ( $dob_vm_data as $k => $label ) {
+		echo "<tr><td class='left'>$label</td><td>{$result_stat[$k]}</td></tr>";
+	}
+	echo ' </table> </div>';
+	// form area
+	if ( empty($user_id) ) {
+		$label_login = '로그인 해주세요';		//__('Statistics', DOBslug);
+		echo "<div>$label_login</div>";
+	} else {
+		$myval = isset($result_stat['myval']) ? $result_stat['myval'] : '';
+		echo '<div style="text-align:right"><form id="formDobVote" method="post">';
+		echo '<input type="hidden" name="dob_vote_type" value="plural">';
+		wp_nonce_field( 'dob_vote_nonce_plural', 'dob_vote_nonce' );
+		$label_objection = '모두반대';	//__('Objection', DOBslug);
+		$checked = (-1==$myval) ? 'CHECKED' : '';
+		echo "<label><input type='radio' name='dob_vote_val[0]' value='-1' $checked>$label_objection</label>";
+		foreach ( $dob_vm_data as $k => $label ) {
+			$i = $k+1;
+			$checked = ($i==$myval) ? 'CHECKED' : '';
+			echo "<label><input type='checkbox' name='dob_vote_val[$i]' value='1'>$label</label>";
+		}
+		$label_vote = '투표';	//__('Statistics', DOBslug);
+		$style = 'width:50px; height:20px; background:#ccc; color:black; text-decoration: none; font-size: 13px; margin: 0; padding: 0 10px 1px;';
+		echo "<input type='button' value='$label_vote' style='$style'>";
+		echo '</form></div>';
+	}
+	$ret = ob_get_contents();
+	ob_end_clean();
+	return $ret;
 }/*}}}*/
