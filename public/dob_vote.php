@@ -462,6 +462,8 @@ echo '<pre>';
 
 		// check direct voting
 		if ( $influences[$ttid]['bLeaf'] ) {
+			// subtract abstention(val=0) counts from uid_vals
+			$uv_count -= count( array_filter( $uid_vals, function($v){return $v==0;} ) );
 			$nDirect += $uv_count;
 			// recalc ancestor's influences
 			foreach ( $influences[$ttid]['ancestor'] as $a_ttid ) {
@@ -509,36 +511,36 @@ echo '<pre>';
 #print_r($hierarchy_voter);
 
 
-	$h_chart = array();/*{{{*/
+	$charts = array();/*{{{*/
 	$vote_latest = dob_vote_get_post_latest($post_id);	// user_id => rows	// for login_name
 	foreach ( $hierarchy_voter as $ttid => $v ) {
+		$uid_vals = $v['uid_vals'];
 		$indent = ' ~ '.str_repeat(' ~ ',$v['lvl']);
 		$inherit = 0;
 		foreach ( $influences[$ttid]['ancestor'] as $a_ttid ) {
-			if ( isset($hierarchy_voter[$a_ttid]['value']) ) {
+			if ( !empty($hierarchy_voter[$a_ttid]['value']) ) {
 				$inherit = $hierarchy_voter[$a_ttid]['value'];
 			}
 		}
 		if ( $v['bLeaf'] ) {
-			$myval = isset($v['uid_vals'][$user_id]) ? " ({$vote_latest[$user_id]['user_login']}:{$v['uid_vals'][$user_id]})" : '';
-			$h_chart[] = $indent.$v['tname']."({$v['inf']}) : [$inherit]".$myval;
+			$myval = isset($uid_vals[$user_id]) ? " (@{$vote_latest[$user_id]['user_login']}:{$uid_vals[$user_id]})" : '';
+			$charts[] = $indent.$v['tname']."({$v['inf']}-".count($uid_vals).") : [$inherit]".$myval;
 		} else {
 			$yes = $no = array();
-			foreach ( $v['uid_vals'] as $uid => $val ) {
-				$yes[] = $vote_latest[$uid]['user_login'].':'.$val; //$vote_latest[$uid]['value'];
-			}
-			if ( ! $v['bLeaf'] ) {
-				$no = array_diff($v['all_ids'],array_keys($v['uid_vals']));
+			foreach ( $uid_vals as $uid => $val ) {
+				$yes[] = ($uid==$user_id?'@':'').$vote_latest[$uid]['user_login'].':'.$val;
 			}
 			$yes = implode(',',$yes);
-			$no = empty($no) ? '' : '#'.implode(',',$no);
-			$h_chart[] = $indent.$v['tname']."({$v['inf']}) : {$v['value']} ($yes) $no";
+			$no = array_diff($v['all_ids'],array_keys($uid_vals));
+			$no = empty($no) ? '' : '<strike>'.implode(',',$no).'</strike>';
+			$val = empty($v['value']) ? "[$inherit]" : $v['value'];
+			$charts[] = $indent.$v['tname']."({$v['inf']}) : $val ($yes) $no";
 		}
 	}/*}}}*/
-	$content_chart = implode('<br>',$h_chart);
+	$content_chart = implode('<br>',$charts);
 
 	// build final vote results.
-	$result_stat = array();
+	$result_stat = array();/*{{{*/
 	foreach ( $hierarchy_voter as $ttid => $v ) {
 		if ( $v['bLeaf'] ) {
 			foreach ( $v['uid_vals'] as $uid => $val ) {
@@ -553,7 +555,7 @@ echo '<pre>';
 				dob_vote_accum_stat($result_stat,$dob_vm_type,$val,1);
 			}
 		}
-	}
+	}/*}}}*/
 	if ( isset($vote_latest[$user_id]) ) {
 		$result_stat['myval'] = $vote_latest[$user_id]['value'];
 	}
