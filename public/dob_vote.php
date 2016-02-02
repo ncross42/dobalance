@@ -4,17 +4,12 @@
  */
 
 #require_once('dob_user_hierarchy.inc.php');
-#require_once('dob_vote_update.php');
 
 add_action( 'wp', 'dob_vote_wp_init' );
 function dob_vote_wp_init() {/*{{{*/
-	// updown
-	//wp_enqueue_script('dob-bdd-js', plugins_url('assets/js/bdd.js',__FILE__), array('jquery'));
-	//wp_localize_script('dob-bdd-js', 'dob_bdd_js', array( 'ajaxurl' => admin_url( 'admin-ajax.php' )));
-	wp_enqueue_style( 'bdd-css', plugins_url( 'assets/css/bdd.css', __FILE__ ) );
-	// choice
-	wp_enqueue_script('dob-vote-js', plugins_url('assets/js/vote.js',__FILE__), array('jquery'));
-	wp_localize_script('dob-vote-js', 'dob_vote_js', array( 'ajaxurl' => admin_url( 'admin-ajax.php' )));
+	//wp_enqueue_style( 'bdd-css', plugins_url( 'assets/css/bdd.css', __FILE__ ) );
+	//wp_enqueue_script('dob-vote-js', plugins_url('assets/js/vote.js',__FILE__), array('jquery'));
+	//wp_localize_script('dob-vote-js', 'dob_vote_js', array( 'ajaxurl' => admin_url( 'admin-ajax.php' )));
 	wp_enqueue_style( 'toggle-css', plugins_url( 'assets/css/toggle.css', __FILE__ ) );
 	
 }/*}}}*/
@@ -127,12 +122,12 @@ function dob_vote_site_content($content) {/*{{{*/
 	return $content;
 }/*}}}*/
 
-function dob_vote_content_updown( $post_id/*=get_the_ID()*/, $bEcho = false) {/*{{{*/
+function dob_vote_content_updown( $post_id/*=get_the_ID()*/, $bEcho = false) { /*{{{*/
 	global $wpdb;
 	$dob_vote = '';
 
 	// Get the posts ids where we do not need to show like functionality
-/*{{{*/	/*	$allowed_posts = $excluded_posts = $excluded_categories = $excluded_sections = array();
+/*{{{*/	/*$allowed_posts = $excluded_posts = $excluded_categories = $excluded_sections = array();
 	$allowed_posts = explode(",", get_option('dob_vote_allowed_posts'));
 	$excluded_posts = explode(",", get_option('dob_vote_excluded_posts'));
 	$excluded_categories = get_option('dob_vote_excluded_categories');
@@ -148,7 +143,7 @@ function dob_vote_content_updown( $post_id/*=get_the_ID()*/, $bEcho = false) {/*
 		return;
 	}*//*}}}*/
 
-/*{{{*/	/* Checking for excluded categories
+	/*{{{*//* Checking for excluded categories
 	$excluded = false;
 	$category = get_the_category();
 	foreach($category as $cat) {
@@ -159,11 +154,11 @@ function dob_vote_content_updown( $post_id/*=get_the_ID()*/, $bEcho = false) {/*
 	// If excluded category, then dont show the like/dislike option
 	if ($excluded) {
 		return;
-	}*//*}}}*/
+	}*/ /*}}}*/
 
 	$title_text_like = 'Like';
 	$title_text_unlike = 'Unlike';
-/*{{{*/	/* Check for title text. if empty then have the default value
+	/*{{{*//* Check for title text. if empty then have the default value
 	$title_text = ''; //get_option('dob_vote_title_text');
 	if (empty($title_text)) {
 		$title_text_like = __('Like', 'wti-like-post');
@@ -562,9 +557,7 @@ echo '<pre>';
 #print_r($result_stat);
 
 echo '</pre>';
-	##############
-	# build HTML #/*{{{*/
-	##############
+	## build HTML /*{{{*/
 	/* Get the nonce for security purpose and create the like and unlike urls
 	$args = http_build_query( array (
 		'post_id'	=> $post_id,
@@ -594,21 +587,23 @@ echo '</pre>';
 		$fDirect = number_format(100*($nDirect/$nValid),1);
 	}/*}}}*/
 
-	$contents_form = '';
+	$contents_form = '';/*{{{*/
 	if ( is_single() ) {
 		$html_form = '';
+		$vm_label = array( -1 => '모두반대', 0=>'기권' );
 		if ( $dob_vm_type == 'updown' ) {
-			$html_form = dob_vote_display_updown($post_id,$result_stat,$user_id);
-		} elseif ( $dob_vm_type == 'choice' ) {
-			$html_form = dob_vote_display_choice($post_id,$dob_vm_data,$result_stat,$user_id);
-		} elseif ( $dob_vm_type == 'plural' ) {
-			$html_form = dob_vote_display_plural($post_id,$dob_vm_data,$result_stat,$user_id);
+			$vm_label[1] = '찬성';
+		} else {	// choice, plural
+			foreach ( $dob_vm_data as $k => $v ) {
+				$vm_label[$k+1] = $v;
+			}
 		}
+		$html_form = dob_vote_display($post_id,$dob_vm_type,$vm_label,$result_stat,$user_id);
 		$contents_form = "<li>
 			<h3># $label_my</h3>
 			<div class='panel'> $html_form </div>
 		</li>";
-	}
+	}/*}}}*/
 
 	$dob_vote = <<<HTML
 <ul id="toggle-view"><!--{{{-->
@@ -635,107 +630,59 @@ HTML;
 	else return $dob_vote;
 }
 
-function dob_vote_display_updown($post_id,$result_stat,$user_id=0) {/*{{{*/
-	$myval				= isset($result_stat['myval']) ? $result_stat['myval'] : '';
-	$like_count		= isset($result_stat['1']) ? $result_stat['1'] : '0';
-	$unlike_count	= isset($result_stat['-1']) ? -($result_stat['-1']) : '0';
-	$title_text_like = 'Like';
-	$title_text_unlike = 'Unlike';
-	$nonce = wp_create_nonce('dob_vote_vote_nonce');
-	$alignment = 'right';
-	$url_pixel = plugins_url( 'assets/images/pixel.gif' , __FILE__ );
-	$style = 'style1'; //(get_option('dob_vote_voting_style') == "") ? 'style1' : get_option(..);
-	$label_login = '로그인 해주세요';		//__('Statistics', DOBslug);
-	$msg = empty($user_id) ? $label_login : dob_vote_get_message($post_id,$user_id);
-
-	return <<<HTML
-	<div class='watch-action'>
-		<div class='watch-position align-$alignment'>
-			<div class='action-like'>
-				<a class='lbg-$style like-$post_id jlk' href='javascript:void(0)' data-task='like' data-myval='$myval' data-post_id='$post_id' data-user_id='$user_id' data-nonce='$nonce' rel='nofollow'>
-					<img src='$url_pixel' title='$title_text_like' />
-					<span class='lc-$post_id lc'>$like_count</span>
-				</a>
-			</div>
-			<div class='action-unlike'>
-				<a class='unlbg-$style unlike-$post_id jlk' href='javascript:void(0)' data-task='unlike' data-myval='$myval' data-post_id='$post_id' data-user_id='$user_id' data-nonce='$nonce' rel='nofollow'>
-					<img src='$url_pixel' title='$title_text_unlike' />
-					<span class='unlc-$post_id unlc'>$unlike_count</span>
-				</a>
-			</div> 
-		</div> 
-		<div class='status-$post_id status align-$alignment'>$msg</div>
-	</div>
-	<div class='wti-clear'></div>
+function dob_vote_display($post_id,$vm_type,$vm_label,$result_stat,$user_id=0) {/*{{{*/
+	ob_start();
+	$myval = isset($result_stat['myval']) ? $result_stat['myval'] : '';
+	if ( $vm_type=='plural' ) { // normalize plural value
+		if ( $myval <= 1 ) $myval = array($myval);
+		$vals = str_split(strrev(base_convert($myval,10,2)));
+		//$myval = array_keys(array_filter($vals, function($v){return $v=='1';}));
+		$myval = array();
+		foreach ( $vals as $k => $v ) {
+			if ( $v == '1' ) $myval[] = $k+1;
+		}
+	}
+	// display area
+	echo <<<HTML
+		<div class="panel">
+		<table>
+			<form id="formDobVote" method="post">
+			<input type="hidden" name="dob_vote_type" value="$vm_type">
 HTML;
-}/*}}}*/
-
-function dob_vote_display_choice($post_id,$dob_vm_data,$result_stat,$user_id=0) {/*{{{*/
-	ob_start();
-	// display area
-	echo '<div class="panel"><table>';
-	foreach ( $dob_vm_data as $k => $label ) {
-		$stat = isset($result_stat[$k+1]) ? $result_stat[$k+1] : 0;
-		echo "<tr><td class='left'>$label</td><td>$stat</td></tr>";
-	}
-	echo ' </table> </div>';
-	// form area
-	if ( empty($user_id) ) {
-		$label_login = '로그인 해주세요';		//__('Statistics', DOBslug);
-		echo "<div>$label_login</div>";
-	} else {
-		$myval = isset($result_stat['myval']) ? $result_stat['myval'] : '';
-		echo '<div style="text-align:right"><form id="formDobVote" method="post">';
-		echo '<input type="hidden" name="dob_vote_type" value="choice">';
-		wp_nonce_field( 'dob_vote_nonce_choice', 'dob_vote_nonce' );
-		$label_objection = '모두반대';	//__('Objection', DOBslug);
-		$checked = (-1==$myval) ? 'CHECKED' : '';
-		echo "<label><input type='radio' name='dob_vote_val' value='-1' $checked>$label_objection</label>";
-		foreach ( $dob_vm_data as $k => $label ) {
-			$i = $k+1;
-			$checked = ($i==$myval) ? 'CHECKED' : '';
-			echo "<label><input type='radio' name='dob_vote_val' value='$i' $checked>$label</label>";
+	wp_nonce_field( 'dob_vote_nonce_'.$vm_type, 'dob_vote_nonce' );
+	foreach ( $vm_label as $val => $label ) {
+		$stat = isset($result_stat[$val]) ? $result_stat[$val] : 0;
+		$html_input = '';
+		if ( $user_id ) {
+			if ( $vm_type == 'plural' ) {
+				$checked = in_array($val,$myval) ? 'CHECKED' : '';
+				$html_input = "<input type='checkbox' name='dob_vote_val[$val]' value='1' $checked>";
+			} else {
+				$checked = ($val==$myval) ? 'CHECKED' : '';
+				$html_input = "<input type='radio' name='dob_vote_val' value='$val' $checked>";
+			}
 		}
-		$label_vote = '투표';	//__('Statistics', DOBslug);
+		echo <<<HTML
+			<tr>
+				<td class='left'> <label>$html_input $label</label> </td>
+				<td>$stat</td>
+			</tr>
+HTML;
+	}
+	$label_login = '로그인 해주세요';		//__('Statistics', DOBslug);
+	$html_submit = $label_login;
+	if ( $user_id ) {
+		$html_submit = dob_vote_get_message($post_id,$user_id);	// vote_post_latest timestamp
+		$label_vote = '투표';	//__('Vote', DOBslug);
 		$style = 'width:50px; height:20px; background:#ccc; color:black; text-decoration: none; font-size: 13px; margin: 0; padding: 0 10px 1px;';
-		echo "<input type='submit' value='$label_vote' style='$style'>";
-		echo '</form></div>';
+		$html_submit .= " <input type='submit' value='$label_vote' style='$style'>";
 	}
-	$ret = ob_get_contents();
-	ob_end_clean();
-	return $ret;
-}/*}}}*/
-
-function dob_vote_display_plural($post_id,$dob_vm_data,$result_stat,$user_id=0) {/*{{{*/
-	ob_start();
-	// display area
-	echo '<div class="panel"><table>';
-	foreach ( $dob_vm_data as $k => $label ) {
-		echo "<tr><td class='left'>$label</td><td>{$result_stat[$k]}</td></tr>";
-	}
-	echo ' </table> </div>';
-	// form area
-	if ( empty($user_id) ) {
-		$label_login = '로그인 해주세요';		//__('Statistics', DOBslug);
-		echo "<div>$label_login</div>";
-	} else {
-		$myval = isset($result_stat['myval']) ? $result_stat['myval'] : '';
-		echo '<div style="text-align:right"><form id="formDobVote" method="post">';
-		echo '<input type="hidden" name="dob_vote_type" value="plural">';
-		wp_nonce_field( 'dob_vote_nonce_plural', 'dob_vote_nonce' );
-		$label_objection = '모두반대';	//__('Objection', DOBslug);
-		$checked = (-1==$myval) ? 'CHECKED' : '';
-		echo "<label><input type='radio' name='dob_vote_val[0]' value='-1' $checked>$label_objection</label>";
-		foreach ( $dob_vm_data as $k => $label ) {
-			$i = $k+1;
-			$checked = ($i==$myval) ? 'CHECKED' : '';
-			echo "<label><input type='checkbox' name='dob_vote_val[$i]' value='1'>$label</label>";
-		}
-		$label_vote = '투표';	//__('Statistics', DOBslug);
-		$style = 'width:50px; height:20px; background:#ccc; color:black; text-decoration: none; font-size: 13px; margin: 0; padding: 0 10px 1px;';
-		echo "<input type='button' value='$label_vote' style='$style'>";
-		echo '</form></div>';
-	}
+	echo <<<HTML
+			<tr><td colspan=2 style="text-align:right;">$html_submit</td></tr>
+			</form>
+		</table>
+		</div>
+HTML;
 	$ret = ob_get_contents();
 	ob_end_clean();
 	return $ret;
