@@ -30,6 +30,40 @@
 if ( !defined( 'WPINC' ) ) {
 	die;
 }
+if(!session_id()) session_start();
+ini_set('session.gc_maxlifetime', 3600);
+//session_set_cookie_params(3600);
+
+$global_real_ip = dob_get_real_ip();
+function dob_get_real_ip() {/*{{{*/
+	if (getenv('HTTP_CLIENT_IP')) {
+		$ip = getenv('HTTP_CLIENT_IP');
+	} elseif (getenv('HTTP_X_FORWARDED_FOR')) {
+		$ip = getenv('HTTP_X_FORWARDED_FOR');
+	} elseif (getenv('HTTP_X_FORWARDED')) {
+		$ip = getenv('HTTP_X_FORWARDED');
+	} elseif (getenv('HTTP_FORWARDED_FOR')) {
+		$ip = getenv('HTTP_FORWARDED_FOR');
+	} elseif (getenv('HTTP_FORWARDED')) {
+		$ip = getenv('HTTP_FORWARDED');
+	} else {
+		$ip = $_SERVER['REMOTE_ADDR'];
+	}
+	return $ip;
+}/*}}}*/
+
+function dob_set_remote_addr($user_login){/*{{{*/
+	$user_obj = get_user_by('login', $user_login );
+	$_SESSION['user_id'] = $user_obj->ID;
+	$_SESSION['user_login'] = $user_login;
+	$_SESSION['USER_IP'] = dob_get_real_ip();
+	//wp_redirect("http://www.google.com"); //exit;
+}/*}}}*/
+add_action('wp_login', 'dob_set_remote_addr');
+function dob_destroy_session($user_login){ session_destroy(); }
+add_action('wp_logout', 'dob_destroy_session');
+
+date_default_timezone_set('Asia/Seoul');
 
 // define 
 define( 'DOBver', '0.0.1');				// 'DOBALANCE_VERSION'
@@ -37,6 +71,7 @@ define( 'DOBslug', 'dobalance' );	// 'DOBALANCE_SLUG'
 define( 'DOBname', 'DoBalance' );	// 'DOBALANCE_NAME'
 define( 'DOBtable', $wpdb->prefix.'dob_' );
 define( 'DOBpath', plugin_dir_path(__FILE__) );
+define( 'DOBurl', plugin_dir_url(__FILE__) );
 define( 'DOBmaxbit', 7 );
 
 /**
@@ -113,12 +148,15 @@ if ( is_admin() && (!defined( 'DOING_AJAX' ) || !DOING_AJAX ) ) {
 	#add_action( 'plugins_loaded', array( 'DoBalance_Admin', 'get_instance' ) );
 } else {
 	#require_once( DOBpath . 'public/dob_site.php' );
+	require_once( DOBpath . 'public/dob_elect.php' );
 	require_once( DOBpath . 'public/dob_vote.php' );
 	require_once( DOBpath . 'public/dob_ajax.php' );
 }
 require_once( DOBpath . 'public/dob_widgets.php' );
 
+require_once( DOBpath.'includes/custom_taxonomy.php' );
 require_once( DOBpath.'includes/cpt_offer.php' );
+require_once( DOBpath.'includes/cpt_elect.php' );
 
 include_once( 'includes/jstree.ajax.php' );	// operation
 

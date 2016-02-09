@@ -1,17 +1,17 @@
 <?php
 
-add_action( 'init', 'dob_register_cpt_offer' );
-function dob_register_cpt_offer() {
+add_action( 'init', 'dob_register_cpt_elect' );
+function dob_register_cpt_elect() {
 
-	$singular = '제안(발의)';	// 'Offer';
-	$plural = '제안(발의)';	// 'Offers';
+	$singular = '비밀선거';	// 'Elect';
+	$plural = '비밀선거';	// 'Elects';
 
 	$labels = array(/*{{{*/
 		'name'							=> __( $plural, DOBslug ),
 		'singular_name'			=> __( $singular, DOBslug ),	// value of 'name'
 		'menu_name'					=> __( $plural ),							// value of 'name'
 		'name_admin_bar'		=> __( $singular ),							// value of 'singular_name'
-		'all_items'					=> __( 'All Offers' ),				// value of 'name'
+		'all_items'					=> __( 'All Elects' ),				// value of 'name'
 		'add_new'						=> __( 'Add New' ),
 		'add_new_item'			=> _x( 'Add New', $singular, DOBslug ),
 		'edit_item'					=> __( 'Edit' ),
@@ -32,7 +32,7 @@ function dob_register_cpt_offer() {
 		'menu_icon'				=> 'dashicons-testimonial',
 		'capability_type'	=> 'post',
 		'hierarchical'		=> true,
-		'rewrite'					=> array('slug'=>'offer','with_front'=>true,'feeds'=>true,'pages'=>true),
+		'rewrite'					=> array('slug'=>'elect','with_front'=>true,'feeds'=>true,'pages'=>true),
 		'query_var'				=> true,
 		'supports'				=> array(
 			'title', 'editor', 'excerpt', 'comments',
@@ -41,43 +41,31 @@ function dob_register_cpt_offer() {
 		),
 	);/*}}}*/
 
-	register_post_type( 'offer', $args );
+	register_post_type( 'elect', $args );
 }
 
-add_action( 'add_meta_boxes', 'dob_offer_add_meta_boxes' );
-function dob_offer_add_meta_boxes() {
-	$label_pros = '장점'; //__( 'Pros', DOBslug );
-	add_meta_box( 'dob_offer_cmb_pros', __( 'Pros', DOBslug ), 'dob_offer_cmb_pros_html', 'offer', 'normal', 'high' );
-	$label_cons = '단점'; //__( 'Cons', DOBslug );
-	add_meta_box( 'dob_offer_cmb_cons', $label_cons, 'dob_offer_cmb_cons_html', 'offer', 'normal', 'high' );
-	$label_vm = '투표 방식'; //__( 'Voting Method', DOBslug );
-	add_meta_box( 'dob_offer_cmb_vote', $label_vm, 'dob_offer_cmb_vote_html', 'offer', 'normal', 'high' );
+add_action( 'add_meta_boxes', 'dob_elect_add_meta_boxes' );
+function dob_elect_add_meta_boxes() {
+	$label_vm = '비밀 투표 방식'; //__( 'Secret Voting Method', DOBslug );
+	add_meta_box( 'dob_elect_cmb_vote', $label_vm, 'dob_elect_cmb_vote_html', 'elect', 'normal', 'high' );
 }
 
-function dob_offer_cmb_text_area ( $post_id, $name ) {/*{{{*/
-	$text = __($name, DOBslug );
-	$content = get_post_meta($post_id, $name, true);
-	return <<<HTML
-		<!--label for="$name">$text</label><br /--><textarea style="width:95%;" ROWS=5 name="$name">$content</textarea>
-HTML;
-}/*}}}*/
-// echo '<input type="text" name="new_field" value="'.esc_attr($value).'" size="25" />';
-function dob_offer_cmb_pros_html($post) { echo dob_offer_cmb_text_area($post->ID,'dob_offer_cmb_pros'); }
-function dob_offer_cmb_cons_html($post) { echo dob_offer_cmb_text_area($post->ID,'dob_offer_cmb_cons'); }
+function dob_elect_cmb_vote_html( $post ) {
 
-function dob_offer_cmb_vote_html( $post ) {
+	wp_nonce_field( 'dob_meta_box_nonce', 'dob_elect_cmb_nonce' );
 
-	wp_nonce_field( 'dob_meta_box_nonce', 'dob_offer_cmb_nonce' );
-
-	$dob_offer_cmb_vote = get_post_meta( $post->ID, 'dob_offer_cmb_vote', true );
-	$dob_vm_type = empty($dob_offer_cmb_vote['type']) ? 'updown': $dob_offer_cmb_vote['type'];
-	$dob_vm_data = empty($dob_offer_cmb_vote['data']) ? array() : $dob_offer_cmb_vote['data'];
+	$dob_elect_cmb_vote = get_post_meta( $post->ID, 'dob_elect_cmb_vote', true );
+	$dob_vm_type = empty($dob_elect_cmb_vote['type']) ? 'updown': $dob_elect_cmb_vote['type'];
+	$dob_vm_data = empty($dob_elect_cmb_vote['data']) ? array() : $dob_elect_cmb_vote['data'];
+	$dob_vm_begin = empty($dob_elect_cmb_vote['begin']) ? date('Y-m-d 12:00:00') : $dob_elect_cmb_vote['begin'];
+	$dob_vm_end = empty($dob_elect_cmb_vote['end']) ? date('Y-m-d 12:30:00') : $dob_elect_cmb_vote['end'];
 
 	// labels /*{{{*/
 	$label_updown	= '찬/반';		//__('Up/Down',DOBslug);
 	$label_choice	= '다지선다';	//__('Multiple Choice',DOBslug);
 	$label_plural	= '복수투표';	//__('Plural Vote',DOBslug);
-	$label_secret	= '비밀투표';	//__('Secret Vote',DOBslug);
+	$label_begin	= '시작 일시';	//__('Begin DateTime',DOBslug);
+	$label_end		= '종료 일시';	//__('End DateTime',DOBslug);
 	$label_type		= __('Type');
 	$label_value	= __('Select').' '.__('Value');
 	$label_add		= __('Add');
@@ -103,18 +91,28 @@ function dob_offer_cmb_vote_html( $post ) {
 			}
 			dob_vm_type_last = val;
 		});
+
 		$('#btn_dob_vm_add').click( function() {
 			var ol = $('#ol_dob_vm_data');
 			if ( ol.find('li').length == <?php echo DOBmaxbit;?> ) {
-				alert('Check Count (MAX:<?php echo DOBmaxbit;?> )');
+				alert('Check Count (MAX:<?php echo DOBmaxbit;?>)');
 				return;
 			}
 			var tpl = wp.template( 'dob-vm-option' );
 			ol.append( tpl() );
 		});
+		
+		$('#dob_vm_datetime input[type="text"]').datetimepicker({
+			dateFormat : 'yy-mm-dd',
+			timeFormat: 'HH:mm',
+			stepMinute: 10,
+			hourMin: 6
+		});
+
   });
 }(jQuery));/*}}}*/
 </script>
+
 <script type="text/html" id="tmpl-dob-vm-option">
 <li>
 	<input type="text" name="dob_vm_data[]" value="" maxlength="20" placeholder="max-length:20">
@@ -151,6 +149,12 @@ ol input[type="text"] {
 /*}}}*/</style>
 
 	<div id="dob_vm"><!--{{{-->
+		<div id="dob_vm_datetime">
+			<label><?=$label_begin?>:</label> <input type="text" name="dob_vm_begin" value="<?php echo $dob_vm_begin;?>" >
+			<br>
+			<label><?=$label_end?>:</label> <input type="text" name="dob_vm_end" value="<?php echo $dob_vm_end;?>" >
+		</div>
+		<br>
 		<table border=1>
 			<thead>
 				<tr>
@@ -167,7 +171,6 @@ ol input[type="text"] {
 						<label><input type=radio name="dob_vm_type" value="updown" <?php echo ($dob_vm_type=='updown')?'CHECKED':'';?>><?php echo $label_updown;?></label> 
 						<br><label><input type=radio name="dob_vm_type" value="choice" <?php echo ($dob_vm_type=='choice')?'CHECKED':'';?>><?php echo $label_choice;?></label> 
 						<br><label><input type=radio name="dob_vm_type" value="plural" <?php echo ($dob_vm_type=='plural')?'CHECKED':'';?>><?php echo $label_plural;?></label> 
-						<br><label><input type=radio name="dob_vm_type" value="secret" <?php echo ($dob_vm_type=='secret')?'CHECKED':'';?>><?php echo $label_secret;?></label> 
 					</td>
 					<td>
 						<ol id="ol_dob_vm_data">
@@ -185,28 +188,33 @@ ol input[type="text"] {
 <?php
 }
 
-add_action( 'save_post', 'dob_offer_save_cmb_data' );
-function dob_offer_save_cmb_data( $post_id ) {
+add_action( 'save_post', 'dob_elect_save_cmb_data' );
+function dob_elect_save_cmb_data( $post_id ) {
 
 	// Check Environments
-	if ( empty($_POST['post_type']) || 'offer'!=$_POST['post_type'] 
-		|| empty($_POST['dob_offer_cmb_nonce']) || ! wp_verify_nonce($_POST['dob_offer_cmb_nonce'],'dob_meta_box_nonce') 
+	if ( empty($_POST['post_type']) || 'elect'!=$_POST['post_type'] 
+		|| empty($_POST['dob_elect_cmb_nonce']) || ! wp_verify_nonce($_POST['dob_elect_cmb_nonce'],'dob_meta_box_nonce') 
 		|| ! current_user_can('edit_post',$post_id)
 		|| ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) 
 		|| ! in_array( $_POST['dob_vm_type'], array('updown','choice','plural') )
 	) return;
 
 	//$my_data = sanitize_text_field( $_POST['dob_new_field'] ); // Sanitize user input.
-	file_put_contents('/tmp/cpt2.php', print_r($_POST,true) );
+#file_put_contents('/tmp/cpt2.php', print_r($_POST,true) );
 
-	// https://codex.wordpress.org/Function_Reference/update_post_meta
-	// Update the meta field in the database.
-	update_post_meta( $post_id, 'dob_offer_cmb_pros', $_POST['dob_offer_cmb_pros'] );
-	update_post_meta( $post_id, 'dob_offer_cmb_cons', $_POST['dob_offer_cmb_cons'] );
-
-	$dob_offer_cmb_vote = array( 'type' => $_POST['dob_vm_type'] );
+	$dob_elect_cmb_vote = array( 'type' => $_POST['dob_vm_type'] );
 	if ( isset($_POST['dob_vm_data']) && is_array($_POST['dob_vm_data']) ) {
-		$dob_offer_cmb_vote['data'] = $_POST['dob_vm_data'];	// choice, plural
+		$dob_elect_cmb_vote['data'] = $_POST['dob_vm_data'];	// choice, plural
 	}
-	update_post_meta( $post_id, 'dob_offer_cmb_vote', $dob_offer_cmb_vote );
+	if ( !empty($_POST['dob_vm_begin']) ) {
+		$dob_elect_cmb_vote['begin'] = date('Y-m-d H:i',strtotime($_POST['dob_vm_begin']));
+	}
+	if ( !empty($_POST['dob_vm_end']) 
+		&& $_POST['dob_vm_begin'] < $_POST['dob_vm_end'] 
+	) {
+		$dob_elect_cmb_vote['end'] = date('Y-m-d H:i',strtotime($_POST['dob_vm_end']));
+	}
+#file_put_contents('/tmp/cpt3.php', print_r($dob_elect_cmb_vote,true) );
+
+	update_post_meta( $post_id, 'dob_elect_cmb_vote', $dob_elect_cmb_vote );
 }

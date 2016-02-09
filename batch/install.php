@@ -23,11 +23,32 @@ $sql = "CREATE TABLE IF NOT EXISTS `$table_name` (
 )";
 $wpdb->query($sql);
 
+$table_name = $wpdb->prefix.'dob_elect_latest';
+$sql = "CREATE TABLE IF NOT EXISTS `$table_name` (
+	`post_id` int(11) NOT NULL DEFAULT 0,
+	`user_id` int(11) NOT NULL DEFAULT 0,
+	`value` smallint(2) NOT NULL DEFAULT 0,
+	`ts` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	PRIMARY KEY (`post_id`,`user_id`),
+	KEY (`post_id`,`value`)
+)";
+$wpdb->query($sql);
+$table_name = $wpdb->prefix.'dob_elect_log';
+$sql = "CREATE TABLE IF NOT EXISTS `$table_name` (
+	`user_id` int(11) NOT NULL DEFAULT 0,
+	`post_id` int(11) NOT NULL DEFAULT 0,
+	`ts` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	`value` smallint(2) NOT NULL DEFAULT 0,
+	`ip` varchar(250) COLLATE latin1_general_ci NOT NULL DEFAULT '',
+	PRIMARY KEY (`user_id`,`post_id`,`ts`)
+)";
+$wpdb->query($sql);
+
 $table_name = $wpdb->prefix.'dob_vote_post_latest';
 $sql = "CREATE TABLE IF NOT EXISTS `$table_name` (
 	`post_id` int(11) NOT NULL DEFAULT 0,
 	`user_id` int(11) NOT NULL DEFAULT 0,
-	`value` tinyint(2) NOT NULL DEFAULT 0,
+	`value` smallint(2) NOT NULL DEFAULT 0,
 	`ts` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	PRIMARY KEY (`post_id`,`user_id`),
 	KEY (`post_id`,`value`)
@@ -38,7 +59,7 @@ $sql = "CREATE TABLE IF NOT EXISTS `$table_name` (
 	`user_id` int(11) NOT NULL DEFAULT 0,
 	`post_id` int(11) NOT NULL DEFAULT 0,
 	`ts` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	`value` tinyint(2) NOT NULL DEFAULT 0,
+	`value` smallint(2) NOT NULL DEFAULT 0,
 	`ip` varchar(250) COLLATE latin1_general_ci NOT NULL DEFAULT '',
 	PRIMARY KEY (`user_id`,`post_id`,`ts`)
 )";

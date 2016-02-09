@@ -8,7 +8,7 @@
 add_action( 'wp', 'dob_vote_wp_init' );
 function dob_vote_wp_init() {/*{{{*/
 	//wp_enqueue_style( 'bdd-css', plugins_url( 'assets/css/bdd.css', __FILE__ ) );
-	//wp_enqueue_script('dob-vote-js', plugins_url('assets/js/vote.js',__FILE__), array('jquery'));
+	wp_enqueue_script('dob-vote-js', plugins_url('assets/js/vote.js',__FILE__), array('jquery'));
 	//wp_localize_script('dob-vote-js', 'dob_vote_js', array( 'ajaxurl' => admin_url( 'admin-ajax.php' )));
 	wp_enqueue_style( 'toggle-css', plugins_url( 'assets/css/toggle.css', __FILE__ ) );
 	
@@ -98,9 +98,9 @@ function dob_vote_site_content($content) {/*{{{*/
 		&& 'offer'==get_post_type($post_id)
 		/*&& get_option('dob_vote_show_on_pages') */
 	) {
-		$dob_cmb_vote = get_post_meta( $post_id, 'dob_cmb_vote', true );
-		$dob_vm_type = empty($dob_cmb_vote['type']) ? 'updown': $dob_cmb_vote['type'];
-		$dob_vm_data = empty($dob_cmb_vote['data']) ? array() : $dob_cmb_vote['data'];
+		$dob_offer_cmb_vote = get_post_meta( $post_id, 'dob_offer_cmb_vote', true );
+		$dob_vm_type = empty($dob_offer_cmb_vote['type']) ? 'updown': $dob_offer_cmb_vote['type'];
+		$dob_vm_data = empty($dob_offer_cmb_vote['data']) ? array() : $dob_offer_cmb_vote['data'];
 
 		/*switch ( $dob_vm_type ) {
 		case 'updown': $dob_vote_content=dob_vote_content_updown($post_id); break;
@@ -552,7 +552,7 @@ echo '<pre>';
 		}
 	}/*}}}*/
 	if ( isset($vote_latest[$user_id]) ) {
-		$result_stat['myval'] = $vote_latest[$user_id]['value'];
+		$result_stat['myval'] = (int)$vote_latest[$user_id]['value'];
 	}
 #print_r($result_stat);
 
@@ -658,7 +658,7 @@ HTML;
 				$checked = in_array($val,$myval) ? 'CHECKED' : '';
 				$html_input = "<input type='checkbox' name='dob_vote_val[$val]' value='1' $checked>";
 			} else {
-				$checked = ($val==$myval) ? 'CHECKED' : '';
+				$checked = ($val===$myval) ? 'CHECKED' : '';
 				$html_input = "<input type='radio' name='dob_vote_val' value='$val' $checked>";
 			}
 		}

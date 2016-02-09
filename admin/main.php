@@ -35,12 +35,12 @@ add_action( 'admin_enqueue_scripts', 'dob_admin_enqueue_scripts' );
 
 function dob_admin_enqueue_scripts() {/*{{{*/
 	global $dob_screen_hook;
+	$plugins_url = plugins_url('/', __FILE__);
 	if ( empty($dob_screen_hook) ) {
 		return;
 	}
 	$screen = get_current_screen();
 	if ( in_array($screen->id,$dob_screen_hook) ) {
-		$plugins_url = plugins_url('/', __FILE__);
 		if ( defined('WP_DEBUG') && WP_DEBUG==true ) { // debug mode
 			wp_enqueue_script( DOBslug.'-admin-script', $plugins_url.'assets/js/admin.js',
 				array( 'jquery', 'jquery-ui-tabs' ), DOBver );
@@ -51,6 +51,13 @@ function dob_admin_enqueue_scripts() {/*{{{*/
 		// css
 		dob_admin_enqueue_css();
 	}
+	global $wp_scripts; 
+	wp_enqueue_script('jquery-ui-datepicker');
+	wp_enqueue_script('jquery-ui-slider');
+	wp_enqueue_script( DOBslug.'-timepicker-js', $plugins_url.'assets/jquery-ui-timepicker-addon.min.js', array( 'jquery','jquery-ui-datepicker','jquery-ui-slider' ) );
+	$jquery_ui_ver = $wp_scripts->registered['jquery-ui-core']->ver;
+	wp_enqueue_style('jquery-ui-css', "http://ajax.googleapis.com/ajax/libs/jqueryui/$jquery_ui_ver/themes/smoothness/jquery-ui.min.css");	// smoothness, ui-lightness
+	wp_enqueue_style( DOBslug.'-timepicker-css', $plugins_url.'assets/jquery-ui-timepicker-addon.min.css', array( 'jquery-ui-css' ) );
 }/*}}}*/
 
 function dob_admin_enqueue_css() {/*{{{*/
