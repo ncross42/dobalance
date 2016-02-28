@@ -94,7 +94,7 @@ function dob_elect_site_content($content) {/*{{{*/
 function dob_elect_get_users_count() {/*{{{*/
 	global $wpdb;
 	$table = $wpdb->prefix.'dob_user_category';
-	$sql = "SELECT COUNT(1) FROM $table WHERE taxonomy='hierarchy'";
+	$sql = "SELECT COUNT(1) FROM $table WHERE taxonomy='hierarchy' AND term_taxonomy_id <> 0";
 	return (int)$wpdb->get_var($sql);
 }/*}}}*/
 
@@ -147,6 +147,60 @@ function dob_elect_get_user_hierarchy($term_taxonomy_id) {/*{{{*/
 	return array_column($rows, 0);
 }/*}}}*/
 
+function dob_elect_cart( $user_id, $post_id ) {/*{{{*/
+	global $wpdb, $global_real_ip;
+
+	// check required argument
+	if ( ! isset($_POST['dob_elect_type'])
+		|| ! isset($_POST['dob_elect_val'])
+		|| ! isset($_POST['dob_elect_nonce'])
+	) {
+		return 'check1';
+	}
+
+	$type		= $_POST['dob_elect_type'];
+	$val		= $_POST['dob_elect_val'];
+	$nonce	= $_POST['dob_elect_nonce'];
+	if ( ! wp_verify_nonce( $nonce, 'dob_elect_nonce_'.$type)
+		|| ! in_array( $type, array('updown','choice','plural') )
+	) {
+		return 'check2';
+	}
+
+	if ( $type=='plural' ) { // normalize plural value
+		if ( ! is_array($val) ) return 'check2';
+		$bit = '';
+		for ( $i=1; $i<=DOBmaxbit; ++$i ) {
+			$bit .= isset($val[$i]) ? $val[$i] : '0';
+		}
+		$rev = strrev($bit);
+		$value = base_convert($rev,2,10);
+	} else {
+		$value = (int)$val; 
+	}
+
+	$t_cart = $wpdb->prefix.'dob_cart';
+	$sql = "SELECT value FROM `$t_cart` 
+		WHERE user_id = $user_id AND post_id = $post_id";
+	$old_val = $wpdb->get_var($sql);
+	// UPDATE dob_elect_latest
+	if ( is_null($old_val) ) {
+		$sql = sprintf("INSERT INTO `$t_cart` SET
+			user_id = %d, post_id = %d, value = %d",
+			$user_id, $post_id, $value 
+		);
+	} else {			
+		$sql = sprintf("UPDATE `$t_cart` 
+				SET value = %d, ts=CURRENT_TIMESTAMP
+			WHERE user_id = %d AND post_id = %d",
+			$value, $user_id, $post_id 
+		);
+	}
+	$success = $wpdb->query( $sql );	// success == 1 (affected_rows)
+	return $ret = $success ? '' : "DB ERROR(SQL)<br>\n: ".$sql;
+
+}/*}}}*/
+
 function dob_elect_update( $user_id, $post_id ) {/*{{{*/
 	global $wpdb, $global_real_ip;
 
@@ -167,8 +221,6 @@ function dob_elect_update( $user_id, $post_id ) {/*{{{*/
 		return 'check2';
 	}
 
-	$ret = '';
-	$value = $val; 
 	if ( $type=='plural' ) { // normalize plural value
 		if ( ! is_array($val) ) return 'check2';
 		$bit = '';
@@ -177,6 +229,8 @@ function dob_elect_update( $user_id, $post_id ) {/*{{{*/
 		}
 		$rev = strrev($bit);
 		$value = base_convert($rev,2,10);
+	} else {
+		$value = (int)$val; 
 	}
 
 	// INSERT dob_elect_log
@@ -206,13 +260,8 @@ function dob_elect_update( $user_id, $post_id ) {/*{{{*/
 			$value, $post_id, $user_id 
 		);
 	}
-
 	$success = $wpdb->query( $sql );	// success == 1 (affected_rows)
-	if ($success) {
-		$ret = '';
-	} else {
-		$ret = "DB ERROR(SQL)<br>\n: ".$sql;
-	}
+	return $ret = $success ? '' : "DB ERROR(SQL)<br>\n: ".$sql;
 }/*}}}*/
 
 function dob_elect_accum_stat( &$stat, $type, $value, $cnt=1) {/*{{{*/
@@ -236,11 +285,14 @@ echo '<pre>';
 	$vm_end = empty($dob_elect_cmb_vote['end']) ? '' : $dob_elect_cmb_vote['end'];
 
 	$user_id = get_current_user_id();
+	$USER_IP = empty($_SESSION['USER_IP']) ? '' : $_SESSION['USER_IP'];
 	if ( $user_id ) {
-		if ( ! empty($_POST) && isset($_SESSION['USER_IP'])
-			&& $_SESSION['USER_IP'] == dob_get_real_ip() 
-		) {
-			dob_elect_update($user_id,$post_id);
+		if ( ! empty($_POST) && $USER_IP == dob_get_real_ip() ) {
+			if ( (int)$_POST['dob_elect_cart'] ) {
+				dob_elect_cart($user_id,$post_id);
+			} else {
+				dob_elect_update($user_id,$post_id);
+			}
 		}
 	}
 
@@ -268,7 +320,8 @@ echo '<pre>';
 	$html_stat = '';
 	$html_mine = '';
 	if ( is_single() ) {
-		$vm_label = array( -1 => '모두반대', 0=>'기권' );/*{{{*/
+		$vm_label = ($vm_type=='updown') ? /*{{{*/ 
+			array( -1=>'반대', 0=>'기권' ) : array( -1=>'모두반대', 0=>'기권' );
 		if ( $vm_type == 'updown' ) {
 			$vm_label[1] = '찬성';
 		} else {	// choice, plural
@@ -330,8 +383,9 @@ HTML;
 		$html_mine = '';
 		if ( ! empty($html_form) ) {
 		$html_mine = <<<HTML
-	<li class="toggle">
-		<h3># $label_my</h3><span class="toggler">[close]</span>
+	<!--li class="toggle"-->
+	<li>
+		<h3># $label_my</h3><!--span class="toggler">[close]</span-->
 		<div class='panel'>
 			$html_form 
 		</div>
@@ -364,7 +418,7 @@ function dob_elect_html_chart($result_stat,$vm_label,$nTotal) {/*{{{*/
 <style>
 #table_barchart { width: 100%; height:20px; }
 #table_barchart td div { text-align:center; overflow: hidden; text-overflow: ellipsis; }
-#table_barchart .cn { background-color: TANGERINE ; }
+#table_barchart .cn { background-color: tan; } /*TANGERINE ;*/
 #table_barchart .c0 { background-color: LIGHT BLUE ; }
 #table_barchart .c1 { background-color: TAN ; }
 #table_barchart .c2 { background-color: GOLD   ; }
@@ -500,7 +554,7 @@ HTML;
 
 function dob_elect_display_mine($post_id,$vm_type,$vm_label,$myval='',$user_id) {/*{{{*/
 	ob_start();
-	session_unset();	// $_SESSION = array();
+	//session_unset();	// $_SESSION = array();
 	$_SESSION['user_id'] = $user_id;
 	$_SESSION['post_id'] = $post_id;
 	$_SESSION['secret'] = $secret = base64_encode(openssl_random_pseudo_bytes(20));
@@ -514,17 +568,18 @@ function dob_elect_display_mine($post_id,$vm_type,$vm_label,$myval='',$user_id) 
 		}
 	}
 	$label_secret = '보안코드';			//__('Statistics', DOBslug);
-	$label_remember = '선거 종료 후, 암호화된 DB에서 직접 표결확인을 원하시면 이 값을 기억해 주세요.';			//__('Statistics', DOBslug);
+	$label_remember = '암호화된 DB에서 직접 투표확인을 원하시면 이 값을 기억해 주세요.';			//__('Statistics', DOBslug);
 	// display area
 	echo <<<HTML
 		<div class="panel">
 		<table>
 			<form id="formDobVote" method="post">
 			<input type="hidden" name="dob_elect_type" value="$vm_type">
-			<tr><td>
+			<input type="hidden" name="dob_elect_cart" value="0">
+			<!--tr><td>
 				$label_secret : <input type="text" name="dob_elect_secret" value="$secret" style="width:300px" READONLY>
 				<br><b>$label_remember</b>
-			</td></tr>
+			</td></tr-->
 			<tr><td>
 HTML;
 	wp_nonce_field( 'dob_elect_nonce_'.$vm_type, 'dob_elect_nonce' );
@@ -542,13 +597,15 @@ HTML;
 	$html_submit = '';
 	if ( $user_id ) {
 		$html_submit = dob_elect_get_message($post_id,$user_id);	// vote_post_latest timestamp
-		$label_vote = '투표';	//__('Vote', DOBslug);
-		$style = 'width:50px; height:20px; background:#ccc; color:black; text-decoration: none; font-size: 13px; margin: 0; padding: 0 10px 1px;';
-		$html_submit .= " <input type='submit' value='$label_vote' style='$style'>";
+		$label_vote = '바로투표';	//__('Vote', DOBslug);
+		$label_cart = '투표바구니';	//__('Vote', DOBslug);
+		$style = 'width:100px; height:20px; background:#ccc; color:black; text-decoration: none; font-size: 13px; margin: 0; padding: 0 10px 1px;';
+		$html_submit .= " <input type='submit' value='$label_vote' style='$style' onclick='this.form.dob_elect_cart.value=0;'>";
+		$html_submit .= " <input type='submit' value='$label_cart' style='$style' onclick='this.form.dob_elect_cart.value=1;'>";
 	}
 	echo <<<HTML
 			</td></tr>
-			<tr><td colspan=2 style="text-align:right;">$html_submit</td></tr>
+			<tr><td style="text-align:right;">$html_submit</td></tr>
 			</form>
 		</table>
 		</div>

@@ -335,6 +335,7 @@ class DoBalance {
 		);
 
 		// @TODO: Define activation functionality here
+		require_once( DOBpath.'batch/install.php' );
 
 		global $wp_roles;
 		if ( !isset( $wp_roles ) ) {

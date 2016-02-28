@@ -30,6 +30,15 @@
 if ( !defined( 'WPINC' ) ) {
 	die;
 }
+// define 
+define( 'DOBver', '0.0.1');				// 'DOBALANCE_VERSION'
+define( 'DOBslug', 'dobalance' );	// 'DOBALANCE_SLUG'
+define( 'DOBname', 'DoBalance' );	// 'DOBALANCE_NAME'
+define( 'DOBtable', $wpdb->prefix.'dob_' );
+define( 'DOBpath', plugin_dir_path(__FILE__) );
+define( 'DOBurl', plugin_dir_url(__FILE__) );
+define( 'DOBmaxbit', 7 );
+
 if(!session_id()) session_start();
 ini_set('session.gc_maxlifetime', 3600);
 //session_set_cookie_params(3600);
@@ -65,15 +74,6 @@ add_action('wp_logout', 'dob_destroy_session');
 
 date_default_timezone_set('Asia/Seoul');
 
-// define 
-define( 'DOBver', '0.0.1');				// 'DOBALANCE_VERSION'
-define( 'DOBslug', 'dobalance' );	// 'DOBALANCE_SLUG'
-define( 'DOBname', 'DoBalance' );	// 'DOBALANCE_NAME'
-define( 'DOBtable', $wpdb->prefix.'dob_' );
-define( 'DOBpath', plugin_dir_path(__FILE__) );
-define( 'DOBurl', plugin_dir_url(__FILE__) );
-define( 'DOBmaxbit', 7 );
-
 /**
  * ------------------------------------------------------------------------------
  * Public-Facing Functionality
@@ -85,8 +85,8 @@ require_once( DOBpath . 'includes/load_textdomain.php' );
  * Load library for simple and fast creation of Taxonomy and Custom Post Type
  */
 
-require_once( DOBpath . 'includes/Taxonomy_Core/Taxonomy_Core.php' );
-require_once( DOBpath . 'includes/CPT_Core/CPT_Core.php' );
+//require_once( DOBpath . 'includes/Taxonomy_Core/Taxonomy_Core.php' );
+//require_once( DOBpath . 'includes/CPT_Core/CPT_Core.php' );
 
 /**
  * Load template system
@@ -151,14 +151,17 @@ if ( is_admin() && (!defined( 'DOING_AJAX' ) || !DOING_AJAX ) ) {
 	require_once( DOBpath . 'public/dob_elect.php' );
 	require_once( DOBpath . 'public/dob_vote.php' );
 	require_once( DOBpath . 'public/dob_ajax.php' );
+
+	if ( '1' == get_option('dob_use_upin') ) {
+		require_once( DOBpath . 'includes/upin_kcb.php' );
+	}
 }
 require_once( DOBpath . 'public/dob_widgets.php' );
 
+require_once( DOBpath.'includes/custom_admin_bar.php' );
 require_once( DOBpath.'includes/custom_taxonomy.php' );
 require_once( DOBpath.'includes/cpt_offer.php' );
 require_once( DOBpath.'includes/cpt_elect.php' );
 
 include_once( 'includes/jstree.ajax.php' );	// operation
-
-require_once( DOBpath . 'public/dob_register_form.inc.php' );
 

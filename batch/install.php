@@ -4,15 +4,36 @@ if ( ! defined ('WP_USE_THEMES') ) {
 	define('WP_USE_THEMES', false);
 	require_once (dirname(dirname(dirname(dirname(__DIR__)))).DIRECTORY_SEPARATOR.'wp-blog-header.php');
 }
-global $wpdb;
 
 ############ version 0.1 ############
-
-##### option #####
-register_setting('dob_setting', 'dob_root_hierarchy', 'trim' );
-register_setting('dob_setting', 'dob_root_subject'  , 'trim' );
+global $wpdb;
 
 ##### DB #####
+$table_name = $wpdb->prefix.'dob_cart';
+$sql = "CREATE TABLE IF NOT EXISTS `$table_name` (
+	`user_id` bigint unsigned NOT NULL DEFAULT '0',
+	`post_id` int(11) NOT NULL DEFAULT 0,
+	`value` smallint(2) NOT NULL DEFAULT 0,
+	`ts` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	PRIMARY KEY (`user_id`,`post_id`)
+)";
+$wpdb->query($sql);
+
+$table_name = $wpdb->prefix.'dob_upin';
+$sql = "CREATE TABLE IF NOT EXISTS `$table_name` (
+	`user_id`      bigint unsigned NOT NULL DEFAULT '0',
+	`ci`           binary(88),
+	`realname`     varchar(60) NOT NULL DEFAULT '',
+	`age`          tinyint DEFAULT NULL COMMENT '0<9,1<12,2<14,3<15,4<18,5<19,6<20,7>=20',
+	`sex`          tinyint DEFAULT NULL COMMENT '0:F,1:M',
+	`nationalinfo` tinyint DEFAULT NULL COMMENT '0:N,1:F',
+	`birthdate`    DATE DEFAULT NULL,
+	`authinfo`     tinyint DEFAULT NULL COMMENT '0:pki,1:card,2:cell,3:face',
+	PRIMARY KEY (`user_id`),
+	UNIQUE KEY (`ci`)
+)";
+$wpdb->query($sql);
+
 $table_name = $wpdb->prefix.'dob_user_category';
 $sql = "CREATE TABLE IF NOT EXISTS `$table_name` (
 	`user_id` int(11) NOT NULL DEFAULT '0',
@@ -39,7 +60,7 @@ $sql = "CREATE TABLE IF NOT EXISTS `$table_name` (
 	`post_id` int(11) NOT NULL DEFAULT 0,
 	`ts` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	`value` smallint(2) NOT NULL DEFAULT 0,
-	`ip` varchar(250) COLLATE latin1_general_ci NOT NULL DEFAULT '',
+	`ip` char(15) COLLATE ascii_bin NOT NULL DEFAULT '',
 	PRIMARY KEY (`user_id`,`post_id`,`ts`)
 )";
 $wpdb->query($sql);
@@ -60,7 +81,7 @@ $sql = "CREATE TABLE IF NOT EXISTS `$table_name` (
 	`post_id` int(11) NOT NULL DEFAULT 0,
 	`ts` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	`value` smallint(2) NOT NULL DEFAULT 0,
-	`ip` varchar(250) COLLATE latin1_general_ci NOT NULL DEFAULT '',
+	`ip` char(15) COLLATE ascii_bin NOT NULL DEFAULT '',
 	PRIMARY KEY (`user_id`,`post_id`,`ts`)
 )";
 $wpdb->query($sql);

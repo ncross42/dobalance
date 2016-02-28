@@ -11,22 +11,6 @@
  * @link      http://example.com
  * @copyright 2015 Your Name or Company Name
  */
-/*{{{*/ /*
-$cmb = new_cmb2_box( array(
-	'id' => $this->plugin_slug . '_bulk',
-	'hookup' => false,
-	'show_on' => array( 'key' => 'options-page', 'value' => array( $this->plugin_slug ), ),
-	'show_names' => true,
-) );
-$cmb->add_field( array(
-	'name' => __( 'Category Terms', $this->plugin_slug ),
-	'desc' => __( 'add only, overwite if duplicated', $this->plugin_slug ),
-	'id' => $this->plugin_slug . '_bulk_category',
-	'type' => 'textarea',
-	'default' => 'hierarchy',
-) );
-$form = cmb2_get_metabox_form( $this->plugin_slug . '_bulk', $this->plugin_slug . '_bulk' );
- */ /*}}}*/
 
 $message = '<b>[FORMAT]</b> category-NAME (native language) <span style="color:red"><b>//</b></span> category-SLUG (<b>only english</b>)';
 

@@ -21,9 +21,13 @@ add_action( 'admin_init', 'dob_admin_init' );
 function dob_admin_init() {
 	// only for super admins
 	if( ! is_super_admin() ) return;
+
 	// register_setting
-	register_setting( DOBslug.'_options', 'root_hierarchy' );
-	register_setting( DOBslug.'_options', 'root_subject' );
+	register_setting( DOBslug.'_options', 'dob_use_upin' );
+	register_setting( DOBslug.'_options', 'dob_upin_type' );
+	register_setting( DOBslug.'_options', 'dob_upin_cpid' );
+	register_setting( DOBslug.'_options', 'dob_upin_keyfile' );
+	register_setting( DOBslug.'_options', 'dob_upin_logpath' );
 }
 
 /*************************
@@ -101,25 +105,31 @@ function dob_admin_add_menu() {/*{{{*/
 		__('DoBalance',DOBslug), __('DoBalance',DOBslug), 'manage_options'
 		, DOBslug, 'dob_admin_page', 'dashicons-hammer', 3
 	);
-	// SUB menu 1 : bulk
+	// SUB menu 1 : cart
+	$dob_screen_hook[] = add_submenu_page( 
+		DOBslug, __('DoBalance',DOBslug), __('my voting cart',DOBslug),
+		'manage_options', DOBslug.'_cart', 'dob_admin_cart'
+	);
+
+	// SUB menu 2 : bulk
 	$dob_screen_hook[] = add_submenu_page( 
 		DOBslug, __('DoBalance',DOBslug), __('bulk mptt category',DOBslug),
 		'manage_options', DOBslug.'_bulk', 'dob_admin_bulk'
 	);
 
-	// SUB menu 2 : jsTree category
+	// SUB menu 3 : jsTree category
 	$dob_screen_hook[] = add_submenu_page( 
 		DOBslug, __('DoBalance',DOBslug), 'jsTree '.__('category',DOBslug),
 		'manage_options', DOBslug.'_jstree_category', 'dob_admin_jstree_category'
 	);
 
-	/* SUB menu 3 : jsTree hierarchy
+	/* SUB menu 4 : jsTree hierarchy
 	$dob_screen_hook[] = add_submenu_page( 
 		DOBslug, __('DoBalance',DOBslug), 'jsTree '.__('hierarchy',DOBslug),
 		'manage_options', DOBslug.'_jstree_hierarchy', 'dob_admin_jstree_hierarchy'
 	);*/
 
-	// SUB menu 4 : jsTree user
+	// SUB menu 5 : jsTree user
 	$dob_screen_hook[] = add_submenu_page( 
 		DOBslug, __('DoBalance',DOBslug), 'jsTree '.__('favorite',DOBslug),
 		'manage_options', DOBslug.'_jstree_favorite', 'dob_admin_jstree_favorite'
@@ -128,6 +138,9 @@ function dob_admin_add_menu() {/*{{{*/
 
 function dob_admin_page() {
 	require_once( DOBpathAdmin.'pages/admin.php' );
+}
+function dob_admin_cart() {
+	require_once( DOBpathAdmin.'pages/cart.php' );
 }
 function dob_admin_bulk() {
 	require_once( DOBpathAdmin.'pages/bulk.php' );

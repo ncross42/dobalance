@@ -3,8 +3,8 @@
 add_action( 'init', 'dob_register_cpt_offer' );
 function dob_register_cpt_offer() {
 
-	$singular = '제안(발의)';	// 'Offer';
-	$plural = '제안(발의)';	// 'Offers';
+	$singular = '공개발의';	// 'Offer';
+	$plural = '공개발의';	// 'Offers';
 
 	$labels = array(/*{{{*/
 		'name'							=> __( $plural, DOBslug ),
