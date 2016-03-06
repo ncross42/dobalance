@@ -19,8 +19,9 @@ $dob_screen_hook = array();
 add_action( 'admin_init', 'dob_admin_init' );
 //add_action( 'plugins_loaded', 'dob_admin_init' );
 function dob_admin_init() {
-	// only for super admins
-	if( ! is_super_admin() ) return;
+	global $current_user;
+	//if( ! is_super_admin() ) return;	// only for super admins
+	if( empty($current_user->ID) ) return;
 
 	// register_setting
 	register_setting( DOBslug.'_options', 'dob_use_upin' );
@@ -94,50 +95,58 @@ function dob_admin_add_menu() {/*{{{*/
 	 *
 	 * 'manage_options' : http://codex.wordpress.org/Roles_and_Capabilities
 	 */
-	global $dob_screen_hook;
+	global $dob_screen_hook, $current_user;
 
-	/*$dob_screen_hook[] = add_options_page(
-		__( 'aa Page Title', DOBslug ), DOBname
-		, 'manage_options', DOBslug, 'dob_admin_page'
-	);*/
 	// MAIN menu
 	$dob_screen_hook[] = add_menu_page( 
-		__('DoBalance',DOBslug), __('DoBalance',DOBslug), 'manage_options'
+		__('DoBalance',DOBslug), __('DoBalance',DOBslug), 'read'
 		, DOBslug, 'dob_admin_page', 'dashicons-hammer', 3
 	);
-	// SUB menu 1 : cart
+
+	// SUB menu : jsTree favorite (default)
 	$dob_screen_hook[] = add_submenu_page( 
-		DOBslug, __('DoBalance',DOBslug), __('my voting cart',DOBslug),
-		'manage_options', DOBslug.'_cart', 'dob_admin_cart'
+		DOBslug, __('DoBalance',DOBslug), 'jsTree '.__('favorite',DOBslug),
+		'read', DOBslug.'_jstree_favorite', 'dob_admin_jstree_favorite'
 	);
 
-	// SUB menu 2 : bulk
+	// roles : contributor
+	$dob_screen_hook[] = add_submenu_page(	// SUB menu : cart
+		DOBslug, __('DoBalance',DOBslug), __('my voting cart',DOBslug),
+		'edit_posts', DOBslug.'_cart', 'dob_admin_cart'
+	);
+
+	// roles : author
+	// SUB menu : upin
+	$dob_screen_hook[] = add_submenu_page( 
+		DOBslug, __('DoBalance',DOBslug), __('config UPIN',DOBslug),
+		'manage_options', DOBslug.'_upin', 'dob_admin_upin'
+	);
+
+	// SUB menu : bulk
 	$dob_screen_hook[] = add_submenu_page( 
 		DOBslug, __('DoBalance',DOBslug), __('bulk mptt category',DOBslug),
 		'manage_options', DOBslug.'_bulk', 'dob_admin_bulk'
 	);
 
-	// SUB menu 3 : jsTree category
+	// SUB menu : jsTree category
 	$dob_screen_hook[] = add_submenu_page( 
 		DOBslug, __('DoBalance',DOBslug), 'jsTree '.__('category',DOBslug),
 		'manage_options', DOBslug.'_jstree_category', 'dob_admin_jstree_category'
 	);
 
-	/* SUB menu 4 : jsTree hierarchy
+	/* SUB menu : jsTree hierarchy
 	$dob_screen_hook[] = add_submenu_page( 
 		DOBslug, __('DoBalance',DOBslug), 'jsTree '.__('hierarchy',DOBslug),
 		'manage_options', DOBslug.'_jstree_hierarchy', 'dob_admin_jstree_hierarchy'
 	);*/
 
-	// SUB menu 5 : jsTree user
-	$dob_screen_hook[] = add_submenu_page( 
-		DOBslug, __('DoBalance',DOBslug), 'jsTree '.__('favorite',DOBslug),
-		'manage_options', DOBslug.'_jstree_favorite', 'dob_admin_jstree_favorite'
-	);
 }/*}}}*/
 
 function dob_admin_page() {
 	require_once( DOBpathAdmin.'pages/admin.php' );
+}
+function dob_admin_upin() {
+	require_once( DOBpathAdmin.'pages/upin.php' );
 }
 function dob_admin_cart() {
 	require_once( DOBpathAdmin.'pages/cart.php' );

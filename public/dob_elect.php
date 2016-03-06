@@ -181,18 +181,18 @@ function dob_elect_cart( $user_id, $post_id ) {/*{{{*/
 
 	$t_cart = $wpdb->prefix.'dob_cart';
 	$sql = "SELECT value FROM `$t_cart` 
-		WHERE user_id = $user_id AND post_id = $post_id";
+		WHERE user_id = $user_id AND type='elect' AND post_id = $post_id";
 	$old_val = $wpdb->get_var($sql);
 	// UPDATE dob_elect_latest
 	if ( is_null($old_val) ) {
 		$sql = sprintf("INSERT INTO `$t_cart` SET
-			user_id = %d, post_id = %d, value = %d",
+			user_id = %d, type='elect', post_id = %d, value = %d",
 			$user_id, $post_id, $value 
 		);
 	} else {			
 		$sql = sprintf("UPDATE `$t_cart` 
 				SET value = %d, ts=CURRENT_TIMESTAMP
-			WHERE user_id = %d AND post_id = %d",
+			WHERE user_id = %d AND type='elect' AND post_id = %d",
 			$value, $user_id, $post_id 
 		);
 	}

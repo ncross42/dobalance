@@ -77,7 +77,6 @@ function dob_offer_cmb_vote_html( $post ) {
 	$label_updown	= '찬/반';		//__('Up/Down',DOBslug);
 	$label_choice	= '다지선다';	//__('Multiple Choice',DOBslug);
 	$label_plural	= '복수투표';	//__('Plural Vote',DOBslug);
-	$label_secret	= '비밀투표';	//__('Secret Vote',DOBslug);
 	$label_type		= __('Type');
 	$label_value	= __('Select').' '.__('Value');
 	$label_add		= __('Add');
@@ -167,7 +166,6 @@ ol input[type="text"] {
 						<label><input type=radio name="dob_vm_type" value="updown" <?php echo ($dob_vm_type=='updown')?'CHECKED':'';?>><?php echo $label_updown;?></label> 
 						<br><label><input type=radio name="dob_vm_type" value="choice" <?php echo ($dob_vm_type=='choice')?'CHECKED':'';?>><?php echo $label_choice;?></label> 
 						<br><label><input type=radio name="dob_vm_type" value="plural" <?php echo ($dob_vm_type=='plural')?'CHECKED':'';?>><?php echo $label_plural;?></label> 
-						<br><label><input type=radio name="dob_vm_type" value="secret" <?php echo ($dob_vm_type=='secret')?'CHECKED':'';?>><?php echo $label_secret;?></label> 
 					</td>
 					<td>
 						<ol id="ol_dob_vm_data">

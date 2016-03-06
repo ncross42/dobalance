@@ -63,7 +63,8 @@ SQL;
 function dob_vote_get_message($post_id,$user_id) {/*{{{*/
 	$message = 'plz vote';
 	if ( $ret = dob_vote_get_post_latest($post_id,$user_id) ) {
-		$message = 'last voted : '.substr($ret['ts'],0,10);
+		$label_last = '마지막 투표';	//__('Last Voted', DOBslug);
+		$message = $label_last.' : '.substr($ret['ts'],0,10);
 	}
 	return $message;
 }/*}}}*/
@@ -359,7 +360,7 @@ function dob_vote_aggregate_plural( $point, $uid_vals ) {/*{{{*/
 	return (int)base_convert($result,2,10);
 }/*}}}*/
 
-function dob_vote_update( $user_id, $post_id ) {/*{{{*/
+function dob_vote_cart( $user_id, $post_id ) {/*{{{*/
 	global $wpdb, $global_real_ip;
 
 	// check required argument
@@ -372,6 +373,71 @@ function dob_vote_update( $user_id, $post_id ) {/*{{{*/
 
 	$type		= $_POST['dob_vote_type'];
 	$val		= $_POST['dob_vote_val'];
+	$nonce	= $_POST['dob_vote_nonce'];
+	if ( ! wp_verify_nonce( $nonce, 'dob_vote_nonce_'.$type)
+		|| ! in_array( $type, array('updown','choice','plural') )
+	) {
+		return 'check2';
+	}
+
+	if ( $type=='plural' ) { // normalize plural value
+		if ( ! is_array($val) ) return 'check2';
+		$bit = '';
+		for ( $i=1; $i<=DOBmaxbit; ++$i ) {
+			$bit .= isset($val[$i]) ? $val[$i] : '0';
+		}
+		$rev = strrev($bit);
+		$value = base_convert($rev,2,10);
+	} else {
+		$value = (int)$val; 
+	}
+
+	// check duplicated value
+	$t_latest = $wpdb->prefix.'dob_vote_post_latest';
+	$sql = "SELECT value FROM `$t_latest` 
+		WHERE post_id = $post_id AND user_id = $user_id";
+	$old_val = (int)$wpdb->get_var($sql);
+	if ( ! is_null($old_val) && $old_val == $value ) {
+		return $label_duplicated = '기존 투표값과 같습니다.';	//__('Already you voted sam value.', DOBslug);
+	}
+
+	// CHECK dup cart value
+	$t_cart = $wpdb->prefix.'dob_cart';
+	$sql = "SELECT value FROM `$t_cart` 
+		WHERE user_id = $user_id AND type='vote' AND post_id = $post_id";
+	$old_val = $wpdb->get_var($sql);
+	if ( is_null($old_val) ) {	// INSERT
+		$sql = sprintf("INSERT INTO `$t_cart` SET
+			user_id = %d, type='vote', post_id = %d, value = %d",
+			$user_id, $post_id, $value 
+		);
+	} elseif ( $old_val == $value ) {
+		return $label_duplicated = '같은 값이 투표바구니에 있습니다.';	//__('Already same voting is in your Voting-Cart', DOBslug);
+	} else {			// UPDATE
+		$sql = sprintf("UPDATE `$t_cart` 
+				SET value = %d, ts=CURRENT_TIMESTAMP
+			WHERE user_id = %d AND type='vote' AND post_id = %d",
+			$value, $user_id, $post_id 
+		);
+	}
+	$success = $wpdb->query( $sql );	// success == 1 (affected_rows)
+	return $ret = $success ? '' : "DB ERROR(SQL)<br>\n: ".$sql;
+
+}/*}}}*/
+
+function dob_vote_update( $user_id, $post_id, $val=null ) {/*{{{*/
+	global $wpdb, $global_real_ip;
+
+	// check required argument
+	if ( ! isset($_POST['dob_vote_type'])
+		|| ( is_null($val) && ! isset($_POST['dob_vote_val']) )
+		|| ! isset($_POST['dob_vote_nonce'])
+	) {
+		return 'check1';
+	}
+
+	$type		= $_POST['dob_vote_type'];
+	if ( is_null($val) ) $val = $_POST['dob_vote_val'];
 	$nonce	= $_POST['dob_vote_nonce'];
 	if ( ! wp_verify_nonce( $nonce, 'dob_vote_nonce_'.$type)
 		|| ! in_array( $type, array('updown','choice','plural') )
@@ -412,7 +478,9 @@ function dob_vote_update( $user_id, $post_id ) {/*{{{*/
 			post_id = %d, user_id = %d, value = %d",
 			$post_id, $user_id, $value 
 		);
-	} else {			
+	} else if ( $old_val == $value ) {			
+		return $ret = 'No Change';
+	} else {
 		$sql = sprintf("UPDATE `$t_latest` SET value = %d
 			WHERE post_id = %d AND user_id = %d",
 			$value, $post_id, $user_id 
@@ -420,11 +488,7 @@ function dob_vote_update( $user_id, $post_id ) {/*{{{*/
 	}
 
 	$success = $wpdb->query( $sql );	// success == 1 (affected_rows)
-	if ($success) {
-		$ret = '';
-	} else {
-		$ret = "DB ERROR(SQL)<br>\n: ".$sql;
-	}
+	return ($success) ? '' : "DB ERROR(SQL)<br>\n: ".$sql;
 }/*}}}*/
 
 $DOB_INDEX = array ( -1=>'-1d',0=>'0d','1d','2d','3d','4d','5d','6d','7d');
@@ -463,8 +527,19 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 #echo '<pre>';
 	global $wpdb;
 	$user_id = get_current_user_id();
-	if ( ! empty($_POST) ) {
-		dob_vote_update($user_id,$post_id);
+	if ( $user_id ) {
+		$debug = '';
+		$USER_IP = empty($_SESSION['USER_IP']) ? '' : $_SESSION['USER_IP'];
+		if ( ! empty($_POST) && $USER_IP == dob_get_real_ip() ) {
+			if ( (int)$_POST['dob_vote_cart'] ) {
+				$debug = dob_vote_cart($user_id,$post_id);
+			} else {
+				$debug = dob_vote_update($user_id,$post_id);
+			}
+		}
+		if ( $debug ) {
+			echo "<pre>$debug</pre>";
+		}
 	}
 
 #$ts = microtime(true);
@@ -752,6 +827,7 @@ td.c8  { background-color: LIME ; }
 function dob_vote_display_mine($post_id,$vm_type,$vm_legend,$myval='',$user_id) {/*{{{*/
 	ob_start();
 	//session_unset();	// $_SESSION = array();
+	$USER_IP = empty($_SESSION['USER_IP']) ? '' : $_SESSION['USER_IP'];
 	$_SESSION['user_id'] = $user_id;
 	$_SESSION['post_id'] = $post_id;
 	$_SESSION['secret'] = $secret = base64_encode(openssl_random_pseudo_bytes(20));
@@ -791,14 +867,18 @@ HTML;
 		}
 		echo " <label>$html_input $label</label> ";
 	}
-	$html_submit = '';
-	if ( $user_id ) {
-		$html_submit = dob_vote_get_message($post_id,$user_id);	// vote_post_latest timestamp
+
+	$label_login = '로그인 해주세요';	//__('Please Login', DOBslug);
+	$html_submit = empty($user_id) ? $label_login : dob_vote_get_message($post_id,$user_id);	// vote_post_latest timestamp
+	if ( $USER_IP == dob_get_real_ip() ) {
 		$label_vote = '바로투표';	//__('Vote', DOBslug);
 		$label_cart = '투표바구니';	//__('Vote', DOBslug);
 		$style = 'width:100px; height:20px; background:#ccc; color:black; text-decoration: none; font-size: 13px; margin: 0; padding: 0 10px 1px;';
 		$html_submit .= " <input type='submit' value='$label_vote' style='$style' onclick='this.form.dob_vote_cart.value=0;'>";
 		$html_submit .= " <input type='submit' value='$label_cart' style='$style' onclick='this.form.dob_vote_cart.value=1;'>";
+	} else {
+		$label_iperr_relogin = '로그인시 IP주소가 변경되었습니다. 다시 로그인 해주세요.';	//__('Your IP-address is Changed. Please Login AGAIN.', DOBslug);
+		$html_submit .= '<br>'.$label_iperr_relogin;
 	}
 	echo <<<HTML
 			</td></tr>

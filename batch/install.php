@@ -12,10 +12,11 @@ global $wpdb;
 $table_name = $wpdb->prefix.'dob_cart';
 $sql = "CREATE TABLE IF NOT EXISTS `$table_name` (
 	`user_id` bigint unsigned NOT NULL DEFAULT '0',
+	`type` ENUM('vote','elect') NOT NULL DEFAULT 'vote',
 	`post_id` int(11) NOT NULL DEFAULT 0,
 	`value` smallint(2) NOT NULL DEFAULT 0,
 	`ts` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-	PRIMARY KEY (`user_id`,`post_id`)
+	PRIMARY KEY (`user_id`,`type`,`post_id`)
 )";
 $wpdb->query($sql);
 

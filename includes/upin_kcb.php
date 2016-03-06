@@ -78,19 +78,11 @@ HTML;
 add_action( 'wp_ajax_upin_kcb2', 'ajax_upin_kcb2' );
 add_action( 'wp_ajax_nopriv_upin_kcb2', 'ajax_upin_kcb2' );
 function ajax_upin_kcb2() { // kcb-ipin cert post-process /*{{{*/
-	global $global_real_ip;
 	list( $cpCode, $keyfile, $logpath ) = dob_upin_get_options();
 	
 	$req_headers = apache_request_headers();
 	//upin_log('header',$req_headers);
 	//upin_log('server',$_SERVER);
-
-	// check real_ip = https://cert.vno.co.kr/IPIN/vno_check.cb
-	$req_ip = '218.48.177.95';	// gethostbyname('cert.vno.co.kr');	
-	if ( $req_ip != $global_real_ip ) {
-		echo '<script>alert("인증 IP가 다릅니다. 홈페이지에 신고해 주세요");</script>';
-		upin_error(array('req_ip'=>$req_ip,'real_ip'=>$global_real_ip));
-	}
 
 	//upin_log('post',$_POST);	// tc, encPsnlInfo, IDENTIFYDATA, WEBPUBKEY, WEBSIGNATURE
 	@$encPsnlInfo = $_POST['encPsnlInfo']; //아이핀팝업에서 조회한 PERSONALINFO
@@ -123,12 +115,21 @@ function ajax_upin_kcb2() { // kcb-ipin cert post-process /*{{{*/
 	$_SESSION['upin_info'] = $upin_info;
 	upin_log('info',$upin_info);
 
-	$label_check_ok = 'IPIN 인증완료';	//__('Successfully Certified', KcbIpin);
+	$form = $_SESSION['upin_form'];
+	$html_toggle = '';
+	if ( $form == 'registerform' ) {
+		//$html_toggle = "opener.document.forms.$form.btn_upin.disabled = true;";
+	} elseif ( $form == 'formCart' ) {
+		$html_toggle = "opener.document.forms.$form.submit.disabled = false;";
+	}
+
+	$label_check_ok = 'IPIN 인증완료';	//__('Successfully Certified', DOBslug);
 	echo <<<HTML
 <script type="text/javascript">
-opener.document.registerform.upin_ci.value = '{$upin_info['coinfo1']}';
-opener.document.registerform.btn_upin.value = '$label_check_ok';
-opener.document.registerform.btn_upin.disabled = true;
+opener.document.forms.$form.upin_cert.value = '1';
+opener.document.forms.$form.btn_upin.value = '$label_check_ok';
+opener.document.forms.$form.btn_upin.disabled = true;
+$html_toggle
 self.close();
 </script>
 HTML;
@@ -140,13 +141,14 @@ add_action( 'register_form', 'upin_register_form' );
 function upin_register_form() {
 	if ( ! function_exists('okname') ) return;
 
+	$_SESSION['upin_form'] = 'registerform';
 	wp_enqueue_script('jquery');
-	$label_check = 'IPIN 인증';		//__('Check UPIN', KcbIpin);
+	$label_check = 'IPIN 인증';		//__('Check UPIN', DOBslug);
 	$ajax_url = admin_url('admin-ajax.php?action=upin_kcb1');
 ?>
 	<p>
-		<input type="hidden" name="upin_ci" value="">
-		<label for="upin_ci"><?=$label_check?></label>
+		<label for="upin_cert"><?=$label_check?></label>
+		<input type="hidden" name="upin_cert" value="">
 		<input type="button" name="btn_upin" id="btn_upin" class="input" value="<?=$label_check?>" onClick="onClick_btn_upin()"/>
 	</p>
 <script type="text/javascript">
@@ -159,19 +161,18 @@ function upin_register_form() {
 <?php
 }
 
-//2. Add validation. In this case, we make sure upin_ci is required.
+//2. Add validation. In this case, we make sure upin_cert is required.
 add_filter( 'registration_errors', 'upin_registration_errors', 10, 3 );
 function upin_registration_errors( $errors, $sanitized_user_login, $user_email ) {
 	global $wpdb;
 
-	// check $_POST['upin_ci'] and $_SESSION['upin_info']['coinfo1']
-	$upin_ci = empty($_POST['upin_ci']) ? '' : $_POST['upin_ci'];
-	if ( empty($upin_ci) || empty($_SESSION['upin_info'])
+	// check $_POST['upin_cert'] and $_SESSION['upin_info']['coinfo1']
+	$upin_ci = empty($_SESSION['upin_info']['coinfo1']) ? '' : $_SESSION['upin_info']['coinfo1'];
+	if ( empty($_POST['upin_cert']) || empty($_SESSION['upin_info'])
 		|| 88 != strlen($upin_ci)
 		|| preg_match('~[^0-9a-zA-Z+/=]~', $upin_ci)
-		|| $upin_ci != $_SESSION['upin_info']['coinfo1']
 	) {
-		$label_error = 'IPIN 인증을 실행해 주세요';	// __( 'You must be certified by UPIN.', 'KcbIpin' );
+		$label_error = 'IPIN 인증을 실행해 주세요';	// __( 'You must be certified by UPIN.', DOBslug );
 		$errors->add( 'upin_error', '<strong>ERROR</strong>: '.$label_error );
 	}
 
@@ -183,7 +184,7 @@ function upin_registration_errors( $errors, $sanitized_user_login, $user_email )
 		WHERE ci = '$upin_ci'";
 	$row = $wpdb->get_row($sql,ARRAY_A);
 	if ( ! empty($row) ) {
-		$label_error2 = '이미 등록되어 있습니다';	// __( 'You must be certified by UPIN.', 'KcbIpin' );
+		$label_error2 = '이미 등록되어 있습니다';	// __( 'You must be certified by UPIN.', DOBslug );
 		$label_error2 .= "\n<br> &gt; login_id : {$row['user_login']} \n<br> &gt; email : {$row['user_email']}";
 		$errors->add( 'upin_error2', '<strong>ERROR</strong>: '.$label_error2 );
 	}
