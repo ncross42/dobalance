@@ -14,25 +14,6 @@ function dob_vote_wp_init() {/*{{{*/
 	
 }/*}}}*/
 
-$global_real_ip = dob_vote_get_real_ip();
-function dob_vote_get_real_ip() {/*{{{*/
-	if (getenv('HTTP_CLIENT_IP')) {
-		$ip = getenv('HTTP_CLIENT_IP');
-	} elseif (getenv('HTTP_X_FORWARDED_FOR')) {
-		$ip = getenv('HTTP_X_FORWARDED_FOR');
-	} elseif (getenv('HTTP_X_FORWARDED')) {
-		$ip = getenv('HTTP_X_FORWARDED');
-	} elseif (getenv('HTTP_FORWARDED_FOR')) {
-		$ip = getenv('HTTP_FORWARDED_FOR');
-	} elseif (getenv('HTTP_FORWARDED')) {
-		$ip = getenv('HTTP_FORWARDED');
-	} else {
-		$ip = $_SERVER['REMOTE_ADDR'];
-	}
-	
-	return $ip;
-}/*}}}*/
-
 function dob_vote_get_post_latest($post_id,$user_id=0) {/*{{{*/
 	global $wpdb;
 	$sql_user = empty($user_id) ? '' : ' AND user_id='.$user_id;
@@ -54,7 +35,7 @@ SQL;
 	} else {
 		$ret = array();
 		foreach ( $rows as $row ) {
-			$ret[$row['user_id']] = $row;
+			$ret[(int)$row['user_id']] = $row;
 		}
 		return $ret;
 	}
@@ -238,8 +219,7 @@ function dob_vote_get_user_hierarchy($term_taxonomy_id) {/*{{{*/
 	$sql = "SELECT user_id
 		FROM $t_user_hierarchy
 		WHERE taxonomy='hierarchy' AND term_taxonomy_id=$term_taxonomy_id";
-	$rows = $wpdb->get_results($sql,ARRAY_N);
-	return array_column($rows, 0);
+	return $wpdb->get_col($sql,0);
 }/*}}}*/
 
 function dob_vote_get_post_hierarchy_leaf($post_id,$influences) {/*{{{*/
@@ -277,6 +257,7 @@ function dob_vote_get_hierarchy_voter( $post_id ) {/*{{{*/
 	$sql = <<<SQL
 SELECT
 	term_taxonomy_id, lft, name, slug, lvl, user_id, value
+	, inf, chl, anc
 FROM $t_vote_post_latest
 	JOIN $t_user_hierarchy USING (user_id)
 	JOIN $t_term_taxonomy  USING (term_taxonomy_id)
@@ -285,21 +266,24 @@ WHERE $t_user_hierarchy.taxonomy = 'hierarchy'
 	AND $t_vote_post_latest.post_id = $post_id
 ORDER BY lft
 SQL;
-	$rows = $wpdb->get_results($sql, ARRAY_N);
+	$rows = $wpdb->get_results($sql);
 	$ret = array();
 	foreach ( $rows as $r ) {
-		$tid = $r[0];
-		$uid = $r[5];
-		$val = $r[6];
+		$tid = $r->term_taxonomy_id;
+		$uid = $r->user_id;
+		$val = $r->value;
 		if ( isset($ret[$tid]) ) {
 			$ret[$tid]['uid_vals'][$uid] = $val;
 		} else {
 			$ret[$tid] = array (
-				'lft'			=> $r[1],
-				'tname'		=> $r[2],
-				'slug'		=> $r[3],
-				'lvl'			=> $r[4],
+				'lft'			=> $r->lft,
+				'tname'		=> $r->name,
+				'slug'		=> $r->slug,
+				'lvl'			=> $r->lvl,
 				'uid_vals'=> array( $uid=>$val ),
+				'inf'			=> (int)$r->inf,
+				'chl'			=> (int)$r->chl,
+				'anc'			=> empty($r->anc) ? array() : explode(',',$r->anc),
 			);
 		}
 	}
@@ -543,14 +527,15 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 	}
 
 #$ts = microtime(true);
-	$influences = dob_vote_get_hierarchy_influence();	// influences by term_taxonomy_id
-#file_put_contents('/tmp/in.php',print_r($influences,true));
-#file_put_contents('/tmp/in.php',PHP_EOL.(microtime(true)-$ts),FILE_APPEND);
+	//$influences = dob_vote_get_hierarchy_influence();	// influences by term_taxonomy_id
+#var_dump('<pre>',microtime(true)-$ts,'</pre>');
 	//useless, $post_leaf_hierarchy = dob_vote_get_post_hierarchy_leaf($post_id,$influences);
 
 	$aDelegate = array();
 	$nDelegate = $nFixed = $nDirect = 0;
+$ts = microtime(true);
 	$hierarchy_voter = dob_vote_get_hierarchy_voter($post_id);	// order by lft
+#var_dump('<pre>',microtime(true)-$ts,'</pre>');
 #print_r($hierarchy_voter);
 	foreach ( $hierarchy_voter as $ttid => $v ) {/*{{{*/
 		/*$tname		= $v['tname'];
@@ -559,15 +544,13 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 		$uid_vals	= $v['uid_vals'];
 		$uv_voted	= count($uid_vals);
 		$uv_valid	= $uv_voted - count( array_filter( $uid_vals, function($v){return $v==0;} ) );
-		$all_ids = dob_vote_get_user_hierarchy($ttid);
-		$uv_all = count($all_ids);
 
 		// check direct voting
-		if ( $influences[$ttid]['bLeaf'] ) {
+		if ( empty($v['chl']) ) {
 			// subtract abstention(val=0) counts from uid_vals
 			$nDirect += $uv_valid;
 			// deduct last-ancestor's influences
-			foreach ( array_reverse($influences[$ttid]['ancestor']) as $a_ttid ) {
+			foreach ( array_reverse($v['anc']) as $a_ttid ) {
 				if ( isset($hierarchy_voter[$a_ttid]) ) {	// only exists
 					$hierarchy_voter[$a_ttid]['inf'] -= $uv_valid;
 					if ( $hierarchy_voter[$a_ttid]['value'] ) break;
@@ -575,8 +558,9 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 			}
 			// self added leaf data
 			$hierarchy_voter[$ttid]['value'] = null;
-			$hierarchy_voter[$ttid]['inf'] = $uv_all;
 		} else {
+			$all_ids = dob_vote_get_user_hierarchy($ttid);
+			$uv_all = count($all_ids);
 			$value = 0;	// decision value
 			// check minimum turnout
 			if ( 1 == $uv_all ) {
@@ -597,16 +581,16 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 			}
 			// deduct last-ancestor's influences
 			if ( $value ) {	// not 0
-				foreach ( array_reverse($influences[$ttid]['ancestor']) as $a_ttid ) {
+				foreach ( array_reverse($v['anc']) as $a_ttid ) {
 					if ( isset($hierarchy_voter[$a_ttid]) ) {
-						$hierarchy_voter[$a_ttid]['inf'] -= $influences[$ttid]['nLow'];
+						$hierarchy_voter[$a_ttid]['inf'] -= $v['inf'];
 						if ( $hierarchy_voter[$a_ttid]['value'] ) break;
 					}
 				}
 			}
 			// deduct last-ancestor's influences by uv_valid(Direct-voting)
 			if ( $uv_valid ) {
-				foreach ( array_reverse($influences[$ttid]['ancestor']) as $a_ttid ) {
+				foreach ( array_reverse($v['anc']) as $a_ttid ) {
 					if ( isset($hierarchy_voter[$a_ttid]) ) {
 						$hierarchy_voter[$a_ttid]['inf'] -= $uv_valid;
 						if ( $hierarchy_voter[$a_ttid]['value'] ) break;
@@ -616,13 +600,12 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 			// self added non-leaf data
 			$hierarchy_voter[$ttid]['value'] = $value;
 			$hierarchy_voter[$ttid]['all_ids'] = $all_ids;
-			$hierarchy_voter[$ttid]['inf'] = $influences[$ttid]['nLow'];
 		}
 		// self added common data
-		$hierarchy_voter[$ttid]['bLeaf'] = $influences[$ttid]['bLeaf'];
 		$hierarchy_voter[$ttid]['uv_voted'] = $uv_voted;
 	}/*}}}*/
-#print_r($hierarchy_voter);
+#print_r($hierarchy_voter,true);
+#file_put_contents('/tmp/hv.'.date('His').'.php',print_r($hierarchy_voter,true));
 
 	$html_hierarchy = '';/*{{{*/
 	if ( is_single() ) {
@@ -632,12 +615,12 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 			$uid_vals = $v['uid_vals'];
 			$indent = ' '.str_repeat(' ~~ ',$v['lvl']);
 			$inherit = 0;
-			foreach ( $influences[$ttid]['ancestor'] as $a_ttid ) {
+			foreach ( $v['anc'] as $a_ttid ) {
 				if ( !empty($hierarchy_voter[$a_ttid]['value']) ) {
 					$inherit = $hierarchy_voter[$a_ttid]['value'];
 				}
 			}
-			if ( $v['bLeaf'] ) {
+			if ( empty($v['chl']) ) {
 				$myval = isset($uid_vals[$user_id]) ? " (@{$vote_latest[$user_id]['user_login']}:{$uid_vals[$user_id]})" : '';
 				$uv_valid	= count($uid_vals) - count( array_filter( $uid_vals, function($v){return $v==0;} ) );
 				$hierarchies[] = $indent.$v['tname']."({$v['inf']}-$uv_valid) : [$inherit]".$myval;
@@ -667,7 +650,7 @@ HTML;
 	// build final result stat.
 	$result_stat = array();/*{{{*/
 	foreach ( $hierarchy_voter as $ttid => $v ) {
-		if ( $v['bLeaf'] ) {
+		if ( empty($v['chl']) ) {
 			foreach ( $v['uid_vals'] as $uid => $val ) {	// leaf
 				if ( $val ) dob_vote_make_stat($result_stat,$vm_type,$val,1,true);
 			}

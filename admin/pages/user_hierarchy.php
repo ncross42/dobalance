@@ -70,6 +70,28 @@ echo <<<HTML
 HTML;
 }
 
+function dob_user_hierarchy_recalc_inf( $target_id, $source_id=0 ) {
+	global $wpdb;
+
+	$t_term_taxonomy = $wpdb->prefix.'term_taxonomy';
+
+	// update target term_taxonomy
+	$sql = "SELECT lft, rgt FROM $t_term_taxonomy WHERE term_taxonomy_id = $target_id";
+	$target = $wpdb->get_row($sql);
+	$sql = "UPDATE $t_term_taxonomy SET inf = inf + 1
+		WHERE taxonomy='hierarchy' AND lft < {$target->lft} AND rgt > {$target->rgt}";
+	$wpdb->query($sql);
+
+	// update source term_taxonomy
+	if ( ! empty($source_id) ) {
+		$sql = "SELECT lft, rgt FROM $t_term_taxonomy WHERE term_taxonomy_id = $source_id";
+		$source = $wpdb->get_row($sql);
+		$sql = "UPDATE $t_term_taxonomy SET inf = inf - 1
+			WHERE taxonomy='hierarchy' AND lft < {$source->lft} AND rgt > {$source->rgt}";
+		$wpdb->query($sql);
+	}
+}
+
 /* save the category selections from admin */
 add_action( 'personal_options_update', 'dob_user_hierarchy_update' );
 add_action( 'edit_user_profile_update', 'dob_user_hierarchy_update' );
@@ -77,24 +99,28 @@ function dob_user_hierarchy_update( $target_user_id ) {
 	global $wpdb;
 
 	$login_user_id = get_current_user_id();
+	$t_user_category = $wpdb->prefix.'dob_user_category';
+	$t_term_taxonomy = $wpdb->prefix.'term_taxonomy';
 
 	$term_taxonomy_id = $_POST['dob_user_hierarchy'];
 	$sql = "SELECT term_taxonomy_id 
-		FROM {$wpdb->prefix}dob_user_category 
+		FROM $t_user_category
 		WHERE taxonomy='hierarchy' AND user_id=".(int)$target_user_id;
 	$old_term_taxonomy_id = $wpdb->get_var($sql);
 
 	if ( empty($old_term_taxonomy_id) ) {
-		$wpdb->insert( "{$wpdb->prefix}dob_user_category", 
+		$wpdb->insert( $t_user_category,
 			array( 'taxonomy'=>'hierarchy', 'user_id'=>$target_user_id, 'term_taxonomy_id'=>$term_taxonomy_id ),
 			array( '%s', '%d', '%d' )
 		);
 	} else if ( $term_taxonomy_id != $old_term_taxonomy_id ) {
-		$wpdb->update( "{$wpdb->prefix}dob_user_category", 
+		$wpdb->update( $t_user_category,
 			array( 'term_taxonomy_id'=>$term_taxonomy_id ),
 			array( 'taxonomy'=>'hierarchy','user_id'=>$target_user_id, ),
 			array( '%d' ),
 			array( '%s', '%d' )
 		);
 	}
+
+	dob_user_hierarchy_recalc_inf($term_taxonomy_id,$old_term_taxonomy_id);
 }

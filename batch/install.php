@@ -90,10 +90,13 @@ $wpdb->query($sql);
 $table_name = $wpdb->prefix.'term_taxonomy';
 if ( empty($wpdb->get_var("SHOW COLUMNS FROM $table_name LIKE 'lft';") ) ) {
 	$sql = "ALTER TABLE `$table_name` 
-		ADD COLUMN `lft` SMALLINT UNSIGNED NOT NULL DEFAULT '0' COMMENT 'MPTT columns used by DoBalance' AFTER `count`,
-		ADD COLUMN `rgt` SMALLINT UNSIGNED NOT NULL DEFAULT '0' COMMENT 'MPTT columns used by DoBalance' AFTER `lft`,
-		ADD COLUMN `lvl` TINYINT UNSIGNED NOT NULL DEFAULT '0' COMMENT 'MPTT columns used by DoBalance' AFTER `rgt`,
-		ADD COLUMN `pos` TINYINT UNSIGNED NOT NULL DEFAULT '0' COMMENT 'MPTT columns used by DoBalance' AFTER `lvl`,
+		ADD COLUMN `lft` SMALLINT UNSIGNED NOT NULL DEFAULT '0' COMMENT 'left MPTT columns used by DoBalance' AFTER `count`,
+		ADD COLUMN `rgt` SMALLINT UNSIGNED NOT NULL DEFAULT '0' COMMENT 'right MPTT columns used by DoBalance' AFTER `lft`,
+		ADD COLUMN `lvl` TINYINT  UNSIGNED NOT NULL DEFAULT '0' COMMENT 'level MPTT columns used by DoBalance' AFTER `rgt`,
+		ADD COLUMN `pos` TINYINT  UNSIGNED NOT NULL DEFAULT '0' COMMENT 'position MPTT columns used by DoBalance' AFTER `lvl`,
+		ADD COLUMN `inf` SMALLINT UNSIGNED NOT NULL DEFAULT '0' COMMENT 'influences(lower users count) MPTT columns used by DoBalance' AFTER `pos`,
+		ADD COLUMN `chl` TINYINT  UNSIGNED NOT NULL DEFAULT '0' COMMENT 'children node count MPTT columns used by DoBalance' AFTER `inf`,
+		ADD COLUMN `anc` VARCHAR(255) COLLATE ascii_bin NOT NULL DEFAULT '' COMMENT 'ancestor MPTT columns used by DoBalance' AFTER `chl`,
 		ADD INDEX `IDX_taxonomy_parent_pos` ( `taxonomy`, `parent`, `pos` )
 	"; 
 	$wpdb->query($sql);

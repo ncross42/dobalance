@@ -45,7 +45,9 @@ session_set_cookie_params(3600);
 
 $global_real_ip = dob_get_real_ip();
 function dob_get_real_ip() {/*{{{*/
-	if (getenv('HTTP_CLIENT_IP')) {
+	if ( empty($_SERVER['REQUEST_URI']) ) {
+		return '';
+	} elseif (getenv('HTTP_CLIENT_IP')) {
 		$ip = getenv('HTTP_CLIENT_IP');
 	} elseif (getenv('HTTP_X_FORWARDED_FOR')) {
 		$ip = getenv('HTTP_X_FORWARDED_FOR');

@@ -25,7 +25,7 @@ $wpdb->query($sql);
 
 $table_name = $wpdb->prefix.'term_taxonomy';
 $sql = "ALTER TABLE `$table_name`
-	DROP `lft`, DROP `rgt`, DROP `lvl`, DROP `pos`,
+	DROP `lft`, DROP `rgt`, DROP `lvl`, DROP `pos`, DROP `inf`, DROP `chl`, DROP `anc`,
 	DROP INDEX IDX_taxonomy_parent_pos";
 $wpdb->query($sql);
 

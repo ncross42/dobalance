@@ -17,7 +17,10 @@ class jsTree
 			'left'			=> 'lft',
 			'right'			=> 'rgt',
 			'level'			=> 'lvl',
-			'position'	=> 'pos'
+			'position'	=> 'pos',
+			'children'	=> 'chl',
+			'influence'	=> 'inf',
+			'ancestor'	=> 'anc'
 		),
 		'data' => array(
 			'id'			=> 'term_id',
@@ -32,7 +35,7 @@ class jsTree
 		$this->db = $wpdb;
 		$this->default['t_base'] = $wpdb->prefix.$this->default['t_base'];
 		$this->default['t_data'] = $wpdb->prefix.$this->default['t_data'];
-		$this->default['t_meta'] = $wpdb->prefix.$this->default['t_data'];
+		$this->default['t_meta'] = $wpdb->prefix.$this->default['t_meta'];
 		$this->options = array_merge($this->default, $options);
 		$this->validate_taxonomy();
 	}/*}}}*/
@@ -189,19 +192,19 @@ class jsTree
 		// update left indexes
 		$ref_lft = false;
 		if( ! isset($parent['children']) ) {
-			$ref_lft = $parent[$base['right']];
+			$ref_lft = (int)$parent[$base['right']];
 		}
 		else if(!isset($parent['children'][$position])) {
-			$ref_lft = $parent[$base['right']];
+			$ref_lft = (int)$parent[$base['right']];
 		}
 		else {
-			$ref_lft = $parent['children'][(int)$position][$base['left']];
+			$ref_lft = (int)$parent['children'][(int)$position][$base['left']];
 		}
 		$sql[] = "
 			UPDATE ".$t_base."
 				SET ".$base['left']." = ".$base['left']." + 2
 			WHERE
-				".$base['left']." >= ".(int)$ref_lft."
+				".$base['left']." >= ".$ref_lft."
 			";
 		$par[] = false;
 
@@ -246,12 +249,12 @@ class jsTree
 
 		// update mptt values
 		$args = array (
-			$base['left']			=> (int)$ref_lft,
-			$base['right']		=> (int)$ref_lft + 1,
+			$base['left']			=> $ref_lft,
+			$base['right']		=> $ref_lft + 1,
 			$base['level']		=> (int)$parent[$base['level']] + 1,
 			$base['position']	=> $position,
 		);
-		// $wpdb->update( $table, $data, $where, $format = null, $where_format = null ); 
+		//$this->db->update( $table, $data, $where, $format = null, $where_format = null ); 
 		$ret = $this->db->update( $t_base, $args, array($data['id']=>$term_id), array_fill(0,3,'%d'), '%d' );
 		if ( $ret === false ) {
 			echo "\n[SQL] ".$this->db->last_query;
@@ -260,42 +263,106 @@ class jsTree
 			wp_die( "\n[NO UPDATE] update to modify mptt values\n".print_r($args,true) );
 		}
 
+		// update children count
+		$sql = "UPDATE $t_base 
+				SET {$base['children']} = {$base['children']} + 1
+				WHERE {$base['id']} = $parent_id";
+		$this->db->query($sql);
+
+		// update ancestor
+		$ancestor_ids = '';
+		$sql = "SELECT GROUP_CONCAT({$base['id']})
+			FROM $t_base
+			WHERE `taxonomy` = '$taxonomy' AND lft < $ref_lft AND rgt > 1+$ref_lft";
+		$ancestor_ids = $this->db->get_var($sql);
+
+    $sql = "UPDATE $t_base 
+				SET {$base['ancestor']} = '$ancestor_ids'
+			WHERE {$base['id']} = $term_taxonomy_id";
+		$this->db->query($sql);
+
 		return $term_taxonomy_id;
 	}/*}}}*/
 
-	public function mv($id, $parent, $position = 0) {/*{{{*/
+	public function mv($src_id, $tgt_id, $position = 0) {/*{{{*/
 		extract($this->options);
-		$id			= (int)$id;
-		$parent		= (int)$parent;
-		if($parent == 0 || $id == 0 || $id == 1) {
+		$src_id			= (int)$src_id;
+		$tgt_id	= (int)$tgt_id;
+		if($tgt_id == 0 || $src_id == 0 || $src_id == 1) {
 			throw new Exception('Cannot move inside 0, or move root node');
 		}
 
-		$parent		= $this->get_node($parent, array('with_children'=> true, 'with_path' => true));
-		$id			= $this->get_node($id, array('with_children'=> true, 'deep_children' => true, 'with_path' => true));
-		if(!$parent['children']) {
+		$src	= $this->get_node($src_id, array('with_children'=> true, 'deep_children' => true, 'with_path' => true));
+		file_put_contents('/tmp/src.php', print_r($src,true) );
+		$tgt	= $this->get_node($tgt_id, array('with_children'=> true, 'with_path' => true));
+		file_put_contents('/tmp/tgt.php', print_r($tgt,true) );
+		if(!$tgt['children']) {
 			$position = 0;
 		}
-		if($id[$base['parent_id']] == $parent[$base['id']] && $position > $id[$base['position']]) {
+		if($src[$base['parent_id']] == $tgt[$base['id']] && $position > $src[$base['position']]) {
 			$position ++;
 		}
-		if($parent['children'] && $position >= count($parent['children'])) {
-			$position = count($parent['children']);
+		if($tgt['children'] && $position >= count($tgt['children'])) {
+			$position = count($tgt['children']);
 		}
-		if($id[$base['left']] < $parent[$base['left']] && $id[$base['right']] > $parent[$base['right']]) {
+		if($src[$base['left']] < $tgt[$base['left']] && $src[$base['right']] > $tgt[$base['right']]) {
 			throw new Exception('Could not move parent inside child');
 		}
 
 		$tmp = array();
-		$tmp[] = (int)$id[$base['id']];
-		if($id['children'] && is_array($id['children'])) {
-			foreach($id['children'] as $c) {
+		$tmp[] = (int)$src[$base['id']];
+		if($src['children'] && is_array($src['children'])) {
+			foreach($src['children'] as $c) {
 				$tmp[] = (int)$c[$base['id']];
 			}
 		}
-		$width = (int)$id[$base['right']] - (int)$id[$base['left']] + 1;
+		$width = (int)$src[$base['right']] - (int)$src[$base['left']] + 1;
 
 		$sql = array();
+
+		// update children ancestor influence
+		$src_pid = (int)$src[$base['parent_id']];
+		if ( $src_pid != $tgt_id ) {
+			// update children
+			$sql[] = "UPDATE $t_base 
+				SET {$base['children']} = {$base['children']} - 1
+				WHERE {$base['id']} = $src_pid";
+			$sql[] = "UPDATE $t_base 
+				SET {$base['children']} = {$base['children']} + 1
+				WHERE {$base['id']} = $tgt_id";
+
+			$src_lft = $src[$base['left']];
+			$src_rgt = $src[$base['right']];
+			$tgt_lft = $tgt[$base['left']];
+			$tgt_rgt = $tgt[$base['right']];
+
+			// update ancestor
+			$src_anc = $src[$base['ancestor']];
+			$tgt_anc = $tgt[$base['ancestor']];
+			$tgt_anc = empty($tgt_anc) ? $tgt_id : $tgt_anc.','.$tgt_id;
+			$sql[] = "UPDATE $t_base 
+				SET {$base['ancestor']} = REPLACE ( {$base['ancestor']}, '$src_anc', '$tgt_anc' )
+				WHERE {$base['left']} >= $src_lft AND {$base['right']} <= $src_rgt";
+
+			// update influence
+			$inf = $src[$base['influence']];	// leaf or lower user count
+			if ( ! empty($src[$base['children']]) ) {	// branch-node
+				$t_user_category = $this->db->prefix.'dob_user_category';
+				$_sql = "SELECT COUNT(1) 
+					FROM $t_user_category
+					WHERE {$base['taxonomy']}='hierarchy' AND {$base['id']}=$src_id";
+				$inf += (int) $this->db->get_var($_sql);
+			}
+			$sql[] = "UPDATE $t_base 
+				SET {$base['influence']} = {$base['influence']} - $inf
+				WHERE `taxonomy` = '$taxonomy' 
+					AND {$base['left']} < $src_lft AND {$base['right']} > $src_rgt";
+			$sql[] = "UPDATE $t_base 
+				SET {$base['influence']} = {$base['influence']} + $inf
+				WHERE `taxonomy` = '$taxonomy' 
+					AND {$base['left']} <= $tgt_lft AND {$base['right']} >= $tgt_rgt";
+		file_put_contents('/tmp/mv.php', print_r($sql,true) );
+		}
 
 		// PREPARE NEW PARENT
 		// update positions of all next elements
@@ -303,21 +370,21 @@ class jsTree
 			UPDATE ".$t_base."
 				SET ".$base['position']." = ".$base['position']." + 1
 			WHERE
-				".$base['id']." != ".(int)$id[$base['id']]." AND
-				".$base['parent_id']." = ".(int)$parent[$base['id']]." AND
+				".$base['id']." != ".(int)$src[$base['id']]." AND
+				".$base['parent_id']." = ".(int)$tgt[$base['id']]." AND
 				".$base['position']." >= ".$position."
 			";
 
 		// update left indexes
 		$ref_lft = false;
-		if(!$parent['children']) {
-			$ref_lft = $parent[$base['right']];
+		if(!$tgt['children']) {
+			$ref_lft = $tgt[$base['right']];
 		}
-		else if(!isset($parent['children'][$position])) {
-			$ref_lft = $parent[$base['right']];
+		else if(!isset($tgt['children'][$position])) {
+			$ref_lft = $tgt[$base['right']];
 		}
 		else {
-			$ref_lft = $parent['children'][(int)$position][$base['left']];
+			$ref_lft = $tgt['children'][(int)$position][$base['left']];
 		}
 		$sql[] = "
 			UPDATE ".$t_base."
@@ -328,14 +395,14 @@ class jsTree
 			";
 		// update right indexes
 		$ref_rgt = false;
-		if(!$parent['children']) {
-			$ref_rgt = $parent[$base['right']];
+		if(!$tgt['children']) {
+			$ref_rgt = $tgt[$base['right']];
 		}
-		else if(!isset($parent['children'][$position])) {
-			$ref_rgt = $parent[$base['right']];
+		else if(!isset($tgt['children'][$position])) {
+			$ref_rgt = $tgt[$base['right']];
 		}
 		else {
-			$ref_rgt = $parent['children'][(int)$position][$base['left']] + 1;
+			$ref_rgt = $tgt['children'][(int)$position][$base['left']] + 1;
 		}
 		$sql[] = "
 			UPDATE ".$t_base."
@@ -347,10 +414,10 @@ class jsTree
 
 		// MOVE THE ELEMENT AND CHILDREN
 		// left, right and level
-		$diff = $ref_lft - (int)$id[$base['left']];
+		$diff = $ref_lft - (int)$src[$base['left']];
 
 		if($diff > 0) { $diff = $diff - $width; }
-		$ldiff = ((int)$parent[$base['level']] + 1) - (int)$id[$base['level']];
+		$ldiff = ((int)$tgt[$base['level']] + 1) - (int)$src[$base['level']];
 		$sql[] = "
 			UPDATE ".$t_base."
 				SET ".$base['right']." = ".$base['right']." + ".$diff.",
@@ -362,8 +429,8 @@ class jsTree
 		$sql[] = "
 			UPDATE ".$t_base."
 				SET ".$base['position']." = ".$position.",
-					".$base['parent_id']." = ".(int)$parent[$base['id']]."
-				WHERE ".$base['id']."  = ".(int)$id[$base['id']]."
+					".$base['parent_id']." = ".(int)$tgt[$base['id']]."
+				WHERE ".$base['id']."  = ".(int)$src[$base['id']]."
 		";
 
 		// CLEAN OLD PARENT
@@ -372,14 +439,14 @@ class jsTree
 			UPDATE ".$t_base."
 				SET ".$base['position']." = ".$base['position']." - 1
 			WHERE
-				".$base['parent_id']." = ".(int)$id[$base['parent_id']]." AND
-				".$base['position']." > ".(int)$id[$base['position']];
+				".$base['parent_id']." = ".(int)$src[$base['parent_id']]." AND
+				".$base['position']." > ".(int)$src[$base['position']];
 		// left indexes
 		$sql[] = "
 			UPDATE ".$t_base."
 				SET ".$base['left']." = ".$base['left']." - ".$width."
 			WHERE
-				".$base['left']." > ".(int)$id[$base['right']]." AND
+				".$base['left']." > ".(int)$src[$base['right']]." AND
 				".$base['id']." NOT IN(".implode(',',$tmp).")
 		";
 		// right indexes
@@ -387,7 +454,7 @@ class jsTree
 			UPDATE ".$t_base."
 				SET ".$base['right']." = ".$base['right']." - ".$width."
 			WHERE
-				".$base['right']." > ".(int)$id[$base['right']]." AND
+				".$base['right']." > ".(int)$src[$base['right']]." AND
 				".$base['id']." NOT IN(".implode(',',$tmp).")
 		";
 
@@ -468,6 +535,30 @@ class jsTree
         LEFT JOIN $t_meta tm ON tt.term_id=tm.term_id
       WHERE `taxonomy` = '$taxonomy' 
         AND tt.`$k_d2b` IN (".implode(',',$tmp).")";
+		}
+
+		// update children count
+		$_sql = "UPDATE $t_base 
+				SET {$base['children']} = {$base['children']} - 1
+				WHERE {$base['id']} = $pid";
+		$this->db->query($_sql);
+
+		// update influence
+		if ( 'hierarchy' == $taxonomy ) {
+			$t_user_category = $this->db->prefix.'dob_user_category';
+			$lft = $data[$base['left']];
+			$rgt = $data[$base['right']];
+
+			$_sql = "SELECT COUNT(1) 
+				FROM $t_base JOIN $t_user_category USING ({$base['id']},{$base['taxonomy']})
+				WHERE {$base['taxonomy']}='hierarchy'
+					AND {$base['left']} >= $lft AND {$base['right']} <= $rgt";
+			$inf = (int) $this->db->get_var($_sql);
+
+			$sql[] = "UPDATE $t_base 
+				SET {$base['influence']} = {$base['influence']} - $inf
+				WHERE {$base['taxonomy']}='hierarchy'
+					AND {$base['left']} < $lft AND {$base['right']} > $rgt";
 		}
 
 		foreach($sql as $v) {
