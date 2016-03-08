@@ -9,8 +9,8 @@ function dob_get_hierarchy_rows($bJson = false) {
 	$root = $dob_options['dobalance_root_hierarchy'];
 	$ret = array();
 
-	$sql = "SELECT term_taxonomy_id, lvl, slug, name 
-			/* CONCAT( REPEAT('\t',lvl), slug ) AS slug_full */
+	$sql = "SELECT term_taxonomy_id AS ttid, lvl, chl
+			, slug, name 
 		FROM {$wpdb->prefix}term_taxonomy JOIN {$wpdb->prefix}terms USING (term_id) 
 		WHERE taxonomy = 'hierarchy'
 		ORDER BY lft";
@@ -37,7 +37,7 @@ function dob_get_user_hierarchy_id( $user_id ) {
 */
 add_action( 'show_user_profile', 'dob_user_hierarchy_profile' );
 add_action( 'edit_user_profile', 'dob_user_hierarchy_profile' );
-function dob_user_hierarchy_profile( $user ) {
+function dob_user_hierarchy_profile( $user, $get_tr=false ) {
 	$target_user_id = $user->ID;
 
 	// HTML5 required attribute.
@@ -45,27 +45,36 @@ function dob_user_hierarchy_profile( $user ) {
 
 	$selected = dob_get_user_hierarchy_id($target_user_id);
 	$options = "\t<option value='0'>선택안함</option>";
-	foreach ( dob_get_hierarchy_rows() as $row ) {	// lvl, slug, name 
+	foreach ( dob_get_hierarchy_rows() as $r ) {	// lvl, slug, name 
 		$options .= sprintf(
-			"\n\t<option value='%s' %s>%s</option>",
-			$row->term_taxonomy_id,
-			($selected==$row->term_taxonomy_id)? 'selected="selected"':'',
-			str_repeat('&nbsp;',4*($row->lvl)).$row->name
+			"\n\t<option value='{$r->ttid}' %s %s>%s</option>",
+			( is_super_admin() || empty($r->chl) ) ? '' : 'DISABLED style="background-color:#eee;"',
+			($selected==$r->ttid) ? 'selected' : '',
+			str_repeat('&nbsp;',4*($r->lvl)).$r->name
 		);
 	}
 
-echo <<<HTML
-	<h3>DoBalance User Position in Hierarchy</h3>
-	<table class="form-table">
+	$label_dob = '균형 직접 민주주의 시스템'; // __( 'DoBalance', DOBslug );
+	$label_title = '소속 계층'; // __( 'User Position', DOBslug );
+	$html_tr = <<<HTML
 		<tr>
-			<th><label for='dob_user_hierarchy'>Hierarchy_Position $required_html</label></th>
+			<th><label for='dob_user_hierarchy'>$label_title $required_html</label></th>
 			<td>
 				<select name='dob_user_hierarchy' >
 					$options
 				</select>
-				<span class="description">전체 계층에서 본인의 지위를 선택해주세요 (대표성이 없으면 거주지역 선거구 선택)</span>
+				<span class="description">활동지역을 선택해주세요 (대표직은 관리자가 임명합니다.)</span>
 			</td>
 		</tr>
+HTML;
+	if ( $get_tr ) {
+		return $html_tr;
+	}
+
+echo <<<HTML
+	<h3>$label_dob</h3>
+	<table class="form-table">
+		$html_tr
 	</table>
 HTML;
 }
@@ -114,6 +123,13 @@ function dob_user_hierarchy_update( $target_user_id ) {
 			array( '%s', '%d', '%d' )
 		);
 	} else if ( $term_taxonomy_id != $old_term_taxonomy_id ) {
+		$sql = "SELECT chl FROM $t_term_taxonomy WHERE term_taxonomy_id = $term_taxonomy_id";
+		$chl = $wpdb->get_var($sql);
+		if ( ! is_super_admin() && ! empty($chl) ) {
+			$label_error = '잘못된 접근입니다'; // __( 'Forbidden Access.', DOBslug );
+			wp_die("<script>alert('$label_error');history.go(-1);</script>");
+		}
+
 		$wpdb->update( $t_user_category,
 			array( 'term_taxonomy_id'=>$term_taxonomy_id ),
 			array( 'taxonomy'=>'hierarchy','user_id'=>$target_user_id, ),
