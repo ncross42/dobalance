@@ -48,7 +48,7 @@ class jsTree
 		 * $COLUMN_TYPE = $this->db->get_var($sql);
 		 * eval( '$taxonomy_db = '.str_replace('enum','array',$COLUMN_TYPE).';' );
 		 */
-		$taxonomy_db = array('category','favorite','hierarchy','topic','party','union');
+		$taxonomy_db = array('category','favorite','hierarchy','topic','group','party','union');
 		$taxonomy = $this->options['taxonomy'];
 		if ( is_array($taxonomy) ) {
 			$this->options['taxonomy'] = array_intersect($taxonomy,$taxonomy_db);
@@ -293,9 +293,7 @@ class jsTree
 		}
 
 		$src	= $this->get_node($src_id, array('with_children'=> true, 'deep_children' => true, 'with_path' => true));
-		file_put_contents('/tmp/src.php', print_r($src,true) );
 		$tgt	= $this->get_node($tgt_id, array('with_children'=> true, 'with_path' => true));
-		file_put_contents('/tmp/tgt.php', print_r($tgt,true) );
 		if(!$tgt['children']) {
 			$position = 0;
 		}
@@ -361,7 +359,6 @@ class jsTree
 				SET {$base['influence']} = {$base['influence']} + $inf
 				WHERE `taxonomy` = '$taxonomy' 
 					AND {$base['left']} <= $tgt_lft AND {$base['right']} >= $tgt_rgt";
-		file_put_contents('/tmp/mv.php', print_r($sql,true) );
 		}
 
 		// PREPARE NEW PARENT
@@ -464,7 +461,7 @@ class jsTree
 				file_put_contents('/tmp/mv1.err', print_r(array($v,$this->db->last_query),true) );
 				wp_die('Could not remove');
 			} else if ( $ret == 0 ) {
-				file_put_contents('/tmp/mv1.err', PHP_EOL.var_export(array($v,$ret),true), FILE_APPEND );
+				file_put_contents('/tmp/mv1.ignore', PHP_EOL.var_export(array($v,$ret),true), FILE_APPEND );
 			}
 		}
 		/*foreach($sql as $k => $v) {
@@ -567,7 +564,7 @@ class jsTree
 				file_put_contents('/tmp/rm.err', print_r(array($v,$this->db->last_query),true) );
 				wp_die('Could not remove');
 			} else if ( $ret == 0 ) {
-				file_put_contents('/tmp/rm.err', PHP_EOL.var_export(array($v,$ret),true), FILE_APPEND );
+				file_put_contents('/tmp/rm.ignore', PHP_EOL.var_export(array($v,$ret),true), FILE_APPEND );
 			}
 		}
 		return true;

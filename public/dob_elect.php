@@ -285,9 +285,9 @@ echo '<pre>';
 	$vm_end = empty($dob_elect_cmb_vote['end']) ? '' : $dob_elect_cmb_vote['end'];
 
 	$user_id = get_current_user_id();
-	$USER_IP = empty($_SESSION['USER_IP']) ? '' : $_SESSION['USER_IP'];
+	$LOGIN_IP = empty($_SESSION['LOGIN_IP']) ? '' : $_SESSION['LOGIN_IP'];
 	if ( $user_id ) {
-		if ( ! empty($_POST) && $USER_IP == dob_get_real_ip() ) {
+		if ( ! empty($_POST) && $LOGIN_IP == dob_get_real_ip() ) {
 			if ( (int)$_POST['dob_elect_cart'] ) {
 				dob_elect_cart($user_id,$post_id);
 			} else {
@@ -338,7 +338,7 @@ echo '<pre>';
 			$label_result .= ' : '.$label_ing;
 			$html_form = '로그인 해주세요';		//__('Statistics', DOBslug);
 			if ( $user_id ) {
-				if ( isset($_SESSION['USER_IP']) && $_SESSION['USER_IP'] == dob_get_real_ip() ) {
+				if ( isset($_SESSION['LOGIN_IP']) && $_SESSION['LOGIN_IP'] == dob_get_real_ip() ) {
 					$html_form = dob_elect_display_mine($post_id,$vm_type,$vm_label,$myval,$user_id);
 				} else {
 					$html_form = '네트워크가 초기화 되었습니다. 다시 로그인해 주세요<br>투표시에는 네트워크(WIFI,LTE,3G)를 변경하지 마세요.';		//__('Statistics', DOBslug);

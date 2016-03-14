@@ -1,13 +1,14 @@
 <?php
-require_once('user_hierarchy.php');
+require_once('user_profile.php');
 
 global $current_user;
 $label_basic = '기본'; // __( 'Basic', DOBslug );
 $label_setting = __( 'Settings' );
 
-if ( ! empty($_POST) && isset($_POST['dob_admin'])
-	&& wp_verify_nonce( $_POST['dob_admin'], 'dob_admin' ) ) {
-	dob_user_hierarchy_update($current_user->ID);
+if ( ! empty($_POST) && isset($_POST['dob_admin_nonce'])
+	&& wp_verify_nonce( $_POST['dob_admin_nonce'], __FILE__ ) ) {
+	dob_admin_user_hierarchy_update($current_user->ID);
+	dob_admin_user_group_update($current_user->ID);
 }
 
 ?>
@@ -19,10 +20,11 @@ if ( ! empty($_POST) && isset($_POST['dob_admin'])
 				<form method="post">
 				<h3 class="hndle"><span><?php echo $label_basic.' '.$label_setting; ?></span></h3>
 				<div class="inside">
-				<?php wp_nonce_field( 'dob_admin', 'dob_admin' ); ?>
+				<?php wp_nonce_field( __FILE__, 'dob_admin_nonce' ); ?>
 
 					<table class="form-table">
-<?php echo dob_user_hierarchy_profile($current_user,true); ?>
+<?php echo dob_admin_user_hierarchy($current_user->ID,true); ?>
+<?php echo dob_admin_user_group($current_user->ID,true); ?>
 					</table>
 					<p class="submit">
 						<input type="submit" class="button-primary" value="<?php _e('Save Changes') ?>" />

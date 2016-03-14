@@ -67,7 +67,7 @@ function dob_set_remote_addr($user_login){/*{{{*/
 	$user_obj = get_user_by('login', $user_login );
 	$_SESSION['user_id'] = $user_obj->ID;
 	$_SESSION['user_login'] = $user_login;
-	$_SESSION['USER_IP'] = dob_get_real_ip();
+	$_SESSION['LOGIN_IP'] = dob_get_real_ip();
 	//wp_redirect("http://www.google.com"); //exit;
 }/*}}}*/
 add_action('wp_login', 'dob_set_remote_addr');

@@ -122,6 +122,7 @@ if ( is_array($_POST)
 						<label><input type="radio" name="taxonomy" value="category" <?php echo $taxonomy=='category' ? 'CHECKED' : ''; ?> >Category(일반)</label>
 						<label><input type="radio" name="taxonomy" value="hierarchy" <?php echo $taxonomy=='hierarchy' ? 'CHECKED' : ''; ?> >Hierarchy(계층별)</label>
 						<label><input type="radio" name="taxonomy" value="topic" <?php echo $taxonomy=='topic' ? 'CHECKED' : ''; ?> >Topic(주제별)</label>
+						<label><input type="radio" name="taxonomy" value="group" <?php echo $taxonomy=='group' ? 'CHECKED' : ''; ?> >Group(그룹별)</label>
 					</div>
 					<br>
 					<span style="background-color:#F2DEDE"><?php echo $message; ?></span>

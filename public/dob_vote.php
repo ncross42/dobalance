@@ -513,8 +513,8 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 	$user_id = get_current_user_id();
 	if ( $user_id ) {
 		$debug = '';
-		$USER_IP = empty($_SESSION['USER_IP']) ? '' : $_SESSION['USER_IP'];
-		if ( ! empty($_POST) && $USER_IP == dob_get_real_ip() ) {
+		$LOGIN_IP = empty($_SESSION['LOGIN_IP']) ? '' : $_SESSION['LOGIN_IP'];
+		if ( ! empty($_POST) && $LOGIN_IP == dob_get_real_ip() ) {
 			if ( (int)$_POST['dob_vote_cart'] ) {
 				$debug = dob_vote_cart($user_id,$post_id);
 			} else {
@@ -810,7 +810,7 @@ td.c8  { background-color: LIME ; }
 function dob_vote_display_mine($post_id,$vm_type,$vm_legend,$myval='',$user_id) {/*{{{*/
 	ob_start();
 	//session_unset();	// $_SESSION = array();
-	$USER_IP = empty($_SESSION['USER_IP']) ? '' : $_SESSION['USER_IP'];
+	$LOGIN_IP = empty($_SESSION['LOGIN_IP']) ? '' : $_SESSION['LOGIN_IP'];
 	$_SESSION['user_id'] = $user_id;
 	$_SESSION['post_id'] = $post_id;
 	$_SESSION['secret'] = $secret = base64_encode(openssl_random_pseudo_bytes(20));
@@ -853,7 +853,7 @@ HTML;
 
 	$label_login = '로그인 해주세요';	//__('Please Login', DOBslug);
 	$html_submit = empty($user_id) ? $label_login : dob_vote_get_message($post_id,$user_id);	// vote_post_latest timestamp
-	if ( $USER_IP == dob_get_real_ip() ) {
+	if ( $LOGIN_IP == dob_get_real_ip() ) {
 		$label_vote = '바로투표';	//__('Vote', DOBslug);
 		$label_cart = '투표바구니';	//__('Vote', DOBslug);
 		$style = 'width:100px; height:20px; background:#ccc; color:black; text-decoration: none; font-size: 13px; margin: 0; padding: 0 10px 1px;';

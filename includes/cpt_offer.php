@@ -195,7 +195,7 @@ function dob_offer_save_cmb_data( $post_id ) {
 	) return;
 
 	//$my_data = sanitize_text_field( $_POST['dob_new_field'] ); // Sanitize user input.
-	file_put_contents('/tmp/cpt2.php', print_r($_POST,true) );
+#file_put_contents('/tmp/cpt2.php', print_r($_POST,true) );
 
 	// https://codex.wordpress.org/Function_Reference/update_post_meta
 	// Update the meta field in the database.

@@ -38,7 +38,7 @@ $wpdb->query($sql);
 $table_name = $wpdb->prefix.'dob_user_category';
 $sql = "CREATE TABLE IF NOT EXISTS `$table_name` (
 	`user_id` int(11) NOT NULL DEFAULT '0',
-	`taxonomy` enum('category','favorite','hierarchy','topic','party','union') NOT NULL DEFAULT 'category',
+	`taxonomy` enum('category','favorite','hierarchy','topic','group','party','union') NOT NULL DEFAULT 'category',
 	`term_taxonomy_id` int(11) NOT NULL DEFAULT '0',
 	PRIMARY KEY (`user_id`,`taxonomy`,`term_taxonomy_id`),
 	KEY `term_taxonomy_id` (`term_taxonomy_id`,`taxonomy`,`user_id`)

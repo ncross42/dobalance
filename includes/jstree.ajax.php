@@ -41,6 +41,7 @@ if( !function_exists( 'dob_admin_jstree_ajax' ) ) :
 						switch ( $v['taxonomy'] ) {
 							case 'hierarchy': $icon = 'dashicons dashicons-networking'; break;
 							case 'topic': $icon = 'dashicons dashicons-editor-paste-text'; break;
+							case 'group': $icon = 'dashicons dashicons-groups'; break;
 							case 'category': default: $icon = 'dashicons dashicons-category';
 						}
 						$a_attr = array ( 'slug'=>$v['slug'], 'pos'=>$v['pos'], 'taxonomy'=>$v['taxonomy'] );
@@ -111,7 +112,7 @@ if( !function_exists( 'dob_admin_jstree_ajax' ) ) :
 					break;
 				}
 				header('Content-Type: application/json; charset=utf-8');
-				echo json_encode($rslt);
+				echo json_encode($rslt,JSON_UNESCAPED_UNICODE);
 			}
 			catch (Exception $e) {
 				header($_SERVER["SERVER_PROTOCOL"] . ' 500 Server Error');
