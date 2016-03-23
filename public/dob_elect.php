@@ -38,13 +38,13 @@ SQL;
 
 function dob_elect_get_log($post_id,$user_id) {/*{{{*/
 	global $wpdb;
-	$t_elect_latest	= $wpdb->prefix . 'dob_elect_log';
+	$t_elect_log	= $wpdb->prefix . 'dob_elect_log';
 	$sql = <<<SQL
 SELECT *
-FROM `$t_elect_latest` 
+FROM `$t_elect_log` 
 WHERE post_id = $post_id AND user_id=$user_id
 SQL;
-	return $wpdb->get_results($sql,ARRAY_A);
+	return $wpdb->get_results($sql);
 }/*}}}*/
 
 function dob_elect_get_message($post_id,$user_id) {/*{{{*/
@@ -276,7 +276,7 @@ function dob_elect_accum_stat( &$stat, $type, $value, $cnt=1) {/*{{{*/
 }/*}}}*/
 
 function dob_elect_contents( $post_id, $bEcho = false) {
-echo '<pre>';
+#echo '<pre>';
 	global $wpdb;
 	$dob_elect_cmb_vote = get_post_meta( $post_id, 'dob_elect_cmb_vote', true );
 	$vm_type = empty($dob_elect_cmb_vote['type']) ? 'updown': $dob_elect_cmb_vote['type'];
@@ -312,6 +312,7 @@ echo '<pre>';
 	$label_ing			= '진행중';			//__('Statistics', DOBslug);
 	$label_after		= '종료됨';			//__('Statistics', DOBslug);
 	$label_my				= '내 투표';			//__('My Vote', DOBslug);
+	$label_history	= '기록';				//__('My Vote', DOBslug);
 
 	/*}}}*/
 
@@ -331,7 +332,7 @@ echo '<pre>';
 		}/*}}}*/
 
 		$ts = time();
-		$html_chart= $html_form = '';
+		$html_chart= $html_form = $html_history = '';
 		if ( $ts < strtotime($vm_begin) ) {	// BEFORE
 			$label_result .= ' : '.$label_before;
 		} elseif ( strtotime($vm_begin) < $ts && $ts < strtotime($vm_end) ) {	// VOTING
@@ -353,18 +354,26 @@ echo '<pre>';
 			$html_chart = dob_elect_html_chart($result_stat,$vm_label,$nTotal);
 
 			if ( $user_id ) {
-				$elect_logs = dob_elect_get_log($post_id,$user_id);
-				$rows = array();
-				foreach ( $elect_logs as $log ) {
-					$rows[] = "<tr><td>{$log['ts']}</td><td>{$log['value']}</td><td>{$log['ip']}</td></tr>";
-				}
-				if ( ! empty($rows) ) {
-					$html_form .= '<table id="table_log">
-						<tr><th>date_time</th><th>value</th><th>ip</th></tr>'.implode(' ',$rows).'</table>
+			$html_history = <<<HTML
+			<li class='toggle'>
+				<h3># $label_my $label_history</h3><span class='toggler'>[open]</span>
+				<div class='panel' style='display:none'>
+					<table id='table_log'>
+						<tr><th>date_time</th><th>value</th><th>ip</th></tr>
+HTML;
+			foreach ( dob_elect_get_log($post_id,$user_id) as $log ) {
+				$html_history .= <<<HTML
+						<tr><td>{$log->ts}</td><td>{$log->value}</td><td>{$log->ip}</td></tr>
+HTML;
+			}
+			$html_history .= <<<HTML
+					</table>
 <style>
 #table_log th { background-color:#eee; text-transform:none; text-align:center; padding:0; }
-</style>';
-				}
+</style>
+				</div>
+			</li>
+HTML;
 			}
 		}
 #print_r($result_stat);
@@ -376,6 +385,7 @@ echo '<pre>';
 		<div class='panel'>
 			$html_timer 
 			$html_chart
+			$html_history
 		</div>
 	</li>
 HTML;
@@ -383,9 +393,8 @@ HTML;
 		$html_mine = '';
 		if ( ! empty($html_form) ) {
 		$html_mine = <<<HTML
-	<!--li class="toggle"-->
 	<li>
-		<h3># $label_my</h3><!--span class="toggler">[close]</span-->
+		<h3># $label_my</h3>
 		<div class='panel'>
 			$html_form 
 		</div>
@@ -393,7 +402,7 @@ HTML;
 HTML;
 		}
 	}
-echo '</pre>';
+#echo '</pre>';
 
 	$dob_elect = <<<HTML
 <ul id="toggle-view"><!--{{{-->

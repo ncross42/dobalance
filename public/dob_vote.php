@@ -52,6 +52,17 @@ function dob_vote_wp_init() {/*{{{*/
 	
 }/*}}}*/
 
+function dob_vote_get_log($post_id,$user_id) {/*{{{*/
+	global $wpdb;
+	$t_vote_log	= $wpdb->prefix . 'dob_vote_post_log';
+	$sql = <<<SQL
+SELECT *
+FROM `$t_vote_log` 
+WHERE post_id = $post_id AND user_id=$user_id
+SQL;
+	return $wpdb->get_results($sql);
+}/*}}}*/
+
 function dob_vote_get_post_latest($post_id,$user_id=0) {/*{{{*/
 	global $wpdb;
 	$sql_user = empty($user_id) ? '' : ' AND user_id='.$user_id;
@@ -731,15 +742,17 @@ $ts = microtime(true);
 	$label_direct		= '직접';						//__('Direct voter', DOBslug);
 	$label_chart		= '결과 차트';			//__('Direct voter', DOBslug);
 	$label_my				= '내 투표';				//__('My Vote', DOBslug);
+	$label_history	= '기록';				//__('My Vote', DOBslug);
 	$label_vote			= '투표';						//__('Vote', DOBslug);
 	$label_influence= '영향력 관계도';	//__('Direct voter', DOBslug);
+	$label_no_pos		= '계층이 지정되지 않아, 투표할 수 없습니다.';	//__('Direct voter', DOBslug); 
 
 	// build html hierarchy chart
 	$html_hierarchy = '';/*{{{*/
 	if ( is_single() ) {
 		$vote_latest = dob_vote_get_post_latest($post_id);	// user_id => rows	// for login_name
-#echo '<pre>'.print_r($vote_latest,true).'</pre>';
 		$myinfo = isset($vote_latest[$user_id]) ? $vote_latest[$user_id] : false;
+#echo '<pre>'.print_r($myinfo,true).'</pre>';
 		$myval = empty($myinfo) ? '' : (int)$vote_latest[$user_id]['value'];
 		$hierarchies = array();/*{{{*/
 		$all_group_vals = array();
@@ -792,8 +805,8 @@ $ts = microtime(true);
 		$label_analysis = '투표 분석';	//__('Direct voter', DOBslug);
 		$html_hierarchy = <<<HTML
 	<li class="toggle">
-		<h3># $label_analysis</h3><span class="toggler">[close]</span>
-		<div class="panel" style='font-size:1.12em'> $content_hierarchy </div>
+		<h3># $label_analysis</h3><span class="toggler">[open]</span>
+		<div class="panel" style='display:none; font-size:1.12em'> $content_hierarchy </div>
 	</li>
 HTML;
 	}/*}}}*/
@@ -808,8 +821,7 @@ HTML;
 		$fDirect = number_format(100*($nDirect/$nValid),1);
 	}/*}}}*/
 
-	$html_chart = '';
-	$html_form = '';/*{{{*/
+	$html_chart = $html_form = $html_history = '';/*{{{*/
 	if ( is_single() ) {
 		$content_form = '';
 		$vm_legend = ($vm_type=='updown') ? 
@@ -821,24 +833,49 @@ HTML;
 				$vm_legend[$k+1] = $v;
 			}
 		}
-		$content_form = dob_vote_display_mine($post_id,$vm_type,$vm_legend,$myval,$user_id);
-		$html_form = "<li>
-			<h3># $label_my</h3>
-			<div class='panel'> $content_form </div>
-		</li>";
-
 		$content_chart = dob_vote_html_chart($result_stat,$vm_legend,$nTotal);
 		$html_chart = "<li>
 			<h3># $label_chart</h3>
 			<div class='panel'> $content_chart </div>
 		</li>";
+
+		$content_form = empty($myinfo['ttid']) ?
+			"<span style='color:red; font-size:1.2em; font-weight:bold'>$label_no_pos</span>"
+			: dob_vote_display_mine($post_id,$vm_type,$vm_legend,$myval,$user_id);
+		$html_form = "<li>
+			<h3># $label_my</h3>
+			<div class='panel'> $content_form </div>
+		</li>";
+
+		if ( $user_id ) {
+			$html_history = <<<HTML
+			<li class='toggle'>
+				<h3># $label_my $label_history</h3><span class='toggler'>[open]</span>
+				<div class='panel' style='display:none'>
+					<table id='table_log'>
+						<tr><th>date_time</th><th>value</th><th>ip</th></tr>
+HTML;
+			foreach ( dob_vote_get_log($post_id,$user_id) as $log ) {
+				$html_history .= <<<HTML
+						<tr><td>{$log->ts}</td><td>{$log->value}</td><td>{$log->ip}</td></tr>
+HTML;
+			}
+			$html_history .= <<<HTML
+					</table>
+<style>
+#table_log th { background-color:#eee; text-transform:none; text-align:center; padding:0; }
+</style>
+				</div>
+			</li>
+HTML;
+		}
 	}/*}}}*/
 
 	$dob_vote = <<<HTML
 <ul id="toggle-view"><!--{{{-->
 	<li class="toggle">
-		<h3># $label_stat <small> // $label_turnout : $fValid% </small></h3><span class="toggler">[close]</span>
-		<div class="panel">
+		<h3># $label_stat <small> // $label_turnout : $fValid% </small></h3><span class="toggler">[open]</span>
+		<div class="panel" style="display:none">
 			<table>
 				<tr><td class="left">$label_valid    / $label_total</td><td>$fValid% ( $nValid / $nTotal )</td></tr>
 				<tr><td class="left">$label_hierarchy/ $label_valid</td><td>$fFixed% ( $nFixed / $nValid )</td></tr>
@@ -850,6 +887,7 @@ HTML;
 	$html_chart
 	$html_hierarchy
 	$html_form
+	$html_history 
 </ul><!--}}}-->
 HTML;
 
