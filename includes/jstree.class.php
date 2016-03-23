@@ -203,7 +203,7 @@ class jsTree
 		$sql[] = "
 			UPDATE ".$t_base."
 				SET ".$base['left']." = ".$base['left']." + 2
-			WHERE
+			WHERE `taxonomy`='$taxonomy'
 				".$base['left']." >= ".$ref_lft."
 			";
 		$par[] = false;
@@ -222,7 +222,7 @@ class jsTree
 		$sql[] = "
 			UPDATE ".$t_base."
 				SET ".$base['right']." = ".$base['right']." + 2
-			WHERE
+			WHERE `taxonomy`='$taxonomy'
 				".$base['right']." >= ".(int)$ref_rgt."
 			";
 		$par[] = false;
@@ -273,7 +273,8 @@ class jsTree
 		$ancestor_ids = '';
 		$sql = "SELECT GROUP_CONCAT({$base['id']})
 			FROM $t_base
-			WHERE `taxonomy` = '$taxonomy' AND lft < $ref_lft AND rgt > 1+$ref_lft";
+			WHERE `taxonomy` = '$taxonomy'
+				AND lft < $ref_lft AND rgt > 1+$ref_lft";
 		$ancestor_ids = $this->db->get_var($sql);
 
     $sql = "UPDATE $t_base 
@@ -340,7 +341,8 @@ class jsTree
 			$tgt_anc = empty($tgt_anc) ? $tgt_id : $tgt_anc.','.$tgt_id;
 			$sql[] = "UPDATE $t_base 
 				SET {$base['ancestor']} = REPLACE ( {$base['ancestor']}, '$src_anc', '$tgt_anc' )
-				WHERE {$base['left']} >= $src_lft AND {$base['right']} <= $src_rgt";
+				WHERE `taxonomy`='$taxonomy'
+					AND {$base['left']} >= $src_lft AND {$base['right']} <= $src_rgt";
 
 			// update influence
 			$inf = $src[$base['influence']];	// leaf or lower user count
@@ -348,7 +350,7 @@ class jsTree
 				$t_user_category = $this->db->prefix.'dob_user_category';
 				$_sql = "SELECT COUNT(1) 
 					FROM $t_user_category
-					WHERE {$base['taxonomy']}='hierarchy' AND {$base['id']}=$src_id";
+					WHERE {$base['id']}=$src_id";
 				$inf += (int) $this->db->get_var($_sql);
 			}
 			$sql[] = "UPDATE $t_base 
@@ -386,7 +388,7 @@ class jsTree
 		$sql[] = "
 			UPDATE ".$t_base."
 				SET ".$base['left']." = ".$base['left']." + ".$width."
-			WHERE
+			WHERE `taxonomy`='$taxonomy'
 				".$base['left']." >= ".(int)$ref_lft." AND
 				".$base['id']." NOT IN(".implode(',',$tmp).")
 			";
@@ -404,7 +406,7 @@ class jsTree
 		$sql[] = "
 			UPDATE ".$t_base."
 				SET ".$base['right']." = ".$base['right']." + ".$width."
-			WHERE
+			WHERE `taxonomy`='$taxonomy'
 				".$base['right']." >= ".(int)$ref_rgt." AND
 				".$base['id']." NOT IN(".implode(',',$tmp).")
 			";
@@ -442,7 +444,7 @@ class jsTree
 		$sql[] = "
 			UPDATE ".$t_base."
 				SET ".$base['left']." = ".$base['left']." - ".$width."
-			WHERE
+			WHERE `taxonomy`='$taxonomy'
 				".$base['left']." > ".(int)$src[$base['right']]." AND
 				".$base['id']." NOT IN(".implode(',',$tmp).")
 		";
@@ -450,7 +452,7 @@ class jsTree
 		$sql[] = "
 			UPDATE ".$t_base."
 				SET ".$base['right']." = ".$base['right']." - ".$width."
-			WHERE
+			WHERE `taxonomy`='$taxonomy'
 				".$base['right']." > ".(int)$src[$base['right']]." AND
 				".$base['id']." NOT IN(".implode(',',$tmp).")
 		";
@@ -514,7 +516,7 @@ class jsTree
 		$sql[] = "
       UPDATE $t_base
         SET {$base['position']} = {$base['position']} - 1
-      WHERE `taxonomy` = '$taxonomy' AND {$base['parent_id']} = $pid AND {$base['position']} > $pos
+      WHERE {$base['parent_id']} = $pid AND {$base['position']} > $pos
 		";
 		// delete from data table
 		if($data) {
@@ -548,13 +550,13 @@ class jsTree
 
 			$_sql = "SELECT COUNT(1) 
 				FROM $t_base JOIN $t_user_category USING ({$base['id']},{$base['taxonomy']})
-				WHERE {$base['taxonomy']}='hierarchy'
+				WHERE `taxonomy`='$taxonomy'
 					AND {$base['left']} >= $lft AND {$base['right']} <= $rgt";
 			$inf = (int) $this->db->get_var($_sql);
 
 			$sql[] = "UPDATE $t_base 
 				SET {$base['influence']} = {$base['influence']} - $inf
-				WHERE {$base['taxonomy']}='hierarchy'
+				WHERE `taxonomy`='$taxonomy'
 					AND {$base['left']} < $lft AND {$base['right']} > $rgt";
 		}
 

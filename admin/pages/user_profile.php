@@ -59,15 +59,16 @@ function dob_admin_user_group( $target_user_id ) {/*{{{*/
 
 	$label_title = '그룹 자유위임'; // __( 'Group Delegation', DOBslug );
 	$label_desc = '활동/지지 그룹에 자유롭게 위임해주세요'; // __( 'Please Delegate to Groups Freely', DOBslug );
+	$label_restrict = '단, 대표직의 자유위임 설정은 무시됩니다. (순환위임 방지)'; // __( 'If you're a delegator, all these setting is ignored, for prevent Circular Delegation', DOBslug );
 	return $html = <<<HTML
 		<tr>
 			<th><label for='dob_user_groups'>$label_title</label></th>
 			<td>
-				<span class="description">$label_desc</span>
-				<br>
+				<span class="description">$label_desc</span> <br>
 				<select id="dob_user_groups" name='dob_user_groups[]' multiple style="width:400px">
 					$options
 				</select>
+				<br> <span class="description">$label_restrict</span>
 			</td>
 		</tr>
 <script>
@@ -88,17 +89,16 @@ function dob_admin_user_hierarchy( $target_user_id ) {/*{{{*/
 
 	$myVals = dob_get_user_category_tid($target_user_id,'hierarchy');
 	$options = "\t<option value='0'>선택안함</option>";
-	if ( is_super_admin() ) {
-		// hierarchy
-		foreach ( dob_get_user_categories('group') as $r ) {
-			$options .= sprintf(
-				"\n\t<option value='{$r->ttid}' %s %s>%s</option>",
-				in_array($r->ttid,$myVals) ? 'selected' : '',
-				empty($r->lvl) ? 'DISABLED style="background-color:#eee;"' : '',
-				str_repeat('&nbsp;',4*($r->lvl)).$r->name
-			);
-		}
+	// hierarchy
+	foreach ( dob_get_user_categories('group') as $r ) {
+		$options .= sprintf(
+			"\n\t<option value='{$r->ttid}' %s %s>%s</option>",
+			in_array($r->ttid,$myVals) ? 'selected' : '',
+			( is_super_admin() && !empty($r->lvl) ) ? '' : 'DISABLED style="background-color:#eee;"',
+			str_repeat('&nbsp;',4*($r->lvl)).$r->name
+		);
 	}
+
 	// hierarchy
 	foreach ( dob_get_user_categories('hierarchy') as $r ) {
 		$options .= sprintf(
@@ -130,14 +130,14 @@ function dob_user_hierarchy_recalc_inf( $target_id, $source_id=0 ) {/*{{{*/
 
 	$t_term_taxonomy = $wpdb->prefix.'term_taxonomy';
 
-	// update target term_taxonomy
+	// update target's higher hierarchy inf
 	$sql = "SELECT lft, rgt FROM $t_term_taxonomy WHERE term_taxonomy_id = $target_id";
 	$target = $wpdb->get_row($sql);
 	$sql = "UPDATE $t_term_taxonomy SET inf = inf + 1
 		WHERE taxonomy='hierarchy' AND lft < {$target->lft} AND rgt > {$target->rgt}";
 	$wpdb->query($sql);
 
-	// update source term_taxonomy
+	// update source's higher hierarchy inf
 	if ( ! empty($source_id) ) {
 		$sql = "SELECT lft, rgt FROM $t_term_taxonomy WHERE term_taxonomy_id = $source_id";
 		$source = $wpdb->get_row($sql);
@@ -158,11 +158,13 @@ function dob_admin_profile_update( $target_user_id ) {/*{{{*/
 function dob_admin_user_hierarchy_update( $target_user_id ) {/*{{{*/
 	global $wpdb;
 
+	if ( ! is_numeric($_POST['dob_user_hierarchy']) ) return;
+
+	$ttid = (int)$_POST['dob_user_hierarchy'];
 	$login_user_id = get_current_user_id();
 	$t_user_category = $wpdb->prefix.'dob_user_category';
 	$t_term_taxonomy = $wpdb->prefix.'term_taxonomy';
 
-	$term_taxonomy_id = $_POST['dob_user_hierarchy'];
 	$sql = "SELECT term_taxonomy_id 
 		FROM $t_user_category
 		WHERE taxonomy='hierarchy' AND user_id=".(int)$target_user_id;
@@ -170,11 +172,11 @@ function dob_admin_user_hierarchy_update( $target_user_id ) {/*{{{*/
 
 	if ( empty($old_term_taxonomy_id) ) {
 		$wpdb->insert( $t_user_category,
-			array( 'taxonomy'=>'hierarchy', 'user_id'=>$target_user_id, 'term_taxonomy_id'=>$term_taxonomy_id ),
+			array( 'taxonomy'=>'hierarchy', 'user_id'=>$target_user_id, 'term_taxonomy_id'=>$ttid ),
 			array( '%s', '%d', '%d' )
 		);
-	} else if ( $term_taxonomy_id != $old_term_taxonomy_id ) {
-		$sql = "SELECT chl FROM $t_term_taxonomy WHERE term_taxonomy_id = $term_taxonomy_id";
+	} else if ( $ttid != $old_term_taxonomy_id ) {
+		$sql = "SELECT chl FROM $t_term_taxonomy WHERE term_taxonomy_id = $ttid";
 		$chl = $wpdb->get_var($sql);
 		if ( ! is_super_admin() && ! empty($chl) ) {
 			$label_error = '잘못된 접근입니다'; // __( 'Forbidden Access.', DOBslug );
@@ -182,14 +184,14 @@ function dob_admin_user_hierarchy_update( $target_user_id ) {/*{{{*/
 		}
 
 		$wpdb->update( $t_user_category,
-			array( 'term_taxonomy_id'=>$term_taxonomy_id ),
+			array( 'term_taxonomy_id'=>$ttid ),
 			array( 'taxonomy'=>'hierarchy','user_id'=>$target_user_id, ),
 			array( '%d' ),
 			array( '%s', '%d' )
 		);
 	}
 
-	dob_user_hierarchy_recalc_inf($term_taxonomy_id,$old_term_taxonomy_id);
+	dob_user_hierarchy_recalc_inf($ttid,$old_term_taxonomy_id);
 }/*}}}*/
 
 function dob_admin_user_group_update( $target_user_id ) {/*{{{*/
