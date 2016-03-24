@@ -114,6 +114,12 @@ function dob_admin_add_menu() {/*{{{*/
 		'edit_posts', DOBslug.'_cart', 'dob_admin_cart'
 	);
 
+	// SUB menu : jsTree user list
+	$dob_screen_hook[] = add_submenu_page( 
+		DOBslug, __('DoBalance',DOBslug), '유저 계층도',//__('jsTree user hierarchy',DOBslug),
+		'edit_posts', DOBslug.'_jstree_user', 'dob_admin_jstree_user'
+	);
+
 	// roles : author
 	// SUB menu : upin
 	$dob_screen_hook[] = add_submenu_page( 
@@ -132,12 +138,6 @@ function dob_admin_add_menu() {/*{{{*/
 		DOBslug, __('DoBalance',DOBslug), 'jsTree '.__('category',DOBslug),
 		'manage_options', DOBslug.'_jstree_category', 'dob_admin_jstree_category'
 	);
-
-	/* SUB menu : jsTree user
-	$dob_screen_hook[] = add_submenu_page( 
-		DOBslug, __('DoBalance',DOBslug), 'jsTree '.__('user',DOBslug),
-		'manage_options', DOBslug.'_jstree_user', 'dob_admin_jstree_user'
-	);*/
 
 }/*}}}*/
 
@@ -159,15 +159,15 @@ function dob_admin_jstree_favorite() {/*{{{*/
 	wp_enqueue_script( DOBslug.'-admin-jstree-favorite-js', DOBurlAdmin.'assets/js/jstree_favorite.js', array( DOBslug.'-jstree-js' ), DOBver, true );
 	require_once( DOBpathAdmin.'pages/jstree_favorite.php' );
 }/*}}}*/
-function dob_admin_jstree_category() {/*{{{*/
-	dob_admin_jstree_scripts();
-	wp_enqueue_script( DOBslug.'-admin-jstree-category-js', DOBurlAdmin.'assets/js/jstree_category.js', array( DOBslug.'-jstree-js' ), DOBver, true );
-	require_once( DOBpathAdmin.'pages/jstree_category.php' );
-}/*}}}*/
 function dob_admin_jstree_user() {/*{{{*/
 	dob_admin_jstree_scripts();
 	wp_enqueue_script( DOBslug.'-admin-jstree-user-js', DOBurlAdmin.'assets/js/jstree_user.js', array( DOBslug.'-jstree-js' ), DOBver, true );
 	require_once( DOBpathAdmin.'pages/jstree_user.php' );
+}/*}}}*/
+function dob_admin_jstree_category() {/*{{{*/
+	dob_admin_jstree_scripts();
+	wp_enqueue_script( DOBslug.'-admin-jstree-category-js', DOBurlAdmin.'assets/js/jstree_category.js', array( DOBslug.'-jstree-js' ), DOBver, true );
+	require_once( DOBpathAdmin.'pages/jstree_category.php' );
 }/*}}}*/
 
 function dob_admin_jstree_scripts() {/*{{{*/

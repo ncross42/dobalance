@@ -144,7 +144,11 @@ add_action( 'plugins_loaded', array( 'DoBalance', 'get_instance' ), 9999 );
  * The code below is intended to give the lightest footprint possible.
  */
 
-if ( is_admin() && (!defined( 'DOING_AJAX' ) || !DOING_AJAX ) ) {
+if ( defined( 'DOING_AJAX' ) && !empty(DOING_AJAX) ) {
+	require_once( DOBpath . 'public/dob_ajax.php' );
+	require_once( 'includes/jstree.ajax.php' );	// operation
+	require_once( 'admin/ajax/jstree_user.php' );	// operation
+} else if ( is_admin() ) {
 	require_once( DOBpath . 'admin/main.php' );
 	#require_once( DOBpath . 'admin/class-dobalance-admin.php' );
 	#add_action( 'plugins_loaded', array( 'DoBalance_Admin', 'get_instance' ) );
@@ -152,7 +156,6 @@ if ( is_admin() && (!defined( 'DOING_AJAX' ) || !DOING_AJAX ) ) {
 	#require_once( DOBpath . 'public/dob_site.php' );
 	require_once( DOBpath . 'public/dob_elect.php' );
 	require_once( DOBpath . 'public/dob_vote.php' );
-	require_once( DOBpath . 'public/dob_ajax.php' );
 
 	if ( '1' == get_option('dob_use_upin') ) {
 		require_once( DOBpath . 'includes/upin_kcb.php' );
@@ -164,6 +167,4 @@ require_once( DOBpath.'includes/custom_admin_bar.php' );
 require_once( DOBpath.'includes/custom_taxonomy.php' );
 require_once( DOBpath.'includes/cpt_offer.php' );
 require_once( DOBpath.'includes/cpt_elect.php' );
-
-include_once( 'includes/jstree.ajax.php' );	// operation
 
