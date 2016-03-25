@@ -7,7 +7,7 @@
 
 add_action( 'wp', 'dob_elect_wp_init' );
 function dob_elect_wp_init() {/*{{{*/
-	wp_enqueue_script('dob-vote-js', plugins_url('assets/js/vote.js',__FILE__), array('jquery'));
+	wp_enqueue_script('dob-vote-js', plugins_url('assets/js/elect.js',__FILE__), array('jquery'));
 	wp_enqueue_style( 'toggle-css', plugins_url( 'assets/css/toggle.css', __FILE__ ) );
 }/*}}}*/
 
@@ -234,34 +234,41 @@ function dob_elect_update( $user_id, $post_id ) {/*{{{*/
 	}
 
 	// INSERT dob_elect_log
-	$sql = sprintf("INSERT IGNORE INTO `{$wpdb->prefix}dob_elect_log` 
-		SET user_id = %d, post_id = %d, value = %d, ip = '%s'",
-		$user_id, $post_id, $value, $global_real_ip 
+	$dml = array (
+		sprintf("INSERT IGNORE INTO `{$wpdb->prefix}dob_elect_log` 
+			SET user_id = %d, post_id = %d, value = %d, ip = '%s'",
+			$user_id, $post_id, $value, $global_real_ip 
+		),
 	);
-	$success = $wpdb->query( $sql );	// success == 1 (affected_rows)
-	if ( empty($success) ) { // failed (duplicated)
-		$ret = "TOO FAST CLICK~!! ";
-		$ret .= "DB ERROR(SQL)<br>\n: ".$sql;
-	}
 
-	$t_elect_latest = $wpdb->prefix.'dob_elect_latest';
-	$sql = "SELECT value FROM `$t_elect_latest` 
+	$t_latest = $wpdb->prefix.'dob_elect_latest';
+	$sql = "SELECT value FROM `$t_latest` 
 		WHERE post_id = $post_id AND user_id = $user_id";
-	$old_val = $wpdb->get_var($sql);
-	// UPDATE dob_elect_latest
-	if ( is_null($old_val) ) {
-		$sql = sprintf("INSERT INTO `$t_elect_latest` SET
+	$old_info = $wpdb->get_row($sql);
+	if ( is_null($old_info) ) {
+		$dml[] = sprintf("INSERT INTO `$t_latest` SET
 			post_id = %d, user_id = %d, value = %d",
 			$post_id, $user_id, $value 
 		);
-	} else {			
-		$sql = sprintf("UPDATE `$t_elect_latest` SET value = %d
+	} else if ( $old_info->value == $value ) {			
+		$label = '동일값 투표는 생략됨'; //__('You can NOT vote with same value', DOBslug);
+		return $label;
+	} else if ( (time() - strtotime($old_info->ts)) < 5 ) {			
+		$label = '투표 대기시간 5초'; //__('TOO FAST VOTE~!! (delay 5sec)', DOBslug);
+		return $label;
+	} else {
+		$dml[] = sprintf("UPDATE `$t_latest` SET value = %d
 			WHERE post_id = %d AND user_id = %d",
 			$value, $post_id, $user_id 
 		);
 	}
-	$success = $wpdb->query( $sql );	// success == 1 (affected_rows)
-	return $ret = $success ? '' : "DB ERROR(SQL)<br>\n: ".$sql;
+
+	foreach ( $dml as $sql ) {
+		$success = $wpdb->query( $sql );	// success == 1 (affected_rows)
+		if ( empty($success) ) {
+			return "DB ERROR(SQL)<br>\n: ".$sql;
+		}
+	}
 }/*}}}*/
 
 function dob_elect_accum_stat( &$stat, $type, $value, $cnt=1) {/*{{{*/
@@ -287,12 +294,16 @@ function dob_elect_contents( $post_id, $bEcho = false) {
 	$user_id = get_current_user_id();
 	$LOGIN_IP = empty($_SESSION['LOGIN_IP']) ? '' : $_SESSION['LOGIN_IP'];
 	if ( $user_id ) {
+		$debug = '';
 		if ( ! empty($_POST) && $LOGIN_IP == dob_get_real_ip() ) {
 			if ( (int)$_POST['dob_elect_cart'] ) {
-				dob_elect_cart($user_id,$post_id);
+				$debug = dob_elect_cart($user_id,$post_id);
 			} else {
-				dob_elect_update($user_id,$post_id);
+				$debug = dob_elect_update($user_id,$post_id);
 			}
+		}
+		if ( $debug ) {
+			echo "<pre>$debug</pre>";
 		}
 	}
 
@@ -342,7 +353,7 @@ function dob_elect_contents( $post_id, $bEcho = false) {
 				if ( isset($_SESSION['LOGIN_IP']) && $_SESSION['LOGIN_IP'] == dob_get_real_ip() ) {
 					$html_form = dob_elect_display_mine($post_id,$vm_type,$vm_label,$myval,$user_id);
 				} else {
-					$html_form = '네트워크가 초기화 되었습니다. 다시 로그인해 주세요<br>투표시에는 네트워크(WIFI,LTE,3G)를 변경하지 마세요.';		//__('Statistics', DOBslug);
+					$html_form = '로그인 이후 1시간이 지났거나, 네트워크가 초기화 되었으니, 다시 로그인해 주세요<br>투표시에는 네트워크(WIFI,LTE,3G)를 변경하지 마세요.';		//__('Statistics', DOBslug);
 				}
 			}
 		} else {	// AFTER
@@ -356,7 +367,7 @@ function dob_elect_contents( $post_id, $bEcho = false) {
 			if ( $user_id ) {
 			$html_history = <<<HTML
 			<li class='toggle'>
-				<h3># $label_my $label_history</h3><span class='toggler'>[open]</span>
+				<h3># $label_my $label_history<span class='toggler'>[open]</span></h3>
 				<div class='panel' style='display:none'>
 					<table id='table_log'>
 						<tr><th>date_time</th><th>value</th><th>ip</th></tr>
@@ -571,9 +582,9 @@ function dob_elect_display_mine($post_id,$vm_type,$vm_label,$myval='',$user_id) 
 		if ( $myval <= 1 ) $myval = array($myval);
 		$vals = str_split(strrev(base_convert($myval,10,2)));
 		//$myval = array_keys(array_filter($vals, function($v){return $v=='1';}));
-		$myval = array();
+		$myvals = array();
 		foreach ( $vals as $k => $v ) {
-			if ( $v == '1' ) $myval[] = $k+1;
+			if ( $v == '1' ) $myvals[] = $k+1;
 		}
 	}
 	$label_secret = '보안코드';			//__('Statistics', DOBslug);
@@ -585,6 +596,7 @@ function dob_elect_display_mine($post_id,$vm_type,$vm_label,$myval='',$user_id) 
 			<form id="formDobVote" method="post">
 			<input type="hidden" name="dob_elect_type" value="$vm_type">
 			<input type="hidden" name="dob_elect_cart" value="0">
+			<input type="hidden" name="dob_elect_old_val" value="$myval">
 			<!--tr><td>
 				$label_secret : <input type="text" name="dob_elect_secret" value="$secret" style="width:300px" READONLY>
 				<br><b>$label_remember</b>
@@ -595,7 +607,7 @@ HTML;
 	foreach ( $vm_label as $val => $label ) {
 		$html_input = '';
 		if ( $vm_type == 'plural' ) {
-			$checked = in_array($val,$myval) ? 'CHECKED' : '';
+			$checked = in_array($val,$myvals) ? 'CHECKED' : '';
 			$html_input = "<input type='checkbox' name='dob_elect_val[$val]' value='1' $checked>";
 		} else {
 			$checked = ($val===$myval) ? 'CHECKED' : '';
@@ -609,8 +621,8 @@ HTML;
 		$label_vote = '바로투표';	//__('Vote', DOBslug);
 		$label_cart = '투표바구니';	//__('Vote', DOBslug);
 		$style = 'width:100px; height:20px; background:#ccc; color:black; text-decoration: none; font-size: 13px; margin: 0; padding: 0 10px 1px;';
-		$html_submit .= " <input type='submit' value='$label_vote' style='$style' onclick='this.form.dob_elect_cart.value=0;'>";
-		$html_submit .= " <input type='submit' value='$label_cart' style='$style' onclick='this.form.dob_elect_cart.value=1;'>";
+		$html_submit .= " <input id='btn_fast' type='button' value='$label_vote' style='$style' >";
+		$html_submit .= " <input id='btn_cart' type='button' value='$label_cart' style='$style' >";
 	}
 	echo <<<HTML
 			</td></tr>

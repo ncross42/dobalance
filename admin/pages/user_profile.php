@@ -170,7 +170,7 @@ function dob_admin_user_hierarchy_update( $target_user_id ) {/*{{{*/
 		WHERE taxonomy='hierarchy' AND user_id=".(int)$target_user_id;
 	$old_term_taxonomy_id = $wpdb->get_var($sql);
 
-	if ( empty($old_term_taxonomy_id) ) {
+	if ( is_null($old_term_taxonomy_id) ) {
 		$wpdb->insert( $t_user_category,
 			array( 'taxonomy'=>'hierarchy', 'user_id'=>$target_user_id, 'term_taxonomy_id'=>$ttid ),
 			array( '%s', '%d', '%d' )

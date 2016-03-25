@@ -9,6 +9,8 @@
 	margin:5px;
 	border-bottom:1px solid #ccc;
 	position:relative;
+}
+#toggle-view li.toggle h3 {
 	cursor:pointer;
 }
 #toggle-view h3 {

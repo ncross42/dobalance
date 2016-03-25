@@ -40,8 +40,8 @@ define( 'DOBurl', plugin_dir_url(__FILE__) );
 define( 'DOBmaxbit', 7 );
 
 if(!session_id()) session_start();
-ini_set('session.gc_maxlifetime', 3600);
-session_set_cookie_params(3600);
+ini_set('session.gc_maxlifetime', 7200);
+session_set_cookie_params(7200);
 
 $global_real_ip = dob_get_real_ip();
 function dob_get_real_ip() {/*{{{*/
