@@ -11,17 +11,17 @@ jQuery(document).ready(function($){
 		}
 	});
 
-	var check_dup_vote = function() {
-		var form = document.getElementById('formDobVote');
-		if ( form.dob_vote_val.value == form.dob_vote_old_val.value ) {
+	var check_dup = function() {
+		var form = document.getElementById('formDob');
+		if ( form.dob_form_val.value == form.dob_form_old_val.value ) {
 			alert('You can NOT vote with same value');
 			return true;
 		}
 	}
 
 	$('#btn_fast,#btn_cart').click( function (e) {
-		this.form.dob_vote_cart.value = (this.id=='btn_cart') ? 1 : 0;
-		if ( check_dup_vote() ) window.location = window.location.href;
+		this.form.dob_form_cart.value = (this.id=='btn_cart') ? 1 : 0;
+		if ( check_dup() ) window.location = window.location.href;
 		else this.form.submit();
 	});
 });

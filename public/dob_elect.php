@@ -7,7 +7,7 @@
 
 add_action( 'wp', 'dob_elect_wp_init' );
 function dob_elect_wp_init() {/*{{{*/
-	wp_enqueue_script('dob-vote-js', plugins_url('assets/js/elect.js',__FILE__), array('jquery'));
+	wp_enqueue_script('dob-form-js', plugins_url('assets/js/dob_form.js',__FILE__), array('jquery'));
 	wp_enqueue_style( 'toggle-css', plugins_url( 'assets/css/toggle.css', __FILE__ ) );
 }/*}}}*/
 
@@ -151,20 +151,19 @@ function dob_elect_cart( $user_id, $post_id ) {/*{{{*/
 	global $wpdb, $global_real_ip;
 
 	// check required argument
-	if ( ! isset($_POST['dob_elect_type'])
-		|| ! isset($_POST['dob_elect_val'])
-		|| ! isset($_POST['dob_elect_nonce'])
+	if ( ! isset($_POST['dob_form_type'])
+		|| ! isset($_POST['dob_form_val'])
+		|| ! isset($_POST['dob_form_nonce'])
 	) {
 		return 'check1';
 	}
-
-	$type		= $_POST['dob_elect_type'];
-	$val		= $_POST['dob_elect_val'];
-	$nonce	= $_POST['dob_elect_nonce'];
-	if ( ! wp_verify_nonce( $nonce, 'dob_elect_nonce_'.$type)
+	$type		= $_POST['dob_form_type'];
+	$val		= $_POST['dob_form_val'];
+	$nonce	= $_POST['dob_form_nonce'];
+	if ( ! wp_verify_nonce( $nonce, 'dob_form_nonce_'.$type)
 		|| ! in_array( $type, array('updown','choice','plural') )
 	) {
-		return 'check2';
+		return 'check2 : '.print_r($_POST,true);
 	}
 
 	if ( $type=='plural' ) { // normalize plural value
@@ -205,20 +204,20 @@ function dob_elect_update( $user_id, $post_id ) {/*{{{*/
 	global $wpdb, $global_real_ip;
 
 	// check required argument
-	if ( ! isset($_POST['dob_elect_type'])
-		|| ! isset($_POST['dob_elect_val'])
-		|| ! isset($_POST['dob_elect_nonce'])
+	if ( ! isset($_POST['dob_form_type'])
+		|| ! isset($_POST['dob_form_val'])
+		|| ! isset($_POST['dob_form_nonce'])
 	) {
 		return 'check1';
 	}
 
-	$type		= $_POST['dob_elect_type'];
-	$val		= $_POST['dob_elect_val'];
-	$nonce	= $_POST['dob_elect_nonce'];
-	if ( ! wp_verify_nonce( $nonce, 'dob_elect_nonce_'.$type)
+	$type		= $_POST['dob_form_type'];
+	$val		= $_POST['dob_form_val'];
+	$nonce	= $_POST['dob_form_nonce'];
+	if ( ! wp_verify_nonce( $nonce, 'dob_form_nonce_'.$type)
 		|| ! in_array( $type, array('updown','choice','plural') )
 	) {
-		return 'check2';
+		return 'check2 : '.print_r($_POST,true);
 	}
 
 	if ( $type=='plural' ) { // normalize plural value
@@ -242,7 +241,7 @@ function dob_elect_update( $user_id, $post_id ) {/*{{{*/
 	);
 
 	$t_latest = $wpdb->prefix.'dob_elect_latest';
-	$sql = "SELECT value FROM `$t_latest` 
+	$sql = "SELECT value, ts FROM `$t_latest` 
 		WHERE post_id = $post_id AND user_id = $user_id";
 	$old_info = $wpdb->get_row($sql);
 	if ( is_null($old_info) ) {
@@ -253,7 +252,7 @@ function dob_elect_update( $user_id, $post_id ) {/*{{{*/
 	} else if ( $old_info->value == $value ) {			
 		$label = '동일값 투표는 생략됨'; //__('You can NOT vote with same value', DOBslug);
 		return $label;
-	} else if ( (time() - strtotime($old_info->ts)) < 5 ) {			
+	} else if ( (time() - strtotime($old_info->ts)) < 3 ) {			
 		$label = '투표 대기시간 5초'; //__('TOO FAST VOTE~!! (delay 5sec)', DOBslug);
 		return $label;
 	} else {
@@ -296,7 +295,7 @@ function dob_elect_contents( $post_id, $bEcho = false) {
 	if ( $user_id ) {
 		$debug = '';
 		if ( ! empty($_POST) && $LOGIN_IP == dob_get_real_ip() ) {
-			if ( (int)$_POST['dob_elect_cart'] ) {
+			if ( (int)$_POST['dob_form_cart'] ) {
 				$debug = dob_elect_cart($user_id,$post_id);
 			} else {
 				$debug = dob_elect_update($user_id,$post_id);
@@ -324,13 +323,13 @@ function dob_elect_contents( $post_id, $bEcho = false) {
 	$label_after		= '종료됨';			//__('Statistics', DOBslug);
 	$label_my				= '내 투표';			//__('My Vote', DOBslug);
 	$label_history	= '기록';				//__('My Vote', DOBslug);
+	$label_login		= '로그인 해주세요';	//__('Please Login', DOBslug);
 
 	/*}}}*/
 
 	$nTotal = dob_elect_get_users_count();	// get all user count
 	$fValid = number_format(100*($nDirect/$nTotal),1);
-	$html_stat = '';
-	$html_mine = '';
+	$html_timer = $html_chart= $html_form = $html_history = '';
 	if ( is_single() ) {
 		$vm_label = ($vm_type=='updown') ? /*{{{*/ 
 			array( -1=>'반대', 0=>'기권' ) : array( -1=>'모두반대', 0=>'기권' );
@@ -343,28 +342,39 @@ function dob_elect_contents( $post_id, $bEcho = false) {
 		}/*}}}*/
 
 		$ts = time();
-		$html_chart= $html_form = $html_history = '';
+		$html_timer = dob_elect_html_timer($ts);
 		if ( $ts < strtotime($vm_begin) ) {	// BEFORE
 			$label_result .= ' : '.$label_before;
-		} elseif ( strtotime($vm_begin) < $ts && $ts < strtotime($vm_end) ) {	// VOTING
+		} elseif ( strtotime($vm_begin) < $ts && $ts < strtotime($vm_end) ) {
+			// VOTING
 			$label_result .= ' : '.$label_ing;
-			$html_form = '로그인 해주세요';		//__('Statistics', DOBslug);
+			$content_form = "<a href='http://wp1.youthpower.kr/wp-login.php' style='color:red; font-weight:bold'>$label_login</a>";
 			if ( $user_id ) {
 				if ( isset($_SESSION['LOGIN_IP']) && $_SESSION['LOGIN_IP'] == dob_get_real_ip() ) {
-					$html_form = dob_elect_display_mine($post_id,$vm_type,$vm_label,$myval,$user_id);
+					$content_form = dob_elect_display_mine($post_id,$vm_type,$vm_label,$myval,$user_id);
 				} else {
-					$html_form = '로그인 이후 1시간이 지났거나, 네트워크가 초기화 되었으니, 다시 로그인해 주세요<br>투표시에는 네트워크(WIFI,LTE,3G)를 변경하지 마세요.';		//__('Statistics', DOBslug);
+					$content_form = '로그인 이후 1시간이 지났거나, 네트워크가 초기화 되었으니, 다시 로그인해 주세요<br>투표시에는 네트워크(WIFI,LTE,3G)를 변경하지 마세요.';	//__('You passed 1-hours after login, or Your network was Changed. Please Login AGAIN.', DOBslug);
 				}
 			}
+			$html_form = <<<HTML
+		<li>
+			<h3># $label_my</h3>
+			<div class='panel'>
+				$content_form 
+			</div>
+		</li>
+HTML;
 		} else {	// AFTER
 			$label_result .= ' : '.$label_after;
 			$result_stat = array();
 			foreach ( $elect_latest as $uid => $v ) {
 				dob_elect_accum_stat($result_stat,$vm_type,$v['value'],1);
 			}
+#print_r($result_stat);
 			$html_chart = dob_elect_html_chart($result_stat,$vm_label,$nTotal);
+		}
 
-			if ( $user_id ) {
+		if ( $user_id ) {
 			$html_history = <<<HTML
 			<li class='toggle'>
 				<h3># $label_my $label_history<span class='toggler'>[open]</span></h3>
@@ -379,37 +389,11 @@ HTML;
 			}
 			$html_history .= <<<HTML
 					</table>
+				</div>
+			</li>
 <style>
 #table_log th { background-color:#eee; text-transform:none; text-align:center; padding:0; }
 </style>
-				</div>
-			</li>
-HTML;
-			}
-		}
-#print_r($result_stat);
-
-		$html_timer = dob_elect_html_timer($ts);
-		$html_stat = <<<HTML
-	<li>
-		<h3># $label_result</h3>
-		<div class='panel'>
-			$html_timer 
-			$html_chart
-			$html_history
-		</div>
-	</li>
-HTML;
-
-		$html_mine = '';
-		if ( ! empty($html_form) ) {
-		$html_mine = <<<HTML
-	<li>
-		<h3># $label_my</h3>
-		<div class='panel'>
-			$html_form 
-		</div>
-	</li>
 HTML;
 		}
 	}
@@ -424,10 +408,13 @@ HTML;
 			<div>$label_turnout : $fValid% ( $nDirect / $nTotal )</div>
 		</div>
 	</li>
-	$html_stat
-	$html_mine
+	$html_timer 
+	$html_chart
+	$html_form
+	$html_history
 </ul><!--}}}-->
 HTML;
+	file_put_contents('/tmp/dob_elect.html',$dob_elect);
 
 	if ($bEcho) echo $dob_elect;
 	else return $dob_elect;
@@ -464,7 +451,7 @@ HTML;
 		$nUnpolled -= $v;
 	}
 	if ( $nUnpolled ) {
-		$legends['un'] = $label_login = '미투표';		//__('Unpolled', DOBslug);
+		$legends['un'] = $label_unpolled = '미투표';		//__('Unpolled', DOBslug);
 		$f = number_format(100*($nUnpolled/$nTotal),1);
 		$text = (10<$f) ? "$nUnpolled($f%)" : "<span title='$f%'>$nUnpolled</span>" ;
 		$htmls[] = "<td width='$f%' class='un'><div>$text</div></td>";
@@ -553,9 +540,9 @@ HTML;
 }/*}}}*/
 
 function dob_elect_html_timer($ts) {/*{{{*/
-	$label_now			= '현재 서버시각';			//__('Statistics', DOBslug);
+	$label_now	= '현재 서버시각';			//__('Statistics', DOBslug);
 	$ret = $label_now.' : <span id="timer">'.date('Y-m-d H:i:s',$ts).'</span>';
-	$ret .= <<<HTML
+	$ret .= PHP_EOL.<<<HTML
 <script src="http://momentjs.com/downloads/moment.min.js"></script>
 <script>
 jQuery(document).ready(function($){
@@ -593,25 +580,25 @@ function dob_elect_display_mine($post_id,$vm_type,$vm_label,$myval='',$user_id) 
 	echo <<<HTML
 		<div class="panel">
 		<table>
-			<form id="formDobVote" method="post">
-			<input type="hidden" name="dob_elect_type" value="$vm_type">
-			<input type="hidden" name="dob_elect_cart" value="0">
-			<input type="hidden" name="dob_elect_old_val" value="$myval">
+			<form id="formDob" method="post">
+			<input type="hidden" name="dob_form_type" value="$vm_type">
+			<input type="hidden" name="dob_form_cart" value="0">
+			<input type="hidden" name="dob_form_old_val" value="$myval">
 			<!--tr><td>
 				$label_secret : <input type="text" name="dob_elect_secret" value="$secret" style="width:300px" READONLY>
 				<br><b>$label_remember</b>
 			</td></tr-->
 			<tr><td>
 HTML;
-	wp_nonce_field( 'dob_elect_nonce_'.$vm_type, 'dob_elect_nonce' );
+	wp_nonce_field( 'dob_form_nonce_'.$vm_type, 'dob_form_nonce' );
 	foreach ( $vm_label as $val => $label ) {
 		$html_input = '';
 		if ( $vm_type == 'plural' ) {
 			$checked = in_array($val,$myvals) ? 'CHECKED' : '';
-			$html_input = "<input type='checkbox' name='dob_elect_val[$val]' value='1' $checked>";
+			$html_input = "<input type='checkbox' name='dob_form_val[$val]' value='1' $checked>";
 		} else {
 			$checked = ($val===$myval) ? 'CHECKED' : '';
-			$html_input = "<input type='radio' name='dob_elect_val' value='$val' $checked>";
+			$html_input = "<input type='radio' name='dob_form_val' value='$val' $checked>";
 		}
 		echo " <label>$html_input $label</label> ";
 	}

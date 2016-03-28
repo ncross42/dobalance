@@ -46,7 +46,7 @@ function dob_vote_get_hierarchy_influence($parent_id=0,$ancestor=array()) {/*{{{
 add_action( 'wp', 'dob_vote_wp_init' );
 function dob_vote_wp_init() {/*{{{*/
 	//wp_enqueue_style( 'bdd-css', plugins_url( 'assets/css/bdd.css', __FILE__ ) );
-	wp_enqueue_script('dob-vote-js', plugins_url('assets/js/vote.js',__FILE__), array('jquery'));
+	wp_enqueue_script('dob-form-js', plugins_url('assets/js/dob_form.js',__FILE__), array('jquery'));
 	//wp_localize_script('dob-vote-js', 'dob_vote_js', array( 'ajaxurl' => admin_url( 'admin-ajax.php' )));
 	wp_enqueue_style( 'toggle-css', plugins_url( 'assets/css/toggle.css', __FILE__ ) );
 	
@@ -264,7 +264,7 @@ function dob_vote_content_updown( $post_id/*=get_the_ID()*/, $bEcho = false) { /
 	}*//*}}}*/
 
 	// Get the nonce for security purpose and create the like and unlike urls
-	$nonce = wp_create_nonce('dob_vote_nonce');
+	$nonce = wp_create_nonce('dob_form_nonce');
 	$ajax_like_link = admin_url('admin-ajax.php?action=dob_vote_process_vote&task=like&post_id=' . $post_id . '&nonce=' . $nonce);
 	$ajax_unlike_link = admin_url('admin-ajax.php?action=dob_vote_process_vote&task=unlike&post_id=' . $post_id . '&nonce=' . $nonce);
 }/*}}}*/
@@ -450,17 +450,17 @@ function dob_vote_cart( $user_id, $post_id ) {/*{{{*/
 	global $wpdb, $global_real_ip;
 
 	// check required argument
-	if ( ! isset($_POST['dob_vote_type'])
-		|| ! isset($_POST['dob_vote_val'])
-		|| ! isset($_POST['dob_vote_nonce'])
+	if ( ! isset($_POST['dob_form_type'])
+		|| ! isset($_POST['dob_form_val'])
+		|| ! isset($_POST['dob_form_nonce'])
 	) {
 		return 'check1';
 	}
 
-	$type		= $_POST['dob_vote_type'];
-	$val		= $_POST['dob_vote_val'];
-	$nonce	= $_POST['dob_vote_nonce'];
-	if ( ! wp_verify_nonce( $nonce, 'dob_vote_nonce_'.$type)
+	$type		= $_POST['dob_form_type'];
+	$val		= $_POST['dob_form_val'];
+	$nonce	= $_POST['dob_form_nonce'];
+	if ( ! wp_verify_nonce( $nonce, 'dob_form_nonce_'.$type)
 		|| ! in_array( $type, array('updown','choice','plural') )
 	) {
 		return 'check2';
@@ -515,17 +515,17 @@ function dob_vote_update( $user_id, $post_id, $val=null ) {/*{{{*/
 	global $wpdb, $global_real_ip;
 
 	// check required argument
-	if ( ! isset($_POST['dob_vote_type'])
-		|| ( is_null($val) && ! isset($_POST['dob_vote_val']) )
-		|| ! isset($_POST['dob_vote_nonce'])
+	if ( ! isset($_POST['dob_form_type'])
+		|| ( is_null($val) && ! isset($_POST['dob_form_val']) )
+		|| ! isset($_POST['dob_form_nonce'])
 	) {
 		return 'check1';
 	}
 
-	$type		= $_POST['dob_vote_type'];
-	if ( is_null($val) ) $val = $_POST['dob_vote_val'];
-	$nonce	= $_POST['dob_vote_nonce'];
-	if ( ! wp_verify_nonce( $nonce, 'dob_vote_nonce_'.$type)
+	$type		= $_POST['dob_form_type'];
+	if ( is_null($val) ) $val = $_POST['dob_form_val'];
+	$nonce	= $_POST['dob_form_nonce'];
+	if ( ! wp_verify_nonce( $nonce, 'dob_form_nonce_'.$type)
 		|| ! in_array( $type, array('updown','choice','plural') )
 	) {
 		return 'check2';
@@ -620,7 +620,7 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 		$debug = '';
 		$LOGIN_IP = empty($_SESSION['LOGIN_IP']) ? '' : $_SESSION['LOGIN_IP'];
 		if ( ! empty($_POST) && $LOGIN_IP == dob_get_real_ip() ) {
-			if ( (int)$_POST['dob_vote_cart'] ) {
+			if ( (int)$_POST['dob_form_cart'] ) {
 				$debug = dob_vote_cart($user_id,$post_id);
 			} else {
 				$debug = dob_vote_update($user_id,$post_id);
@@ -630,7 +630,7 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 			echo "<pre>$debug</pre>";
 		}
 	}
-	$myinfo = dob_vote_get_user_info($user_id);
+	$myinfo = $user_id ? dob_vote_get_user_info($user_id) : null;
 
 	// group values
 	$group_values = dob_vote_get_group_values($post_id);
@@ -664,8 +664,8 @@ $ts = microtime(true);
 			// check null-user's group delegator
 			$uv_group = array();
 			$uv_tmp = $uv_null;
-			if ( ! in_array($user_id,$uv_null) 
-				&& $ttid == $myinfo->term_taxonomy_id
+			if ( $user_id && ! in_array($user_id,$uv_null) 
+				&& $myinfo && $ttid == $myinfo->term_taxonomy_id
 			) {
 				$uv_tmp[] = $user_id;
 			}
@@ -688,9 +688,6 @@ $ts = microtime(true);
 						);
 					}
 				}*/
-			}
-			if ( $ttid == $myinfo->term_taxonomy_id && empty($uv_group[$user_id]) ) {
-
 			}
 			$nGroup += ( $uvc_group_reflected = count( 
 				array_diff(
@@ -798,6 +795,7 @@ $ts = microtime(true);
 	$label_vote			= '투표';						//__('Vote', DOBslug);
 	$label_influence= '영향력 관계도';	//__('Direct voter', DOBslug);
 	$label_no_pos		= '계층이 지정되지 않아, 투표할 수 없습니다.';	//__('Direct voter', DOBslug); 
+	$label_login		= '로그인 해주세요';	//__('Please Login', DOBslug);
 
 	// build html hierarchy chart
 	$html_hierarchy = '';/*{{{*/
@@ -826,14 +824,14 @@ $ts = microtime(true);
 				$str_mine = '';
 				$grname_vals = array();
 				// info of myval and mygroup
-				if ( $ttid == $myinfo->term_taxonomy_id ) {
+				if ( $myinfo && $ttid == $myinfo->term_taxonomy_id ) {
 					$mygroup = isset($v['uv_group'][$user_id]) ? $v['uv_group'][$user_id]
 						: dob_vote_get_user_group_all_ttid_values($user_id,$group_values,$vm_type,true) ;
 #echo '<pre>'.var_export([$user_id,$group_values,$mygroup],true).'</pre>';
 					if ( ! empty($mygroup) ) {
 						$grname_vals[] = "<span style='background-color:yellow'>[ {$mygroup['value']} ]</span>";
 						foreach ( $mygroup['gtid_vals'] as $gtid => $val ) {
-							$grname_vals[] = $group_values[$gtid]->name.":<b>$val</b>";
+							$grname_vals[] = isset($group_values[$gtid]) ? $group_values[$gtid]->name.":<b>$val</b>" : '';
 						}
 					}
 					$str_mine = "<span style='color:red'>@{$myinfo->user_nicename}:<b>".(is_null($myval)?'null':$myval)."</b></span>";
@@ -894,9 +892,13 @@ HTML;
 			<div class='panel'> $content_chart </div>
 		</li>";
 
-		$content_form = empty($myinfo->term_taxonomy_id) ?
-			"<span style='color:red; font-size:1.2em; font-weight:bold'>$label_no_pos</span>"
-			: dob_vote_display_mine($post_id,$vm_type,$vm_legend,$myval,$user_id);
+		if ( empty($user_id) ) {
+			$content_form = "<a href='http://wp1.youthpower.kr/wp-login.php' style='color:red; font-weight:bold'>$label_login</a>";
+		} else if ( empty($myinfo->term_taxonomy_id) ) {
+			$content_form = "<span style='color:red; font-size:1.2em; font-weight:bold'>$label_no_pos</span>";
+		} else {
+			$content_form = dob_vote_display_mine($post_id,$vm_type,$vm_legend,$myval,$user_id);
+		}
 		$html_form = "<li>
 			<h3># $label_my</h3>
 			<div class='panel'> $content_form </div>
@@ -945,6 +947,7 @@ HTML;
 	$html_history 
 </ul><!--}}}-->
 HTML;
+	file_put_contents('/tmp/dob_vote.html',$dob_vote);
 
 	if ($bEcho) echo $dob_vote;
 	else return $dob_vote;
@@ -1022,7 +1025,7 @@ function dob_vote_display_mine($post_id,$vm_type,$vm_legend,$myval='',$user_id) 
 	$_SESSION['post_id'] = $post_id;
 	$_SESSION['secret'] = $secret = base64_encode(openssl_random_pseudo_bytes(20));
 	if ( $vm_type=='plural' ) { // normalize plural value
-		if ( $myval <= 1 ) $myval = array($myval);
+		//if ( $myval <= 1 ) $myval = array($myval);
 		$vals = str_split(strrev(base_convert($myval,10,2)));
 		//$myval = array_keys(array_filter($vals, function($v){return $v=='1';}));
 		$myvals = array();
@@ -1036,30 +1039,29 @@ function dob_vote_display_mine($post_id,$vm_type,$vm_legend,$myval='',$user_id) 
 	echo <<<HTML
 		<div class="panel">
 		<table>
-			<form id="formDobVote" method="post">
-			<input type="hidden" name="dob_vote_type" value="$vm_type">
-			<input type="hidden" name="dob_vote_cart" value="0">
-			<input type="hidden" name="dob_vote_old_val" value="$myval">
+			<form id="formDob" method="post">
+			<input type="hidden" name="dob_form_type" value="$vm_type">
+			<input type="hidden" name="dob_form_cart" value="0">
+			<input type="hidden" name="dob_form_old_val" value="$myval">
 			<!--tr><td>
 				$label_secret : <input type="text" name="dob_vote_secret" value="$secret" style="width:300px" READONLY>
 				<br><b>$label_remember</b>
 			</td></tr-->
 			<tr><td>
 HTML;
-	wp_nonce_field( 'dob_vote_nonce_'.$vm_type, 'dob_vote_nonce' );
+	wp_nonce_field( 'dob_form_nonce_'.$vm_type, 'dob_form_nonce' );
 	foreach ( $vm_legend as $val => $label ) {
 		$html_input = '';
 		if ( $vm_type == 'plural' ) {
 			$checked = in_array($val,$myvals) ? 'CHECKED' : '';
-			$html_input = "<input type='checkbox' name='dob_vote_val[$val]' value='1' $checked>";
+			$html_input = "<input type='checkbox' name='dob_form_val[$val]' value='1' $checked>";
 		} else {
 			$checked = ($val===$myval) ? 'CHECKED' : '';
-			$html_input = "<input type='radio' name='dob_vote_val' value='$val' $checked>";
+			$html_input = "<input type='radio' name='dob_form_val' value='$val' $checked>";
 		}
 		echo " <label>$html_input $label</label> ";
 	}
 
-	$label_login = '로그인 해주세요';	//__('Please Login', DOBslug);
 	$html_submit = empty($user_id) ? $label_login : dob_vote_get_message($post_id,$user_id);	// vote_post_latest timestamp
 	if ( $LOGIN_IP == dob_get_real_ip() ) {
 		$label_fast = '바로투표';	//__('Vote', DOBslug);
@@ -1068,7 +1070,7 @@ HTML;
 		$html_submit .= " <input id='btn_fast' type='button' value='$label_fast' style='$style' >";
 		$html_submit .= " <input id='btn_cart' type='button' value='$label_cart' style='$style' >";
 	} else {
-		$label_iperr_relogin = '로그인시 IP주소가 변경되었습니다. 다시 로그인 해주세요.';	//__('Your IP-address is Changed. Please Login AGAIN.', DOBslug);
+		$label_iperr_relogin = '로그인 이후 1시간이 지났거나, 네트워크가 초기화 되었으니, 다시 로그인해 주세요<br>투표시에는 네트워크(WIFI,LTE,3G)를 변경하지 마세요.';	//__('You passed 1-hours after login, or Your network was Changed. Please Login AGAIN.', DOBslug);
 		$html_submit .= '<br>'.$label_iperr_relogin;
 	}
 	echo <<<HTML
