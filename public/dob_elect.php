@@ -11,20 +11,38 @@ function dob_elect_wp_init() {/*{{{*/
 	wp_enqueue_style( 'toggle-css', plugins_url( 'assets/css/toggle.css', __FILE__ ) );
 }/*}}}*/
 
-function dob_elect_get_latest($post_id,$user_id=0) {/*{{{*/
+function dob_elect_get_user_info($user_id) {/*{{{*/
 	global $wpdb;
-	$sql_user = empty($user_id) ? '' : ' AND user_id='.$user_id;
 
-	$t_elect_latest	= $wpdb->prefix . 'dob_elect_latest';
-	$t_users = $wpdb->prefix . 'users';
 	$sql = <<<SQL
-SELECT $t_elect_latest.*, user_login, user_pass
-FROM `$t_elect_latest` 
-	JOIN $t_users ON user_id=ID
-WHERE post_id = %d $sql_user
+SELECT *
+FROM {$wpdb->prefix}dob_user_category
+	JOIN {$wpdb->prefix}users ON user_id=ID
+WHERE taxonomy='hierarchy' AND user_id=$user_id
 SQL;
-	$prepare = $wpdb->prepare($sql, $post_id);
-	$rows = $wpdb->get_results($prepare,ARRAY_A);
+	return $wpdb->get_row($sql);
+}/*}}}*/
+
+function dob_elect_get_latest($post_id,$user_id=0,$ttids=array()) {/*{{{*/
+	global $wpdb;
+	$t_elect_latest	= $wpdb->prefix.'dob_elect_latest';
+
+	$sql = '';
+	if ( empty($ttids) ) {
+		$sql_user = empty($user_id) ? '' : ' AND user_id='.$user_id;
+		$sql = "SELECT * FROM $t_elect_latest WHERE post_id = $post_id $sql_user";
+	} else {
+		$t_term_taxonomy = $wpdb->prefix.'term_taxonomy';
+		$t_user_category = $wpdb->prefix.'dob_user_category';
+		$sql_ttids = ' AND term_taxonomy_id IN ('.implode(',',$ttids).')';
+		$sql = "SELECT *
+			FROM $t_term_taxonomy
+				JOIN $t_user_category USING (term_taxonomy_id,taxonomy)
+				JOIN $t_elect_latest USING (user_id)
+			WHERE post_id = $post_id AND taxonomy = 'hierarchy' 
+				$sql_ttids";
+	}
+	$rows = $wpdb->get_results($sql,ARRAY_A);
 	if ( $user_id ) {
 		return empty($rows) ? null : $rows[0];
 	} else {
@@ -56,29 +74,6 @@ function dob_elect_get_message($post_id,$user_id) {/*{{{*/
 	return $message;
 }/*}}}*/
 
-function dob_elect_get_count($post_id) {/*{{{*/
-	global $wpdb;
-	$table_name = $wpdb->prefix . 'dob_elect_latest';
-
-	$sql = <<<SQL
-SELECT 
-	SUM(IF(value=1,1,0)) AS `like`
-	, SUM(IF(value=-1,-1,0)) AS `unlike`
-FROM `{$table_name}`
-WHERE post_id = %d
-SQL;
-	$prepare = $wpdb->prepare($sql, $post_id);
-	$ret = $wpdb->get_row($prepare,ARRAY_A);
-
-	if ( empty($ret) ) $ret = array ( 'like'=>0, 'unlike'=>0 );
-	else {
-		if ( !isset($ret['like']) ) $ret['like'] = 0;
-		if ( !isset($ret['unlike']) ) $ret['unlike'] = 0;
-	}
-	
-	return $ret;
-}/*}}}*/
-
 add_filter('the_content', 'dob_elect_site_content');
 function dob_elect_site_content($content) {/*{{{*/
 	$post_id = get_the_ID();
@@ -91,60 +86,69 @@ function dob_elect_site_content($content) {/*{{{*/
 	return $content;
 }/*}}}*/
 
-function dob_elect_get_users_count() {/*{{{*/
+function dob_elect_get_selected_hierarchy_leaf_ttids($post_id) {/*{{{*/
+	global $wpdb;
+	$t_term_relationships = $wpdb->prefix.'term_relationships';
+	$t_term_taxonomy = $wpdb->prefix.'term_taxonomy';
+
+	$sql = "SELECT term_taxonomy_id AS ttid, anc, lft, rgt, parent
+		FROM $t_term_relationships 
+			JOIN $t_term_taxonomy USING (term_taxonomy_id)
+		WHERE taxonomy='hierarchy' AND object_id=$post_id";
+		//ORDER BY lft";
+	$rows = $wpdb->get_results($sql);
+	$all = array();
+	foreach ( $rows as $r ) {
+		$all[$r->ttid] = array (
+			'anc'		=> explode(',',$r->anc),
+			'lft'		=> $r->lft,
+			'rgt'		=> $r->rgt,
+			'parent'=> $r->parent,
+		);
+	}
+	if ( empty($all) ) return null;	// no selected
+	if ( 1 == count($all) ) {	// root selected
+		$cur = current($all);
+		if ( $cur['parent'] == '0' ) {
+			return null;
+		}
+	}
+
+	// branch hierarchy selected
+	$filter = $all;
+	foreach ( $filter as $ttid => $r ) {
+		foreach ( $r['anc'] as $atid ) {
+			if ( $atid && isset($filter[$atid]) ) {
+				unset($filter[$atid]);
+			}
+		}
+	}
+	$arr_lft_rgt = array();
+	foreach ( $filter as $ttid => $r ) {
+		$arr_lft_rgt[] = " ( lft >= {$r['lft']} AND rgt <= {$r['rgt']} )";
+	}
+	$sql_lft_rgt = implode(" OR \n    ",$arr_lft_rgt);
+	$sql = <<<SQL
+SELECT term_taxonomy_id AS ttid
+FROM $t_term_taxonomy
+WHERE taxonomy='hierarchy' 
+  AND ( 
+    $sql_lft_rgt
+  )
+SQL;
+	return $wpdb->get_col($sql);
+}/*}}}*/
+
+function dob_elect_get_users_count( $ttids = array() ) {/*{{{*/
 	global $wpdb;
 	$table = $wpdb->prefix.'dob_user_category';
-	$sql = "SELECT COUNT(1) FROM $table WHERE taxonomy='hierarchy' AND term_taxonomy_id <> 0";
-	return (int)$wpdb->get_var($sql);
-}/*}}}*/
-
-function dob_elect_get_hierarchy_influence($parent_id=0,$ancestor=array()) {/*{{{*/
-	global $wpdb;
-
-	$ret = array( $parent_id => null );
-	$ancestor[] = $parent_id;
-	$t_terms = $wpdb->prefix.'terms';
-	$t_term_taxonomy = $wpdb->prefix.'term_taxonomy';
-	$t_user_category = $wpdb->prefix.'dob_user_category';
-
-	// get self hierarchy user
-	$sql = "SELECT COUNT(1) FROM $t_user_category
-		WHERE taxonomy='hierarchy' AND term_taxonomy_id=$parent_id";
-	$nSelf = (int)$wpdb->get_var($sql);
-
-	// get low hierarchy user count
-	$sql = "SELECT term_taxonomy_id FROM $t_term_taxonomy
-		WHERE taxonomy='hierarchy' AND parent=$parent_id";
-	$rows = $wpdb->get_results($sql,ARRAY_A);
-	$nLow = 0;
-	$bLeaf = empty($rows) ? 1 : 0;
-	foreach ( $rows as $row ) {
-		$tt_id = $row['term_taxonomy_id'];
-		$tmp = dob_elect_get_hierarchy_influence($tt_id,$ancestor);
-		$nLow += (int)$tmp[$tt_id]['nTotal'];
-		$ret += $tmp;
+	$sql_ttids = '';
+	if ( ! empty($ttids) ) {
+		$sql_ttids = ' AND term_taxonomy_id IN ('.implode(',',$ttids).')';
 	}
-	array_pop($ancestor);
-	$ret[$parent_id] = array( 
-		'id'				=> $parent_id, 
-		'nSelf'			=> $nSelf,
-		'nLow'			=> $nLow,
-		'nTotal'		=> $nSelf+$nLow,
-		'bLeaf'			=> $bLeaf,
-		'ancestor'	=> $ancestor,
-	);
-	return $ret;
-}/*}}}*/
-
-function dob_elect_get_user_hierarchy($term_taxonomy_id) {/*{{{*/
-	global $wpdb;
-	$t_user_category = $wpdb->prefix . 'dob_user_category';
-
-	$sql = "SELECT user_id
-		FROM $t_user_category
-		WHERE taxonomy='hierarchy' AND term_taxonomy_id=$term_taxonomy_id";
-	$rows = $wpdb->get_results($sql,ARRAY_N);
-	return array_column($rows, 0);
+	$sql = "SELECT COUNT(1) FROM $table 
+		WHERE taxonomy='hierarchy' $sql_ttids";
+	return (int)$wpdb->get_var($sql);
 }/*}}}*/
 
 function dob_elect_cart( $user_id, $post_id ) {/*{{{*/
@@ -306,9 +310,11 @@ function dob_elect_contents( $post_id, $bEcho = false) {
 		}
 	}
 
-	$elect_latest = dob_elect_get_latest($post_id);	// user_id => rows	// for login_name
+	$ttids = dob_elect_get_selected_hierarchy_leaf_ttids($post_id);
+	$elect_latest = dob_elect_get_latest($post_id,0,$ttids);	// user_id => rows	// for login_name
 	// build final vote results.
 	$nDirect = count($elect_latest);
+	$myinfo = $user_id ? dob_elect_get_user_info($user_id) : null;
 	$myval = isset($elect_latest[$user_id]) ? (int)$elect_latest[$user_id]['value'] : '';
 #print_r($elect_latest);
 
@@ -324,10 +330,9 @@ function dob_elect_contents( $post_id, $bEcho = false) {
 	$label_my				= '내 투표';			//__('My Vote', DOBslug);
 	$label_history	= '기록';				//__('My Vote', DOBslug);
 	$label_login		= '로그인 해주세요';	//__('Please Login', DOBslug);
-
 	/*}}}*/
 
-	$nTotal = dob_elect_get_users_count();	// get all user count
+	$nTotal = dob_elect_get_users_count($ttids);	// get all user count
 	$fValid = number_format(100*($nDirect/$nTotal),1);
 	$html_timer = $html_chart= $html_form = $html_history = '';
 	if ( is_single() ) {
@@ -350,7 +355,10 @@ function dob_elect_contents( $post_id, $bEcho = false) {
 			$label_result .= ' : '.$label_ing;
 			$content_form = "<a href='http://wp1.youthpower.kr/wp-login.php' style='color:red; font-weight:bold'>$label_login</a>";
 			if ( $user_id ) {
-				if ( isset($_SESSION['LOGIN_IP']) && $_SESSION['LOGIN_IP'] == dob_get_real_ip() ) {
+				if ( ! in_array($myinfo->term_taxonomy_id,$ttids) ) {
+					$label_restrict = '선거대상 계층이 아닙니다.';	//__('Your hierarchy is not available in this voting.', DOBslug);
+					$content_form = "<span style='color:red; font-weight:bold'>$label_restrict</span>";
+				} elseif ( isset($_SESSION['LOGIN_IP']) && $_SESSION['LOGIN_IP'] == dob_get_real_ip() ) {
 					$content_form = dob_elect_display_mine($post_id,$vm_type,$vm_label,$myval,$user_id);
 				} else {
 					$content_form = '로그인 이후 1시간이 지났거나, 네트워크가 초기화 되었으니, 다시 로그인해 주세요<br>투표시에는 네트워크(WIFI,LTE,3G)를 변경하지 마세요.';	//__('You passed 1-hours after login, or Your network was Changed. Please Login AGAIN.', DOBslug);
@@ -414,7 +422,6 @@ HTML;
 	$html_history
 </ul><!--}}}-->
 HTML;
-	file_put_contents('/tmp/dob_elect.html',$dob_elect);
 
 	if ($bEcho) echo $dob_elect;
 	else return $dob_elect;

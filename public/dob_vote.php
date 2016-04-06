@@ -302,7 +302,7 @@ function dob_vote_get_user_hierarchy($term_taxonomy_id) {/*{{{*/
 	return $wpdb->get_col($sql,0);
 }/*}}}*/
 
-function dob_vote_get_post_hierarchy_leaf($post_id,$influences) {/*{{{*/
+function dob_vote_get_selected_hierarchy_leaf_ttids($post_id,$influences) {/*{{{*/
 	global $wpdb;
 	$t_term_relationships = $wpdb->prefix.'term_relationships';
 	$t_term_taxonomy = $wpdb->prefix.'term_taxonomy';
@@ -639,7 +639,7 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 #$ts = microtime(true);
 	//$influences = dob_vote_get_hierarchy_influence();	// influences by term_taxonomy_id
 #var_dump('<pre>',microtime(true)-$ts,'</pre>');
-	//useless, $post_leaf_hierarchy = dob_vote_get_post_hierarchy_leaf($post_id,$influences);
+	//useless, $post_leaf_hierarchy = dob_vote_get_selected_hierarchy_leaf_ttids($post_id,$influences);
 
 	$nGroup = $nFixed = $nDirect = 0;
 $ts = microtime(true);
@@ -947,7 +947,6 @@ HTML;
 	$html_history 
 </ul><!--}}}-->
 HTML;
-	file_put_contents('/tmp/dob_vote.html',$dob_vote);
 
 	if ($bEcho) echo $dob_vote;
 	else return $dob_vote;

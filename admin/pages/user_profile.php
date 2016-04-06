@@ -127,15 +127,16 @@ HTML;
 
 function dob_user_hierarchy_recalc_inf( $target_id, $source_id=0 ) {/*{{{*/
 	global $wpdb;
-
 	$t_term_taxonomy = $wpdb->prefix.'term_taxonomy';
 
 	// update target's higher hierarchy inf
-	$sql = "SELECT lft, rgt FROM $t_term_taxonomy WHERE term_taxonomy_id = $target_id";
-	$target = $wpdb->get_row($sql);
-	$sql = "UPDATE $t_term_taxonomy SET inf = inf + 1
-		WHERE taxonomy='hierarchy' AND lft < {$target->lft} AND rgt > {$target->rgt}";
-	$wpdb->query($sql);
+	if ( ! empty($target_id) ) {
+		$sql = "SELECT lft, rgt FROM $t_term_taxonomy WHERE term_taxonomy_id = $target_id";
+		$target = $wpdb->get_row($sql);
+		$sql = "UPDATE $t_term_taxonomy SET inf = inf + 1
+			WHERE taxonomy='hierarchy' AND lft < {$target->lft} AND rgt > {$target->rgt}";
+		$wpdb->query($sql);
+	}
 
 	// update source's higher hierarchy inf
 	if ( ! empty($source_id) ) {
@@ -170,7 +171,9 @@ function dob_admin_user_hierarchy_update( $target_user_id ) {/*{{{*/
 		WHERE taxonomy='hierarchy' AND user_id=".(int)$target_user_id;
 	$old_term_taxonomy_id = $wpdb->get_var($sql);
 
-	if ( is_null($old_term_taxonomy_id) ) {
+	if ( $ttid == $old_term_taxonomy_id ) {
+		return;
+	} elseif ( is_null($old_term_taxonomy_id) ) {
 		$wpdb->insert( $t_user_category,
 			array( 'taxonomy'=>'hierarchy', 'user_id'=>$target_user_id, 'term_taxonomy_id'=>$ttid ),
 			array( '%s', '%d', '%d' )
