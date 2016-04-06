@@ -269,16 +269,13 @@ function dob_vote_content_updown( $post_id/*=get_the_ID()*/, $bEcho = false) { /
 	$ajax_unlike_link = admin_url('admin-ajax.php?action=dob_vote_process_vote&task=unlike&post_id=' . $post_id . '&nonce=' . $nonce);
 }/*}}}*/
 
-function dob_vote_get_users_count() {/*{{{*/
+function dob_vote_get_users_count( $ttids = array() ) {/*{{{*/
 	global $wpdb;
-	$t_user_category	= $wpdb->prefix.'dob_user_category';
-	$t_term_taxonomy	= $wpdb->prefix.'term_taxonomy';
-	$sql = <<<SQL
-		SELECT COUNT(1) 
-		FROM $t_user_category 
-			JOIN $t_term_taxonomy  USING (term_taxonomy_id,taxonomy)
-		WHERE taxonomy='hierarchy' AND term_taxonomy_id <> 0
-SQL;
+	$t_user_category = $wpdb->prefix.'dob_user_category';
+	$sql_ttids = empty($ttids) ? 'AND term_taxonomy_id <> 0'
+		: ' AND term_taxonomy_id IN ('.implode(',',$ttids).')';
+	$sql = "SELECT COUNT(1) FROM $t_user_category 
+		WHERE taxonomy='hierarchy' $sql_ttids";
 	return (int)$wpdb->get_var($sql);
 }/*}}}*/
 
@@ -302,30 +299,60 @@ function dob_vote_get_user_hierarchy($term_taxonomy_id) {/*{{{*/
 	return $wpdb->get_col($sql,0);
 }/*}}}*/
 
-function dob_vote_get_selected_hierarchy_leaf_ttids($post_id,$influences) {/*{{{*/
+function dob_vote_get_selected_hierarchy_leaf_ttids($post_id) {/*{{{*/
 	global $wpdb;
 	$t_term_relationships = $wpdb->prefix.'term_relationships';
 	$t_term_taxonomy = $wpdb->prefix.'term_taxonomy';
 
-	$sql = "SELECT term_taxonomy_id 
+	$sql = "SELECT term_taxonomy_id AS ttid, anc, lft, rgt, parent
 		FROM $t_term_relationships 
-			JOIN $t_term_taxonomy USING(term_taxonomy_id)
+			JOIN $t_term_taxonomy USING (term_taxonomy_id)
 		WHERE taxonomy='hierarchy' AND object_id=$post_id";
-	$rows = $wpdb->get_results($sql,ARRAY_N);
-	//$all = array_column($rows,0);
+		//ORDER BY lft";
+	$rows = $wpdb->get_results($sql);
 	$all = array();
-	foreach ( $rows as $row ) {
-		$all[] = $row[0];
+	foreach ( $rows as $r ) {
+		$all[$r->ttid] = array (
+			'anc'		=> explode(',',$r->anc),
+			'lft'		=> $r->lft,
+			'rgt'		=> $r->rgt,
+			'parent'=> $r->parent,
+		);
+	}
+	if ( empty($all) ) return null;	// no selected
+	if ( 1 == count($all) ) {	// root selected
+		$cur = current($all);
+		if ( $cur['parent'] == '0' ) {
+			return null;
+		}
 	}
 
-	$diff = $all;
-	foreach ( $all as $one ) {
-		$diff = array_diff($diff,$influences[$one]['ancestor']);
+	// branch hierarchy selected
+	$filter = $all;
+	foreach ( $filter as $ttid => $r ) {
+		foreach ( $r['anc'] as $atid ) {
+			if ( $atid && isset($filter[$atid]) ) {
+				unset($filter[$atid]);
+			}
+		}
 	}
-	return array_values($diff);
+	$arr_lft_rgt = array();
+	foreach ( $filter as $ttid => $r ) {
+		$arr_lft_rgt[] = " ( lft >= {$r['lft']} AND rgt <= {$r['rgt']} )";
+	}
+	$sql_lft_rgt = implode(" OR \n    ",$arr_lft_rgt);
+	$sql = <<<SQL
+SELECT term_taxonomy_id AS ttid
+FROM $t_term_taxonomy
+WHERE taxonomy='hierarchy' 
+  AND ( 
+    $sql_lft_rgt
+  )
+SQL;
+	return $wpdb->get_col($sql);
 }/*}}}*/
 
-function dob_vote_get_hierarchy_voter( $post_id ) {/*{{{*/
+function dob_vote_get_hierarchy_voter( $post_id, $ttids=array() ) {/*{{{*/
 	global $wpdb;
 	if ( empty($user_id) ) $user_id = get_current_user_id();
 
@@ -334,15 +361,18 @@ function dob_vote_get_hierarchy_voter( $post_id ) {/*{{{*/
 	$t_term_taxonomy		= $wpdb->prefix.'term_taxonomy';
 	$t_terms						= $wpdb->prefix.'terms';
 
+	$sql_ttids = empty($ttids) ? ''
+		: ' AND term_taxonomy_id IN ('.implode(',',$ttids).')';
 	$sql = <<<SQL
 SELECT
 	term_taxonomy_id, lft, name, slug, lvl, user_id, value
 	, inf, chl, anc
 FROM $t_user_category c
-	JOIN $t_term_taxonomy  USING (term_taxonomy_id,taxonomy)
+	JOIN $t_term_taxonomy USING (term_taxonomy_id,taxonomy)
 	JOIN $t_terms USING (term_id)
 	LEFT JOIN $t_vote_post_latest l USING (user_id)
-WHERE c.taxonomy = 'hierarchy' 
+WHERE taxonomy = 'hierarchy' 
+	$sql_ttids
 	AND ( l.post_id = $post_id OR l.post_id IS NULL )
 ORDER BY lft
 SQL;
@@ -638,12 +668,12 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 
 #$ts = microtime(true);
 	//$influences = dob_vote_get_hierarchy_influence();	// influences by term_taxonomy_id
+	$ttids = dob_vote_get_selected_hierarchy_leaf_ttids($post_id);
 #var_dump('<pre>',microtime(true)-$ts,'</pre>');
-	//useless, $post_leaf_hierarchy = dob_vote_get_selected_hierarchy_leaf_ttids($post_id,$influences);
 
 	$nGroup = $nFixed = $nDirect = 0;
-$ts = microtime(true);
-	$hierarchy_voter = dob_vote_get_hierarchy_voter($post_id);	// order by lft
+#$ts = microtime(true);
+	$hierarchy_voter = dob_vote_get_hierarchy_voter($post_id,$ttids);	// order by lft
 #var_dump('<pre>',microtime(true)-$ts,'</pre>');
 #echo '<pre>'.print_r($hierarchy_voter,true).'</pre>';
 	foreach ( $hierarchy_voter as $ttid => $v ) {/*{{{*/
@@ -864,7 +894,7 @@ $ts = microtime(true);
 HTML;
 	}/*}}}*/
 
-	$nTotal = dob_vote_get_users_count();	// get all user count
+	$nTotal = dob_vote_get_users_count($ttids);	// get all user count
 	$nValid = $nFixed+$nGroup+$nDirect;
 	$fValid = number_format(100*($nValid/$nTotal),1);
 	$fFixed = $fGroup = $fDirect = 0.0;

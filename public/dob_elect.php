@@ -39,7 +39,7 @@ function dob_elect_get_latest($post_id,$user_id=0,$ttids=array()) {/*{{{*/
 			FROM $t_term_taxonomy
 				JOIN $t_user_category USING (term_taxonomy_id,taxonomy)
 				JOIN $t_elect_latest USING (user_id)
-			WHERE post_id = $post_id AND taxonomy = 'hierarchy' 
+			WHERE taxonomy = 'hierarchy' AND post_id = $post_id 
 				$sql_ttids";
 	}
 	$rows = $wpdb->get_results($sql,ARRAY_A);
@@ -141,12 +141,10 @@ SQL;
 
 function dob_elect_get_users_count( $ttids = array() ) {/*{{{*/
 	global $wpdb;
-	$table = $wpdb->prefix.'dob_user_category';
-	$sql_ttids = '';
-	if ( ! empty($ttids) ) {
-		$sql_ttids = ' AND term_taxonomy_id IN ('.implode(',',$ttids).')';
-	}
-	$sql = "SELECT COUNT(1) FROM $table 
+	$t_user_category = $wpdb->prefix.'dob_user_category';
+	$sql_ttids = empty($ttids) ? 'AND term_taxonomy_id <> 0'
+		: ' AND term_taxonomy_id IN ('.implode(',',$ttids).')';
+	$sql = "SELECT COUNT(1) FROM $t_user_category 
 		WHERE taxonomy='hierarchy' $sql_ttids";
 	return (int)$wpdb->get_var($sql);
 }/*}}}*/
