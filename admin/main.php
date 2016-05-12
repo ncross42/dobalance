@@ -26,15 +26,15 @@ function dob_admin_init() {
 
 	// register_setting
 	// MENUS
-	register_setting( DOBslug.'_options_menu', 'dob_menu_hierarchy' );
-	register_setting( DOBslug.'_options_menu', 'dob_menu_topic' );
-	register_setting( DOBslug.'_options_menu', 'dob_menu_mypage' );
+	register_setting( DOBslug.'_options_menu', 'dob_menu_hierarchy' , 'trim' );
+	register_setting( DOBslug.'_options_menu', 'dob_menu_topic'     , 'trim' );
+	register_setting( DOBslug.'_options_menu', 'dob_menu_mypage'    , 'trim' );
 	// UPIN
-	register_setting( DOBslug.'_options_upin', 'dob_use_upin' );
-	register_setting( DOBslug.'_options_upin', 'dob_upin_type' );
-	register_setting( DOBslug.'_options_upin', 'dob_upin_cpid' );
-	register_setting( DOBslug.'_options_upin', 'dob_upin_keyfile' );
-	register_setting( DOBslug.'_options_upin', 'dob_upin_logpath' );
+	register_setting( DOBslug.'_options_upin', 'dob_use_upin'     , 'trim' );
+	register_setting( DOBslug.'_options_upin', 'dob_upin_type'    , 'trim' );
+	register_setting( DOBslug.'_options_upin', 'dob_upin_cpid'    , 'trim' );
+	register_setting( DOBslug.'_options_upin', 'dob_upin_keyfile' , 'trim' );
+	register_setting( DOBslug.'_options_upin', 'dob_upin_logpath' , 'trim' );
 }
 
 /*************************
@@ -109,7 +109,7 @@ function dob_admin_add_menu() {/*{{{*/
 
 	// SUB menu : jsTree favorite (default)
 	$dob_screen_hook[] = add_submenu_page( 
-		DOBslug, __('DoBalance',DOBslug), '즐겨찾기',//__('jsTree favorite',DOBslug),
+		DOBslug, __('DoBalance',DOBslug), '즐겨찾기',//__('favorite categories',DOBslug),
 		'read', DOBslug.'_jstree_favorite', 'dob_admin_jstree_favorite'
 	);
 

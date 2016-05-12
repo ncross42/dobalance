@@ -167,4 +167,5 @@ require_once( DOBpath.'includes/custom_admin_bar.php' );
 require_once( DOBpath.'includes/custom_taxonomy.php' );
 require_once( DOBpath.'includes/cpt_offer.php' );
 require_once( DOBpath.'includes/cpt_elect.php' );
+require_once( DOBpath.'includes/ui_menus.php' );
 

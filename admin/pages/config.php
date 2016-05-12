@@ -22,16 +22,16 @@ $label_spi = '개인정보 취급'; //__('Successfully Certified', DOBslug);
 					<table class="form-table">
 						<tr valign="top"><th scope="row">Auto Hierarchy Menu</th>
 							<td>
-								<label><input type="radio" name="dob_menu_hierarchy" value="0" <?php checked(get_option('dob_menu_hierarchy'), '0'); ?> >disable</label>
+								<label><input type="radio" name="dob_menu_hierarchy" value="" <?php checked(get_option('dob_menu_hierarchy'), ''); ?> >disable</label>
 								&nbsp; &nbsp;
 								<label>
-									<input type="radio" name="dob_menu_hierarchy" value="1" <?php checked(get_option('dob_menu_hierarchy'), '1'); ?> >Insert
-									<i class="dashicons dashicons-align-left"></i>
+									<input type="radio" name="dob_menu_hierarchy" value="insert" <?php checked(get_option('dob_menu_hierarchy'), 'insert'); ?> >Insert
+									<i class="dashicons dashicons-editor-alignleft"></i>
 								</label>
 								&nbsp; &nbsp;
 								<label>
-									<input type="radio" name="dob_menu_hierarchy" value="2" <?php checked(get_option('dob_menu_hierarchy'), '2'); ?> >Append
-									<i class="dashicons dashicons-align-right"></i>
+									<input type="radio" name="dob_menu_hierarchy" value="append" <?php checked(get_option('dob_menu_hierarchy'), 'append'); ?> >Append
+									<i class="dashicons dashicons-editor-alignright"></i>
 								</label>
 								<br><span class="description"><?php echo __( 'Auto generated Hierarchy Menu (disable or select position)', DOBslug ); ?></span>
 							</td>
@@ -41,13 +41,13 @@ $label_spi = '개인정보 취급'; //__('Successfully Certified', DOBslug);
 								<label><input type="radio" name="dob_menu_topic" value="0" <?php checked(get_option('dob_menu_topic'), '0'); ?> >disable</label>
 								&nbsp; &nbsp;
 								<label>
-									<input type="radio" name="dob_menu_topic" value="1" <?php checked(get_option('dob_menu_topic'), '1'); ?> >Insert
-									<i class="dashicons dashicons-align-left"></i>
+									<input type="radio" name="dob_menu_topic" value="insert" <?php checked(get_option('dob_menu_topic'), 'insert'); ?> >Insert
+									<i class="dashicons dashicons-editor-alignleft"></i>
 								</label>
 								&nbsp; &nbsp;
 								<label>
-									<input type="radio" name="dob_menu_topic" value="2" <?php checked(get_option('dob_menu_topic'), '2'); ?> >Append
-									<i class="dashicons dashicons-align-right"></i>
+									<input type="radio" name="dob_menu_topic" value="append" <?php checked(get_option('dob_menu_topic'), 'append'); ?> >Append
+									<i class="dashicons dashicons-editor-alignright"></i>
 								</label>
 								<br><span class="description"><?php echo __( 'Auto generated Topic Menu (disable or select position)', DOBslug ); ?></span>
 							</td>
@@ -57,13 +57,18 @@ $label_spi = '개인정보 취급'; //__('Successfully Certified', DOBslug);
 								<label><input type="radio" name="dob_menu_mypage" value="0" <?php checked(get_option('dob_menu_mypage'), '0'); ?> >disable</label>
 								&nbsp; &nbsp;
 								<label>
-									<input type="radio" name="dob_menu_mypage" value="1" <?php checked(get_option('dob_menu_mypage'), '1'); ?> >Insert
-									<i class="dashicons dashicons-align-left"></i>
+									<input type="radio" name="dob_menu_mypage" value="insert" <?php checked(get_option('dob_menu_mypage'), 'insert'); ?> >Insert
+									<i class="dashicons dashicons-editor-alignleft"></i>
 								</label>
 								&nbsp; &nbsp;
 								<label>
-									<input type="radio" name="dob_menu_mypage" value="2" <?php checked(get_option('dob_menu_mypage'), '2'); ?> >Append
-									<i class="dashicons dashicons-align-right"></i>
+									<input type="radio" name="dob_menu_mypage" value="append" <?php checked(get_option('dob_menu_mypage'), 'append'); ?> >Append
+									<i class="dashicons dashicons-editor-alignright"></i>
+								</label>
+								&nbsp; &nbsp;
+								<label>
+									<input type="radio" name="dob_menu_mypage" value="offcanvas" <?php checked(get_option('dob_menu_mypage'), 'offcanvas'); ?> >Offcanvas
+									<i class="dashicons dashicons-align-left"></i>
 								</label>
 								<br><span class="description"><?php echo __( 'Auto generated Mypage Menu (disable or select position)', DOBslug ); ?></span>
 							</td>

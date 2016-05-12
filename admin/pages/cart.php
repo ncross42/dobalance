@@ -34,7 +34,6 @@ $db_ci = $wpdb->get_var($sql);
 if ( $upin_ci != $db_ci ) {
 	$label_upin_err = 'IPIN 인증값이 다릅니다. 관리자에게 문의해 주세요'; // __( 'Your UPIN-value is not matched, Please support by Adminitrator.', DOBslug );
 	$message .= "\n$label_upin_err";
-	break;
 } else {
 	$upin_cert = true;
 }

@@ -1,10 +1,10 @@
 <?php
-/*
-register_setting('dob_setting', 'use_upin', 'trim' );
-register_setting('dob_setting', 'upin_type', 'trim' );
-register_setting('dob_setting', 'upin_cpid', 'trim' );
-register_setting('dob_setting', 'upin_keyfile', 'trim' );
-register_setting('dob_setting', 'upin_logPath', 'trim' );
+/* admin/main.php
+	register_setting( DOBslug.'_options_upin', 'dob_use_upin'     , 'trim' );
+	register_setting( DOBslug.'_options_upin', 'dob_upin_type'    , 'trim' );
+	register_setting( DOBslug.'_options_upin', 'dob_upin_cpid'    , 'trim' );
+	register_setting( DOBslug.'_options_upin', 'dob_upin_keyfile' , 'trim' );
+	register_setting( DOBslug.'_options_upin', 'dob_upin_logpath' , 'trim' );
  */
 
 function upin_error($val) {/*{{{*/
