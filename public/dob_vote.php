@@ -896,7 +896,7 @@ HTML;
 
 	$nTotal = dob_vote_get_users_count($ttids);	// get all user count
 	$nValid = $nFixed+$nGroup+$nDirect;
-	$fValid = number_format(100*($nValid/$nTotal),1);
+	$fValid = empty($nTotal) ? 0 : number_format(100*($nValid/$nTotal),1);
 	$fFixed = $fGroup = $fDirect = 0.0;
 	if ( $nValid ) {
 		$fFixed = number_format(100*($nFixed/$nValid),1);
