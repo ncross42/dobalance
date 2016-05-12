@@ -50,6 +50,7 @@ HTML;
 			$label_dobalance = '기본설정';   //__('Basic Setting',DOBslug);
 			$label_favorite  = '즐겨찾기';   //__('Favorites',DOBslug);
 			$label_cart      = '투표바구니'; //__('my voting cart',DOBslug);
+			$label_user      = '유저 계층도';//__('jsTree user hierarchy',DOBslug),
 			$label_logout    = __('Logout',DOBslug);
 			$html = <<<HTML
 <li id="menu-item-mypage" class="menu-item menu-item-mypage menu-item-has-children" aria-haspopup="true">
@@ -58,6 +59,7 @@ HTML;
 		<li class="menu-item"><a href="/wp-admin/admin.php?page=dobalance">$label_dobalance</a></li>
 		<li class="menu-item"><a href="/wp-admin/admin.php?page=dobalance_jstree_favorite">$label_favorite</a></li>
 		<li class="menu-item"><a href="/wp-admin/admin.php?page=dobalance_cart">$label_cart</a></li>
+		<li class="menu-item"><a href="/wp-admin/admin.php?page=dobalance_jstree_user">$label_user</a></li>
 		<li class="menu-item" style="height:5px; background-color:silver;"><!--span class="icon-bar"></span--></li> <!-- dashicons dashicons-minus -->
 		<li class="menu-item"><a href="/wp-login.php?action=logout">$label_logout</a></li>
 	</ul>

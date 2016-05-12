@@ -151,7 +151,8 @@ function dob_admin_page() {
 	require_once( DOBpathAdmin.'pages/admin.php' );
 }
 function dob_admin_cart() {
-	require_once( DOBpathAdmin.'pages/cart.php' );
+	$cart = empty( get_option('dob_use_upin') ) ? 'pages/cart.php' : 'pages/cart_upin.php';
+	require_once( DOBpathAdmin.$cart );
 }
 function dob_admin_config() {
 	require_once( DOBpathAdmin.'pages/config.php' );

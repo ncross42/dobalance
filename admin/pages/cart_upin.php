@@ -23,12 +23,29 @@ $message = '[message] ';
 
 global $wpdb,$current_user;
 $user_id = (int)get_current_user_id();	// $current_user->ID;
+$upin_ci = empty($_SESSION['upin_info']['coinfo1']) ? '' : $_SESSION['upin_info']['coinfo1'];
+if ( 88 != strlen($upin_ci) || preg_match('~[^0-9a-zA-Z+/=]~', $upin_ci) ) {
+	$label_error = 'IPIN 인증을 실행해 주세요'; // __( 'You must be certified by UPIN.', DOBslug );
+	$message .= "\n$label_error";
+} 
+$upin_cert = false;
+$t_upin = $wpdb->prefix.'dob_upin';
+$sql = "SELECT ci FROM $t_upin WHERE user_id = $user_id";
+$db_ci = $wpdb->get_var($sql);
+if ( $upin_ci != $db_ci ) {
+	$label_upin_err = 'IPIN 인증값이 다릅니다. 관리자에게 문의해 주세요'; // __( 'Your UPIN-value is not matched, Please support by Adminitrator.', DOBslug );
+	$message .= "\n$label_upin_err";
+} else {
+	$upin_cert = true;
+}
+
 
 # add cart process
 if ( is_array($_POST) 
 	&& isset($_POST['dobalance_admin_cart']) 
 	&& wp_verify_nonce( $_POST['dobalance_admin_cart'], 'dobalance_admin_cart' ) 
 	&& isset($_POST['post']) && is_array($_POST['post'])
+	&& ! empty($_POST['upin_cert'])
 ) {
 	$nVote = $nSkip = $nErr = 0;
 	foreach ( $_POST['post'] as $post_type_id ) {
@@ -83,7 +100,10 @@ $sql = "SELECT c.*, p.post_title
 	WHERE user_id = $user_id";
 $rows = $wpdb->get_results($sql,ARRAY_A);
 
+$label_certify = '투표 인증'; //__('Certify Votes', DOBslug);
 $label_batch   = '일괄 투표'; //__('Batch Voting', DOBslug);
+$label_check   = 'IPIN 인증';   //__('Check UPIN', DOBslug);
+$ajax_url = admin_url('admin-ajax.php?action=upin_kcb1');
 ?>
 
 <div class="wrap">
@@ -166,17 +186,27 @@ HTML;
 
 			<!--button type="reset" id="reset_cart_category" class="button button-large">Reset</button-->
 			<br>
-			<?php submit_button($label_batch,'primary','submit',false, '' ); ?>
+			<?php submit_button($label_batch,'primary','submit',false, empty($upin_cert) ? array('disabled'=>true) : '' ); ?>
+			<input type="hidden" name="upin_cert" value="<?php echo (int)$upin_cert; ?>">
+			<input id="btnUpin" type="button" name="btn_upin" id="btn_upin" class="input" value="<?=$label_check?>"/>
 		</div>
 		</form>
 	</div>
 
 </div>
 
+<?php
+	$_SESSION['upin_form'] = 'formCart';
+	$ajax_url = admin_url('admin-ajax.php?action=upin_kcb1');
+?>
 <script>
 (function($) {
   "use strict";
 	$(function() {
+		$('#btnUpin').click( function( event ) {
+			var popupWindow = window.open("<?=$ajax_url?>", "kcbPop", "left=200, top=100, status=0, width=450, height=550");
+			popupWindow.focus();
+		});
 		$("#formCart").submit(function( event ) {
 			//alert('asd');
 			//event.preventDefault();
