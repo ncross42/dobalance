@@ -25,11 +25,16 @@ function dob_admin_init() {
 	if( empty($current_user->ID) ) return;
 
 	// register_setting
-	register_setting( DOBslug.'_options', 'dob_use_upin' );
-	register_setting( DOBslug.'_options', 'dob_upin_type' );
-	register_setting( DOBslug.'_options', 'dob_upin_cpid' );
-	register_setting( DOBslug.'_options', 'dob_upin_keyfile' );
-	register_setting( DOBslug.'_options', 'dob_upin_logpath' );
+	// MENUS
+	register_setting( DOBslug.'_options_menu', 'dob_menu_hierarchy' );
+	register_setting( DOBslug.'_options_menu', 'dob_menu_topic' );
+	register_setting( DOBslug.'_options_menu', 'dob_menu_mypage' );
+	// UPIN
+	register_setting( DOBslug.'_options_upin', 'dob_use_upin' );
+	register_setting( DOBslug.'_options_upin', 'dob_upin_type' );
+	register_setting( DOBslug.'_options_upin', 'dob_upin_cpid' );
+	register_setting( DOBslug.'_options_upin', 'dob_upin_keyfile' );
+	register_setting( DOBslug.'_options_upin', 'dob_upin_logpath' );
 }
 
 /*************************
@@ -121,10 +126,10 @@ function dob_admin_add_menu() {/*{{{*/
 	);
 
 	// roles : author
-	// SUB menu : upin
+	// SUB menu : config
 	$dob_screen_hook[] = add_submenu_page( 
-		DOBslug, __('DoBalance',DOBslug), __('config UPIN',DOBslug),
-		'manage_options', DOBslug.'_upin', 'dob_admin_upin'
+		DOBslug, __('DoBalance',DOBslug), __('config',DOBslug),
+		'manage_options', DOBslug.'_config', 'dob_admin_config'
 	);
 
 	// SUB menu : bulk
@@ -148,8 +153,8 @@ function dob_admin_page() {
 function dob_admin_cart() {
 	require_once( DOBpathAdmin.'pages/cart.php' );
 }
-function dob_admin_upin() {
-	require_once( DOBpathAdmin.'pages/upin.php' );
+function dob_admin_config() {
+	require_once( DOBpathAdmin.'pages/config.php' );
 }
 function dob_admin_bulk() {
 	require_once( DOBpathAdmin.'pages/bulk.php' );

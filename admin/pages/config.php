@@ -3,24 +3,86 @@
 	<h2><?php echo esc_html( get_admin_page_title() ); ?></h2>
 
 <?php
-$label_setting = __( 'Settings' );
+$label_tabs_1 = __('Menu').' '.__( 'Settings' );
+$label_tabs_2 = __('UPIN').' '.__( 'Settings' );
+$label_spi = '개인정보 취급'; //__('Successfully Certified', DOBslug);
 ?>
 	<div id="tabs" class="settings-tab">
 		<ul>
-			<li><a href="#tabs-1"><?php echo $label_setting; ?></a></li>
-			<!--li><a href="#tabs-2"><?php _e( 'Import/Export', DOBslug ); ?></a></li-->
+			<li><a href="#tabs-1"><?php echo $label_tabs_1; ?></a></li>
+			<li><a href="#tabs-2"><?php echo $label_tabs_2; ?></a></li>
+			<!--li><a href="#tabs-3"><?php _e( 'Import/Export', DOBslug ); ?></a></li-->
 		</ul>
-
-<?php
-$label_spi = '개인정보 취급'; //__('Successfully Certified', DOBslug);
-?>
 
 		<div id="tabs-1" class="wrap">
 			<div class="postbox">
-				<h3 class="hndle"><span><?php echo $label_spi; ?></span></h3>
 				<div class="inside">
 				<form method="post" action="options.php">
-					<?php settings_fields(DOBslug.'_options'); ?>
+					<?php settings_fields(DOBslug.'_options_menu'); ?>
+					<table class="form-table">
+						<tr valign="top"><th scope="row">Auto Hierarchy Menu</th>
+							<td>
+								<label><input type="radio" name="dob_menu_hierarchy" value="0" <?php checked(get_option('dob_menu_hierarchy'), '0'); ?> >disable</label>
+								&nbsp; &nbsp;
+								<label>
+									<input type="radio" name="dob_menu_hierarchy" value="1" <?php checked(get_option('dob_menu_hierarchy'), '1'); ?> >Insert
+									<i class="dashicons dashicons-align-left"></i>
+								</label>
+								&nbsp; &nbsp;
+								<label>
+									<input type="radio" name="dob_menu_hierarchy" value="2" <?php checked(get_option('dob_menu_hierarchy'), '2'); ?> >Append
+									<i class="dashicons dashicons-align-right"></i>
+								</label>
+								<br><span class="description"><?php echo __( 'Auto generated Hierarchy Menu (disable or select position)', DOBslug ); ?></span>
+							</td>
+						</tr>
+						<tr valign="top"><th scope="row">Auto Topic Menu</th>
+							<td>
+								<label><input type="radio" name="dob_menu_topic" value="0" <?php checked(get_option('dob_menu_topic'), '0'); ?> >disable</label>
+								&nbsp; &nbsp;
+								<label>
+									<input type="radio" name="dob_menu_topic" value="1" <?php checked(get_option('dob_menu_topic'), '1'); ?> >Insert
+									<i class="dashicons dashicons-align-left"></i>
+								</label>
+								&nbsp; &nbsp;
+								<label>
+									<input type="radio" name="dob_menu_topic" value="2" <?php checked(get_option('dob_menu_topic'), '2'); ?> >Append
+									<i class="dashicons dashicons-align-right"></i>
+								</label>
+								<br><span class="description"><?php echo __( 'Auto generated Topic Menu (disable or select position)', DOBslug ); ?></span>
+							</td>
+						</tr>
+						<tr valign="top"><th scope="row">Auto Mypage Menu</th>
+							<td>
+								<label><input type="radio" name="dob_menu_mypage" value="0" <?php checked(get_option('dob_menu_mypage'), '0'); ?> >disable</label>
+								&nbsp; &nbsp;
+								<label>
+									<input type="radio" name="dob_menu_mypage" value="1" <?php checked(get_option('dob_menu_mypage'), '1'); ?> >Insert
+									<i class="dashicons dashicons-align-left"></i>
+								</label>
+								&nbsp; &nbsp;
+								<label>
+									<input type="radio" name="dob_menu_mypage" value="2" <?php checked(get_option('dob_menu_mypage'), '2'); ?> >Append
+									<i class="dashicons dashicons-align-right"></i>
+								</label>
+								<br><span class="description"><?php echo __( 'Auto generated Mypage Menu (disable or select position)', DOBslug ); ?></span>
+							</td>
+						</tr>
+					</table>
+					<p class="submit">
+						<input type="submit" class="button-primary" value="<?php _e('Save Changes') ?>" />
+					</p>
+				</form>
+				</div>
+			</div>
+			<!-- @TODO: Provide other markup for your options page here. -->
+		</div>
+
+		<div id="tabs-2" class="wrap">
+			<div class="postbox">
+				<div class="inside">
+				<form method="post" action="options.php">
+					<?php settings_fields(DOBslug.'_options_upin'); ?>
 					<table class="form-table">
 						<tr valign="top"><th scope="row">Use UPIN</th>
 							<td>
