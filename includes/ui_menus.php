@@ -108,11 +108,13 @@ HTML;
 
 function dob_make_menu_taxonomy($taxonomy) {
 	global $wpdb;
-	$title = $wpdb->get_row("SELECT name, slug FROM wp1_term_taxonomy JOIN wp1_terms USING(term_id) WHERE taxonomy='$taxonomy' AND lvl=0 LIMIT 1");
+	$title = $wpdb->get_row("SELECT name, slug 
+		FROM {$wpdb->prefix}term_taxonomy JOIN {$wpdb->prefix}terms USING(term_id)
+		WHERE taxonomy='$taxonomy' AND lvl=0 LIMIT 1");
 	if ( empty($title) ) return '';
 	$title_name = $title->name; $title_slug = $title->slug;
 	$sql = "SELECT name, slug
-		FROM wp1_term_taxonomy JOIN wp1_terms USING(term_id) 
+		FROM {$wpdb->prefix}term_taxonomy JOIN {$wpdb->prefix}terms USING(term_id) 
 		WHERE taxonomy='$taxonomy' AND lvl=1
 		ORDER BY pos";
 	$menus = $wpdb->get_results($sql);
