@@ -39,11 +39,15 @@ function dob_add_auto_nav_menu( $items, $args ){
 	}
 
 	if ( $mymenu ) {
-		$label_login    = __('Login',DOBslug);
+		$label_login    = '로그인';    // __('Log In',DOBslug);
+		$label_register = '회원가입';  // __('Register',DOBslug);
 		$html = <<<HTML
-			<li id="menu-item-mypage" class="menu-item menu-item-mypage" >
-				<a href="/wp-login.php">$label_login</a>
-			</li>
+<li id="menu-item-mypage" class="menu-item menu-item-mypage menu-item-has-children" aria-haspopup="true" >
+	<a href="/wp-login.php">$label_login</a>
+	<ul class="sub-menu">
+		<li class="menu-item"><a href="/wp-login.php?action=register">$label_register</a></li>
+	</ul>
+</li>
 HTML;
 		if ( is_user_logged_in() ) {
 			$label_mypage    = '관리';       //__('Management',DOBslug);
