@@ -201,29 +201,29 @@ class jsTree
 			$ref_lft = (int)$parent['children'][(int)$position][$base['left']];
 		}
 		$sql[] = "
-			UPDATE ".$t_base."
-				SET ".$base['left']." = ".$base['left']." + 2
+			UPDATE $t_base
+				SET {$base['left']} = {$base['left']} + 2
 			WHERE `taxonomy`='$taxonomy'
-				".$base['left']." >= ".$ref_lft."
+				AND {$base['left']} >= $ref_lft
 			";
 		$par[] = false;
 
 		// update right indexes
 		$ref_rgt = false;
 		if( ! isset($parent['children']) ) {
-			$ref_rgt = $parent[$base['right']];
+			$ref_rgt = (int)$parent[$base['right']];
 		}
 		else if(!isset($parent['children'][$position])) {
-			$ref_rgt = $parent[$base['right']];
+			$ref_rgt = (int)$parent[$base['right']];
 		}
 		else {
-			$ref_rgt = $parent['children'][(int)$position][$base['left']] + 1;
+			$ref_rgt = (int)$parent['children'][(int)$position][$base['left']] + 1;
 		}
 		$sql[] = "
-			UPDATE ".$t_base."
-				SET ".$base['right']." = ".$base['right']." + 2
+			UPDATE $t_base
+				SET {$base['right']} = {$base['right']} + 2
 			WHERE `taxonomy`='$taxonomy'
-				".$base['right']." >= ".(int)$ref_rgt."
+				AND {$base['right']} >= $ref_rgt
 			";
 		$par[] = false;
 		foreach($sql as $k => $v) {

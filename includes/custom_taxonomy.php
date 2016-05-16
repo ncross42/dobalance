@@ -108,12 +108,27 @@ function dob_filter_taxonomy_orderby( $orderby, $args, $taxonomies ) {/*{{{*/
 
 function dob_get_sub_categories() {
 	global $wpdb;
-#file_put_contents('cache.php',$sql.PHP_EOL.$html_sub);
-	$uri = substr($_SERVER['REQUEST_URI'],1);
-	$paths = explode('/', $uri );
-	if ( empty($paths) || !is_array($paths) ) return false;
-	$taxonomy = $paths[0];
-	$slug = empty($paths[1]) ? '' : $paths[1];
+
+	// init taxonomy, slug
+	if ( trim($_GET['hierarchy']) || trim($_GET['topic']) ) {
+		if ( trim($_GET['hierarchy']) ) {
+			$taxonomy = 'hierarchy';
+			$slug = trim($_GET['hierarchy']);
+		} else if ( trim($_GET['topic']) ) {
+			$taxonomy = 'topic';
+			$slug = trim($_GET['topic']);
+		}
+	} else {
+		$uri = substr($_SERVER['REQUEST_URI'],1);
+		$paths = explode('/', $uri );
+		if ( empty($paths) || !is_array($paths) ) return false;
+		$taxonomy = $paths[0];
+		$slug = empty($paths[1]) ? '' : $paths[1];
+	}
+#file_put_contents('/tmp/sub',$taxonomy.PHP_EOL.$slug);
+	if ( empty($taxonomy) || empty($slug) ) {
+		return false;
+	}
 
 	$sql = "SELECT term_taxonomy_id, lvl
 		FROM {$wpdb->prefix}term_taxonomy JOIN {$wpdb->prefix}terms USING(term_id)

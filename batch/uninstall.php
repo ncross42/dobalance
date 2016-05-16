@@ -12,6 +12,14 @@ unregister_setting('dob_setting', 'dob_root_hierarchy');
 unregister_setting('dob_setting', 'dob_root_subject');
 
 ##### DB #####
+$table_name = $wpdb->prefix.'dob_cache';
+$sql = "DROP TABLE IF EXISTS `$table_name`";
+$wpdb->query($sql);
+
+$table_name = $wpdb->prefix.'dob_cart';
+$sql = "DROP TABLE IF EXISTS `$table_name`";
+$wpdb->query($sql);
+
 $table_name = $wpdb->prefix.'dob_user_category';
 $sql = "DROP TABLE IF EXISTS `$table_name`";
 $wpdb->query($sql);

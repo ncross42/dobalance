@@ -14,9 +14,9 @@
  *
  * @wordpress-plugin
  * Plugin Name:       DoBalance
- * Plugin URI:        @TODO
+ * Plugin URI:        www.dobalance.net
  * Description:       DoBalance is the wordpress plugin service for Balanced Direct Democracy
- * Version:           1.0.0
+ * Version:           0.0.1
  * Author:            HeeWon Lee
  * Author URI:        ncross42@gmail.com
  * Text Domain:       dobalance
@@ -161,11 +161,11 @@ if ( defined( 'DOING_AJAX' ) && !empty(DOING_AJAX) ) {
 		require_once( DOBpath . 'includes/upin_kcb.php' );
 	}
 }
-require_once( DOBpath . 'public/dob_widgets.php' );
-
 require_once( DOBpath.'includes/custom_admin_bar.php' );
 require_once( DOBpath.'includes/custom_taxonomy.php' );
 require_once( DOBpath.'includes/cpt_offer.php' );
 require_once( DOBpath.'includes/cpt_elect.php' );
 require_once( DOBpath.'includes/ui_menus.php' );
+
+require_once( DOBpath.'public/dob_widgets.php' );
 

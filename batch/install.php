@@ -9,6 +9,16 @@ if ( ! defined ('WP_USE_THEMES') ) {
 global $wpdb;
 
 ##### DB #####
+$table_name = $wpdb->prefix.'dob_cache';
+$sql = "CREATE TABLE IF NOT EXISTS `$table_name` (
+	`post_id` int(11) NOT NULL DEFAULT 0,
+	`type` ENUM('all','stat','result','detail') NOT NULL DEFAULT 'all',
+	`data` text COLLATE ascii_bin DEFAULT NULL,
+	`ts` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	PRIMARY KEY (`post_id`,`type`)
+)";
+$wpdb->query($sql);
+
 $table_name = $wpdb->prefix.'dob_cart';
 $sql = "CREATE TABLE IF NOT EXISTS `$table_name` (
 	`user_id` bigint unsigned NOT NULL DEFAULT '0',

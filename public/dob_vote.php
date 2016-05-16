@@ -326,6 +326,7 @@ function dob_vote_get_selected_hierarchy_leaf_ttids($post_id) {/*{{{*/
 			return null;
 		}
 	}
+#file_put_contents('/tmp/all_w.php',print_r($all,true));
 
 	// branch hierarchy selected
 	$filter = $all;
@@ -609,6 +610,45 @@ function dob_vote_update( $user_id, $post_id, $val=null ) {/*{{{*/
 	}
 }/*}}}*/
 
+function dob_vote_cache( $post_id, $type, $data = false ) {/*{{{*/
+	global $wpdb;
+
+	if ( !in_array($type,['all','stat','result','detail']) ) return false;
+
+	$t_cache = $wpdb->prefix.'dob_cache';
+	$t_latest = $wpdb->prefix.'dob_vote_post_latest';
+
+	$sql = "SELECT max(ts) FROM `$t_latest` WHERE post_id = $post_id";
+	$ts_latest = $wpdb->get_var($sql);
+
+	$sql = "SELECT data, ts FROM `$t_cache` 
+		WHERE post_id = $post_id AND type = '$type'";
+	$old = $wpdb->get_row($sql);
+
+	// GET
+	if ( empty($data) ) {
+		return ($old->ts == $ts_latest) ? json_decode($old->data,true) : false ;
+	}
+
+	// SET
+	if ( empty($old) ) {
+		$ret = $wpdb->insert( $t_cache, [
+			'post_id' => $post_id,
+			'type'    => $type,
+			'data'    => json_encode($data,JSON_UNESCAPED_UNICODE),
+			'ts'      => $ts_latest
+		] );
+	} else /*if ( $old->ts <= $ts_latest )*/ {
+		$ret = $wpdb->update( $t_cache, 
+			[ 'data' => json_encode($data,JSON_UNESCAPED_UNICODE), 'ts' => $ts_latest],
+			[ 'post_id' => $post_id, 'type' => $type]
+		);
+	}
+
+	return $ret;
+
+}/*}}}*/
+
 $DOB_INDEX = array ( -1=>'-1d',0=>'0d','1d','2d','3d','4d','5d','6d','7d');
 function dob_vote_make_stat( &$stat, $type, $nVal, $cnt=1,$strClass='di') {/*{{{*/
 	global $DOB_INDEX;
@@ -660,7 +700,6 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 			echo "<pre>$debug</pre>";
 		}
 	}
-	$myinfo = $user_id ? dob_vote_get_user_info($user_id) : null;
 
 	// group values
 	$group_values = dob_vote_get_group_values($post_id);
@@ -669,9 +708,10 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 #$ts = microtime(true);
 	//$influences = dob_vote_get_hierarchy_influence();	// influences by term_taxonomy_id
 	$ttids = dob_vote_get_selected_hierarchy_leaf_ttids($post_id);
+#var_dump('<pre>',print_r( "select t.* FROM wp_term_taxonomy join wp_terms t using(term_id) where taxonomy='hierarchy' AND term_taxonomy_id IN (". implode(',',$ttids).")",true),'</pre>');
+#var_dump('<pre>',print_r($ttids,true),'</pre>');
 #var_dump('<pre>',microtime(true)-$ts,'</pre>');
 
-	$nGroup = $nFixed = $nDirect = 0;
 #$ts = microtime(true);
 	$hierarchy_voter = dob_vote_get_hierarchy_voter($post_id,$ttids);	// order by lft
 #var_dump('<pre>',microtime(true)-$ts,'</pre>');
@@ -689,23 +729,21 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 
 		// check leaf's direct voting
 		if ( empty($v['chl']) ) {
-			// valid direct-voting counts
-			$nDirect += $uvc_valid;
 			// check null-user's group delegator
 			$uv_group = array();
 			$uv_tmp = $uv_null;
-			if ( $user_id && ! in_array($user_id,$uv_null) 
+			/*if ( $user_id && ! in_array($user_id,$uv_null) 
 				&& $myinfo && $ttid == $myinfo->term_taxonomy_id
 			) {
 				$uv_tmp[] = $user_id;
-			}
+			} TODO: WHY??? */
 			foreach ( $uv_tmp as $uid ) {
 				// get only available group values
 				$tmp_gtid_vals = dob_vote_get_user_group_all_ttid_values($uid,$group_values,$vm_type,false);
 				if ( !empty($tmp_gtid_vals) && !empty($tmp_gtid_vals['value']) ) {
 					$uv_group[$uid] = $tmp_gtid_vals;
 				}
-				/*$gtid_vals = array();
+				/*{{{*/ /*$gtid_vals = array();
 				foreach ( $gr_ttids as $gtid ) {
 					$gtid_vals[$gtid] = $group_values[$gtid]->value;
 				}
@@ -717,16 +755,11 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 							'value' => $value,
 						);
 					}
-				}*/
+				}*/ /*}}}*/
 			}
-			$nGroup += ( $uvc_group_reflected = count( 
-				array_diff(
-					array_keys($uv_group),
-					array_keys($uv_valid)) 
-				) 
-			);
 
 			// deduct last-ancestor's influences
+			$uvc_group_reflected = count( array_diff( array_keys($uv_group), array_keys($uv_valid)) ) ;
 			foreach ( array_reverse($v['anc']) as $a_ttid ) {
 				if ( isset($hierarchy_voter[$a_ttid]) ) {	// only exists
 					$hierarchy_voter[$a_ttid]['inf'] -= ($uvc_valid+$uvc_group_reflected);
@@ -737,7 +770,7 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 			// self added leaf data
 			$hierarchy_voter[$ttid]['uv_group'] = $uv_group;
 			$hierarchy_voter[$ttid]['value'] = null;
-		} else {	// BRANCH NODE //
+		} else {	## BRANCH NODE ##
 			// decision value
 			$value = dob_vote_aggregate_value($vm_type,$uid_vals,count($all_ids));
 
@@ -771,14 +804,16 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 #echo '<pre>'.print_r($hierarchy_voter,true).'</pre>';
 #file_put_contents('/tmp/hv.'.date('His').'.php',print_r($hierarchy_voter,true));
 
-	// build final result stat.
-	$final_stat = $final_votes = array();/*{{{*/
+	// build final result stat. /*{{{*/
+	$nGroup = $nFixed = $nDirect = 0;
+	$final_stat = $final_votes = array();
 	foreach ( $hierarchy_voter as $ttid => $v ) {
 		if ( empty($v['chl']) ) {	// leaf
 			// final decision by Direct-Voting
 			foreach ( $v['uv_valid'] as $uid => $val ) {
 				dob_vote_make_stat($final_stat,$vm_type,$val,1,'di');
 				$final_votes[$uid] = "1,$val";
+				if ( !empty($val) ) ++$nDirect;
 			} 
 			// decision by group-voting
 			foreach ( $v['uv_group'] as $uid => $info ) {
@@ -786,6 +821,7 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 #echo '<pre>'.print_r([$uid,$info,$v['uv_valid']],true).'</pre>';
 					dob_vote_make_stat($final_stat,$vm_type,$info['value'],1,'gr');
 					$final_votes[$uid] = "1,{$info['value']}";
+					++$nGroup;
 				}
 			} 
 		} else  { // non-leaf
@@ -809,11 +845,23 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 #echo '<pre>'.print_r($final_votes,true).'</pre>';
 #echo '<pre>'.print_r($final_stat,true).'</pre>';
 	
+	$myinfo = $user_id ? dob_vote_get_user_info($user_id) : null;
+	$nTotal = dob_vote_get_users_count($ttids);	// get all user count
+
+	// Cache Results
+	dob_vote_cache($post_id,'all',[
+		'hierarchy_voter'=>$hierarchy_voter,
+		'ttids' => $ttids,
+		'stat'=> ['nFixed'=>$nFixed,'nGroup'=>$nGroup,'nDirect'=>$nDirect,'nTotal'=>$nTotal],
+		'final_stat' => $final_stat,
+		'final_votes'=> $final_votes,
+	]);
+	
 #echo '</pre>';
-	## build HTML /*{{{*/
+
+	## build HTML 
+	# labels /*{{{*/
 	//$label_title		= '균형 투표';		//__('Balance Voting', DOBslug);
-	$label_stat			= '균형투표 통계';	//__('Statistics', DOBslug);
-	$label_turnout	= '투표율';					//__('Total Users', DOBslug);
 	$label_total		= '전체';						//__('Total Users', DOBslug);
 	$label_valid		= '유효';						//__('Total Users', DOBslug);
 	$label_hierarchy= '계층';						//__('Hierarchy voter', DOBslug);
@@ -821,11 +869,12 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 	$label_direct		= '직접';						//__('Direct voter', DOBslug);
 	$label_chart		= '결과 차트';			//__('Direct voter', DOBslug);
 	$label_my				= '내 투표';				//__('My Vote', DOBslug);
-	$label_history	= '기록';				//__('My Vote', DOBslug);
+	#$label_history	= '기록';				//__('My Vote', DOBslug);
 	$label_vote			= '투표';						//__('Vote', DOBslug);
 	$label_influence= '영향력 관계도';	//__('Direct voter', DOBslug);
 	$label_no_pos		= '계층이 지정되지 않아, 투표할 수 없습니다.';	//__('Direct voter', DOBslug); 
 	$label_login		= '로그인 해주세요';	//__('Please Login', DOBslug);
+	/*}}}*/
 
 	// build html hierarchy chart
 	$html_hierarchy = '';/*{{{*/
@@ -894,15 +943,7 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 HTML;
 	}/*}}}*/
 
-	$nTotal = dob_vote_get_users_count($ttids);	// get all user count
-	$nValid = $nFixed+$nGroup+$nDirect;
-	$fValid = empty($nTotal) ? 0 : number_format(100*($nValid/$nTotal),1);
-	$fFixed = $fGroup = $fDirect = 0.0;
-	if ( $nValid ) {
-		$fFixed = number_format(100*($nFixed/$nValid),1);
-		$fGroup = number_format(100*($nGroup/$nValid),1);
-		$fDirect = number_format(100*($nDirect/$nValid),1);
-	}/*}}}*/
+	$html_stat = ''; // dob_vote_html_stat($nFixed,$nGroup,$nDirect,$nTotal);
 
 	$html_chart = $html_form = $html_history = '';/*{{{*/
 	if ( is_single() ) {
@@ -934,7 +975,7 @@ HTML;
 			<div class='panel'> $content_form </div>
 		</li>";
 
-		if ( $user_id ) {
+		/*if ( $user_id ) {
 			$html_history = <<<HTML
 			<li class='toggle'>
 				<h3># $label_my $label_history<span class='toggler'>[open]</span></h3>
@@ -955,22 +996,12 @@ HTML;
 				</div>
 			</li>
 HTML;
-		}
+		}*/
 	}/*}}}*/
 
 	$dob_vote = <<<HTML
 <ul id="toggle-view"><!--{{{-->
-	<li class="toggle">
-		<h3># $label_stat <small> // $label_turnout : $fValid% </small><span class="toggler">[open]</span></h3>
-		<div class="panel" style="display:none">
-			<table>
-				<tr><td class="left">$label_valid    / $label_total</td><td>$fValid% ( $nValid / $nTotal )</td></tr>
-				<tr><td class="left">$label_hierarchy/ $label_valid</td><td>$fFixed% ( $nFixed / $nValid )</td></tr>
-				<tr><td class="left">$label_group    / $label_valid</td><td>$fGroup% ( $nGroup / $nValid )</td></tr>
-				<tr><td class="left">$label_direct   / $label_valid</td><td>$fDirect% ( $nDirect / $nValid )</td></tr>
-			</table>
-		</div>
-	</li>
+	$html_stat
 	$html_chart
 	$html_hierarchy
 	$html_form
@@ -981,6 +1012,39 @@ HTML;
 	if ($bEcho) echo $dob_vote;
 	else return $dob_vote;
 }
+
+function dob_vote_html_stat($nFixed,$nGroup,$nDirect,$nTotal) {/*{{{*/
+	$label_stat			= '균형투표 통계';	//__('Statistics', DOBslug);
+	#$label_turnout	= '투표율';					//__('Total Users', DOBslug);
+	$label_total		= '전체';						//__('Total Users', DOBslug);
+	$label_valid		= '유효';						//__('Total Users', DOBslug);
+	$label_hierarchy= '계층';						//__('Hierarchy voter', DOBslug);
+	$label_group		= '그룹';						//__('Delegate voter', DOBslug);
+	$label_direct		= '직접';						//__('Direct voter', DOBslug);
+
+	$nValid = $nFixed+$nGroup+$nDirect;
+	$fValid = empty($nTotal) ? 0 : number_format(100*($nValid/$nTotal),1);
+	$fFixed = $fGroup = $fDirect = 0.0;
+	if ( $nValid ) {
+		$fFixed = number_format(100*($nFixed/$nValid),1);
+		$fGroup = number_format(100*($nGroup/$nValid),1);
+		$fDirect = number_format(100*($nDirect/$nValid),1);
+	}
+	return <<<HTML
+	<li class="toggle">
+		<h3># $label_stat <small style="font-weight:normal;font-size:0.9em;"> - $label_valid : $fValid% </small><span class="toggler">[close]</span></h3>
+		<div class="panel" style="display:block">
+			<table>
+				<tr><td class="left">$label_valid    / $label_total</td><td>$fValid% ( $nValid / $nTotal )</td></tr>
+				<tr><td class="left">$label_hierarchy/ $label_valid</td><td>$fFixed% ( $nFixed / $nValid )</td></tr>
+				<tr><td class="left">$label_group    / $label_valid</td><td>$fGroup% ( $nGroup / $nValid )</td></tr>
+				<tr><td class="left">$label_direct   / $label_valid</td><td>$fDirect% ( $nDirect / $nValid )</td></tr>
+			</table>
+		</div>
+	</li>
+HTML;
+
+}/*}}}*/
 
 function dob_vote_html_chart($final_stat,$vm_legend,$nTotal) {/*{{{*/
 	global $DOB_INDEX;
