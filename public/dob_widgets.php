@@ -13,6 +13,9 @@ function dob_widget_init() {
 
 class Dob_Widget_Vote_Result extends WP_Widget {/*{{{*/
 
+	private $post_type;
+	private $ttids;
+
 	function __construct() {/*{{{*/
 		parent::__construct(
 			'dob_vote_result', // Base ID
@@ -45,7 +48,7 @@ class Dob_Widget_Vote_Result extends WP_Widget {/*{{{*/
 	function dob_get_log($post_id,$user_id) {/*{{{*/
 		global $wpdb;
 		$t_posts	  = $wpdb->prefix.'posts';
-		$post_type  = $wpdb->get_var("SELECT post_type FROM $t_posts WHERE ID=$post_id");
+		$this->post_type  = $wpdb->get_var("SELECT post_type FROM $t_posts WHERE ID=$post_id");
 		$t_vote_log	= $wpdb->prefix. 
 			($post_type=='offer' ? 'dob_vote_post_log' : 'dob_elect_log');
 
@@ -60,17 +63,20 @@ SQL;
 	//show widget in post / page
 	function widget( $args, $instance ) {
 		// return if not single post
-		if ( ! is_single() ) return;
+		if ( ! is_single() || $this->post_type != 'offer') return;
 
 		extract($args);
 
 		$post_id = get_the_ID();
 		$uid = $user_id = get_current_user_id();
 		$cached = dob_vote_cache($post_id,'all');
+		if ( ! empty($cached) ) extract($cached);
+file_put_contents('/tmp/cached',$cached);
 
 		// show only if single post
 		# 1. stat
-		extract($cached['stat']);	// $nFixed,$nGroup,$nDirect,$nTotal
+		$nFixed = $nGroup = $nDirect = $nTotal = 0;
+		if ( isset($stat) ) extract($stat);	// $nFixed,$nGroup,$nDirect,$nTotal
 		$nTotal = dob_vote_get_users_count($cached['ttids']);	// get all user count
 		$html_stat = dob_vote_html_stat($nFixed,$nGroup,$nDirect,$nTotal);
 
@@ -100,7 +106,7 @@ HTML;
 		}
 
 		$content = <<<HTML
-<ul id="toggle-view"><!--{{{-->
+<ul id="toggle-view">
 	<div class="bg-info">$html_stat</div>
 	<br>
 	<div class="bg-info">$html_history</div>
@@ -195,8 +201,8 @@ class Dob_Widget_Sub_Category extends WP_Widget {/*{{{*/
 		// return if single post
 		if ( is_single() ) return;
 
-		$taxonomy = trim($_GET['hierarchy']) ? 'hierarchy'
-			: ( trim($_GET['topic']) ? 'topic' : '' );
+		$taxonomy = isset($_GET['hierarchy']) && trim($_GET['hierarchy']) ? 'hierarchy'
+			: ( isset($_GET['topic']) && trim($_GET['topic']) ? 'topic' : '' );
 		if ( empty($taxonomy) ) {
 			$uri = substr($_SERVER['REQUEST_URI'],1);
 			$paths = explode('/', $uri );

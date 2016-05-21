@@ -627,7 +627,8 @@ function dob_vote_cache( $post_id, $type, $data = false ) {/*{{{*/
 
 	// GET
 	if ( empty($data) ) {
-		return ($old->ts == $ts_latest) ? json_decode($old->data,true) : false ;
+		return ( !empty($old) && $old->ts == $ts_latest) ? 
+			json_decode($old->data,true) : false ;
 	}
 
 	// SET
@@ -849,13 +850,15 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 	$nTotal = dob_vote_get_users_count($ttids);	// get all user count
 
 	// Cache Results
-	dob_vote_cache($post_id,'all',[
-		'hierarchy_voter'=>$hierarchy_voter,
-		'ttids' => $ttids,
-		'stat'=> ['nFixed'=>$nFixed,'nGroup'=>$nGroup,'nDirect'=>$nDirect,'nTotal'=>$nTotal],
-		'final_stat' => $final_stat,
-		'final_votes'=> $final_votes,
-	]);
+	if ( is_single() && !empty($hierarchy_voter) ) {
+		dob_vote_cache($post_id,'all',[
+			'hierarchy_voter'=>$hierarchy_voter,
+			'ttids' => $ttids,
+			'stat'=> ['nFixed'=>$nFixed,'nGroup'=>$nGroup,'nDirect'=>$nDirect,'nTotal'=>$nTotal],
+			'final_stat' => $final_stat,
+			'final_votes'=> $final_votes,
+		]);
+	}
 	
 #echo '</pre>';
 

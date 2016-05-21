@@ -110,7 +110,9 @@ function dob_get_sub_categories() {
 	global $wpdb;
 
 	// init taxonomy, slug
-	if ( trim($_GET['hierarchy']) || trim($_GET['topic']) ) {
+	if ( ( isset($_GET['hierarchy']) && trim($_GET['hierarchy']) )
+		|| ( isset($_GET['topic']) && trim($_GET['topic']) )
+	) {
 		if ( trim($_GET['hierarchy']) ) {
 			$taxonomy = 'hierarchy';
 			$slug = trim($_GET['hierarchy']);
