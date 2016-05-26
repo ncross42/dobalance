@@ -13,7 +13,6 @@ function dob_widget_init() {
 
 class Dob_Widget_Vote_Result extends WP_Widget {/*{{{*/
 
-	private $post_type;
 	private $ttids;
 
 	function __construct() {/*{{{*/
@@ -22,7 +21,7 @@ class Dob_Widget_Vote_Result extends WP_Widget {/*{{{*/
 			__( 'DoBalance Vote Result', 'dobalance' ), // Name
 			array(  // Args
 				//'classname' => 'dob_class',	// CSS
-				'description' => __( 'Review the Balanced Decision Hierachy', 'dobalance' ), 
+				'description' => __( 'Review the Balanced Decision Hierarchy', 'dobalance' ), 
 			)
 		);
 	}/*}}}*/
@@ -47,14 +46,10 @@ class Dob_Widget_Vote_Result extends WP_Widget {/*{{{*/
 
 	function dob_get_log($post_id,$user_id) {/*{{{*/
 		global $wpdb;
-		$t_posts	  = $wpdb->prefix.'posts';
-		$this->post_type  = $wpdb->get_var("SELECT post_type FROM $t_posts WHERE ID=$post_id");
-		$t_vote_log	= $wpdb->prefix. 
-			($post_type=='offer' ? 'dob_vote_post_log' : 'dob_elect_log');
-
+		$t_vote_post_log	= $wpdb->prefix.'dob_vote_post_log';
 		$sql = <<<SQL
 SELECT *
-FROM `$t_vote_log` 
+FROM `$t_vote_post_log` 
 WHERE post_id = $post_id AND user_id=$user_id
 SQL;
 		return $wpdb->get_results($sql);
@@ -63,15 +58,17 @@ SQL;
 	//show widget in post / page
 	function widget( $args, $instance ) {
 		// return if not single post
-		if ( ! is_single() || $this->post_type != 'offer') return;
+		if ( ! is_single() ) return;
+
+		$post_id = get_the_ID();
+		if ( 'offer' != get_post_type($post_id) ) return;
 
 		extract($args);
 
-		$post_id = get_the_ID();
 		$uid = $user_id = get_current_user_id();
 		$cached = dob_vote_cache($post_id,'all');
 		if ( ! empty($cached) ) extract($cached);
-file_put_contents('/tmp/cached',$cached);
+file_put_contents('/tmp/cached',print_r($cached,true));
 
 		// show only if single post
 		# 1. stat
@@ -115,13 +112,13 @@ HTML;
 
 		#file_put_contents('/tmp/w',$content);
 
-		/* # 1. build parent hierachy
-		$hierachy = array();
+		/* # 1. build parent hierarchy
+		$hierarchy = array();
 		$text_chart ='';
 
 		$value_result = 0;
-		$hierachy = get_user_hierarchy($user_id);
-		foreach ( $hierachy as $row ) {
+		$hierarchy = get_user_hierarchy($user_id);
+		foreach ( $hierarchy as $row ) {
 			$tab = $row['lvl'].')';
 			for ( $i=0; $i<$row['lvl']; ++$i ) { $tab .= " "; }
 			$tab .= $row['name'];
@@ -181,7 +178,7 @@ class Dob_Widget_Sub_Category extends WP_Widget {/*{{{*/
 	// show widget from in Appearance /*{{{*/
 	function form($instance) {	
 		//$defaults = array ( 'title' => 'get_option('dob_dashboard_title') );
-		$defaults = array ( 'title' => __( 'Sub Categories', 'dobalance' ) );
+		$defaults = array ( 'title' => '하위 카테고리' /*__('Sub Categories', DOBslug)*/ );
 		$instance = wp_parse_args( (array) $instance, $defaults );
 
 		$title = esc_attr($instance['title']);
@@ -201,37 +198,27 @@ class Dob_Widget_Sub_Category extends WP_Widget {/*{{{*/
 		// return if single post
 		if ( is_single() ) return;
 
-		$taxonomy = isset($_GET['hierarchy']) && trim($_GET['hierarchy']) ? 'hierarchy'
-			: ( isset($_GET['topic']) && trim($_GET['topic']) ? 'topic' : '' );
-		if ( empty($taxonomy) ) {
-			$uri = substr($_SERVER['REQUEST_URI'],1);
-			$paths = explode('/', $uri );
-			if ( isset($paths[0]) && in_array($paths[0],['hierarchy','topic']) ) {
-				$taxonomy = $paths[0];
-			}
-		}
-		if ( empty($taxonomy) ) return;
+		$taxonomy = $slug = ''; 
+		if ( $slug = get_query_var('hierarchy') ) {
+			$taxonomy = 'hierarchy';
+		} elseif ( $slug = get_query_var('topic') ) {
+			$taxonomy = 'topic';
+		} else return;
 
 		extract($args);
 
-		$title = isset($instance['title']) ?
-			apply_filters('widget_title', $instance['title'])
-			: '하위 목록'; //__('Sub Categories', DOBslug);
-
-		$categories = dob_get_sub_categories();
-
-		if ( empty($categories) ) return;
-
-		$html = '<ul class="offcanvas_side">';
-		foreach ( $categories as $c ) {
-			$html .= "<li><a href='/?$taxonomy={$c->slug}'>{$c->name}</a></li>";
+		$li = '';
+		$label_no_sub = '없음'; //__('no sub category', DOBslug);
+		$categories = dob_get_sub_categories($taxonomy,$slug);
+		if ( empty($categories) ) $li = '<li>'.$label_no_sub.'</li>';
+		else foreach ( $categories as $c ) {
+			$li .= "<li><a href='/?$taxonomy={$c->slug}'>{$c->name}</a></li>";
 		}
-		$html .= '</ul>';
 
 		echo $before_widget;
-		echo $before_title.$title.$after_title;
+		echo $before_title.$instance['title'].$after_title;
 		//echo $contents;
-		echo $html;
+		echo '<ul class="offcanvas_side">'.$li.'</ul>';
 		echo $after_widget;
 	}
 }/*}}}*/
