@@ -110,7 +110,7 @@ HTML;
 </ul>
 HTML;
 
-		#file_put_contents('/tmp/w',$content);
+#file_put_contents('/tmp/w',$content);
 
 		/* # 1. build parent hierarchy
 		$hierarchy = array();

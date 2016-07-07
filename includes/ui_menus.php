@@ -16,7 +16,8 @@ function dob_add_auto_nav_menu( $items, $args ){
 
 	// favorites
 	$html = dob_make_menu_favorite();
-	$items = $html."\n".$items;
+	#$items = $html."\n".$items; // insert
+  $items .= "\n".$html;       // append
 
 	if ( $himenu ) {
 		$html = dob_make_menu_taxonomy('hierarchy');
