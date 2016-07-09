@@ -294,7 +294,7 @@ function dob_elect_contents( $post_id, $bEcho = false) {
 
 	$user_id = get_current_user_id();
 	$LOGIN_IP = empty($_SESSION['LOGIN_IP']) ? '' : $_SESSION['LOGIN_IP'];
-	if ( $user_id ) {
+	if ( is_single() && $user_id ) {
 		$debug = '';
 		if ( ! empty($_POST) && $LOGIN_IP == dob_get_real_ip() ) {
 			if ( (int)$_POST['dob_form_cart'] ) {

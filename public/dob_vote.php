@@ -687,10 +687,11 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 #echo '<pre>';
 	global $wpdb;
 	$user_id = get_current_user_id();
-	if ( $user_id ) {
+	if ( is_single() && $user_id ) {
 		$debug = '';
 		$LOGIN_IP = empty($_SESSION['LOGIN_IP']) ? '' : $_SESSION['LOGIN_IP'];
 		if ( ! empty($_POST) && $LOGIN_IP == dob_get_real_ip() ) {
+      echo '<pre>'.print_r($_POST,true).'</pre>';
 			if ( (int)$_POST['dob_form_cart'] ) {
 				$debug = dob_vote_cart($user_id,$post_id);
 			} else {

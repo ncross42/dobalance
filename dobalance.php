@@ -166,6 +166,7 @@ require_once( DOBpath.'includes/custom_taxonomy.php' );
 require_once( DOBpath.'includes/cpt_offer.php' );
 require_once( DOBpath.'includes/cpt_elect.php' );
 require_once( DOBpath.'includes/ui_menus.php' );
+require_once( DOBpath.'includes/shortcode.php' );
 
 require_once( DOBpath.'public/dob_widgets.php' );
 

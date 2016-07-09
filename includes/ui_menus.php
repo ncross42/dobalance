@@ -94,7 +94,7 @@ function dob_make_menu_favorite() {
 	$html_sub = '';
 	foreach ( $menus as $m ) {
 		$html_sub .= "
-			<li class='menu-item menu-item-type-favorite'><a href='/{$m->taxonomy}/{$m->slug}'>{$m->name}</a></li>";
+			<li class='menu-item menu-item-type-favorite'><a href='/?{$m->taxonomy}={$m->slug}'>{$m->name}</a></li>";
 	}
 #file_put_contents('/tmp/fa.html',$sql.PHP_EOL.$html_sub);
 	return <<<HTML
@@ -122,12 +122,12 @@ function dob_make_menu_taxonomy($taxonomy) {
 	$html_sub = '';
 	foreach ( $menus as $m ) {
 		$html_sub .= "
-			<li class='menu-item menu-item-type-taxonomy'><a href='/$taxonomy/{$m->slug}'>{$m->name}</a></li>";
+			<li class='menu-item menu-item-type-taxonomy'><a href='/?$taxonomy={$m->slug}'>{$m->name}</a></li>";
 	}
 	$label_all = '전체';	// __('All',DOBslug);
 	return <<<HTML
 <li id="menu-item-$taxonomy" class="menu-item menu-item-type-taxonomy menu-item-$taxonomy menu-item-has-children" aria-haspopup="true">
-	<a href="/$taxonomy/$title_slug/">$title_name($label_all)</a>
+	<a href="/?$taxonomy=$title_slug/">$title_name($label_all)</a>
 	<ul class="sub-menu">
 		$html_sub
 	</ul>
