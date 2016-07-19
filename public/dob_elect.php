@@ -107,12 +107,13 @@ function dob_elect_get_selected_hierarchy_leaf_ttids($post_id) {/*{{{*/
 		);
 	}
 	if ( empty($all) ) return null;	// no selected
-	if ( 1 == count($all) ) {	// root selected
+	// root selected
+	if ( 1 == count($all) ) {
 		$cur = current($all);
 		if ( $cur['parent'] == '0' ) {
-			return null;
+			return array();
 		}
-	}
+  }
 
 	// branch hierarchy selected
 	$filter = $all;
@@ -141,8 +142,12 @@ SQL;
 
 function dob_elect_get_users_count( $ttids = array() ) {/*{{{*/
 	global $wpdb;
+	$t_term_taxonomy = $wpdb->prefix.'term_taxonomy';
+	$sql = "SELECT term_taxonomy_id FROM $t_term_taxonomy WHERE taxonomy='group'";
+	$gr_ttids = $wpdb->get_col($sql);
 	$t_user_category = $wpdb->prefix.'dob_user_category';
-	$sql_ttids = empty($ttids) ? 'AND term_taxonomy_id <> 0'
+  $sql_ttids = empty($ttids) ? 
+    'AND term_taxonomy_id NOT IN ('.implode(',',[-1=>0]+$gr_ttids).')'
 		: ' AND term_taxonomy_id IN ('.implode(',',$ttids).')';
 	$sql = "SELECT COUNT(1) FROM $t_user_category 
 		WHERE taxonomy='hierarchy' $sql_ttids";
@@ -160,24 +165,12 @@ function dob_elect_cart( $user_id, $post_id ) {/*{{{*/
 		return 'check1';
 	}
 	$type		= $_POST['dob_form_type'];
-	$val		= $_POST['dob_form_val'];
+	$value	= (int)$_POST['dob_form_val'];
 	$nonce	= $_POST['dob_form_nonce'];
 	if ( ! wp_verify_nonce( $nonce, 'dob_form_nonce_'.$type)
 		|| ! in_array( $type, array('updown','choice','plural') )
 	) {
 		return 'check2 : '.print_r($_POST,true);
-	}
-
-	if ( $type=='plural' ) { // normalize plural value
-		if ( ! is_array($val) ) return 'check2';
-		$bit = '';
-		for ( $i=1; $i<=DOBmaxbit; ++$i ) {
-			$bit .= isset($val[$i]) ? $val[$i] : '0';
-		}
-		$rev = strrev($bit);
-		$value = base_convert($rev,2,10);
-	} else {
-		$value = (int)$val; 
 	}
 
 	$t_cart = $wpdb->prefix.'dob_cart';
@@ -214,24 +207,12 @@ function dob_elect_update( $user_id, $post_id ) {/*{{{*/
 	}
 
 	$type		= $_POST['dob_form_type'];
-	$val		= $_POST['dob_form_val'];
+	$value  = (int)$_POST['dob_form_val'];
 	$nonce	= $_POST['dob_form_nonce'];
 	if ( ! wp_verify_nonce( $nonce, 'dob_form_nonce_'.$type)
 		|| ! in_array( $type, array('updown','choice','plural') )
 	) {
 		return 'check2 : '.print_r($_POST,true);
-	}
-
-	if ( $type=='plural' ) { // normalize plural value
-		if ( ! is_array($val) ) return 'check2';
-		$bit = '';
-		for ( $i=1; $i<=DOBmaxbit; ++$i ) {
-			$bit .= isset($val[$i]) ? $val[$i] : '0';
-		}
-		$rev = strrev($bit);
-		$value = base_convert($rev,2,10);
-	} else {
-		$value = (int)$val; 
 	}
 
 	// INSERT dob_elect_log
@@ -272,13 +253,16 @@ function dob_elect_update( $user_id, $post_id ) {/*{{{*/
 	}
 }/*}}}*/
 
+$DOB_INDEX = array ( -1=>'-1d',0=>'0d','1d','2d','3d','4d','5d','6d','7d');
 function dob_elect_accum_stat( &$stat, $type, $value, $cnt=1) {/*{{{*/
+	global $DOB_INDEX;
 	if ( $type=='updown' || $type=='choice' || $value <= 1 ) { 
 		$stat[$value] = isset($stat[$value]) ? $stat[$value]+$cnt : $cnt;
 	} else {
-		$arr1 = str_split(base_convert($value,10,2));
+		$arr1 = str_split(strrev(base_convert($value,10,2)));
 		foreach ( $arr1 as $k=>$v ) {
-			if ( '1' == $v ) $stat[$k+1] = isset($stat[$k+1]) ? $stat[$k+1]+$cnt : $cnt;
+      if ( '1' == $v )
+        $stat[$k+1] = isset($stat[$k+1]) ? $stat[$k+1]+$cnt : $cnt;
 		}
 	}
 }/*}}}*/
@@ -353,13 +337,17 @@ function dob_elect_contents( $post_id, $bEcho = false) {
 			$label_result .= ' : '.$label_ing;
 			$content_form = "<a href='http://wp1.youthpower.kr/wp-login.php' style='color:red; font-weight:bold'>$label_login</a>";
 			if ( $user_id ) {
-				if ( ! in_array($myinfo->term_taxonomy_id,$ttids) ) {
+        if ( is_null($ttids) ) {
+					$content_form = '선거대상 계층이 지정되지 않았습니다.';	//__('Election Hierarchy does not selected.', DOBslug);
+				} elseif ( ( empty($ttids) && empty($myinfo->term_taxonomy_id) )  // ROOT hierarchy and no user_hierarchy
+          || ( is_array($ttids) && !empty($ttids) && !in_array($myinfo->term_taxonomy_id,$ttids) ) // NORMAL hierarchy and user didn't assigned
+        ) {
 					$label_restrict = '선거대상 계층이 아닙니다.';	//__('Your hierarchy is not available in this voting.', DOBslug);
 					$content_form = "<span style='color:red; font-weight:bold'>$label_restrict</span>";
 				} elseif ( isset($_SESSION['LOGIN_IP']) && $_SESSION['LOGIN_IP'] == dob_get_real_ip() ) {
 					$content_form = dob_elect_display_mine($post_id,$vm_type,$vm_label,$myval,$user_id);
 				} else {
-					$content_form = '로그인 이후 1시간이 지났거나, 네트워크가 초기화 되었으니, 다시 로그인해 주세요<br>투표시에는 네트워크(WIFI,LTE,3G)를 변경하지 마세요.';	//__('You passed 1-hours after login, or Your network was Changed. Please Login AGAIN.', DOBslug);
+					$content_form = '로그인 이후 1시간이 지났거나, 네트워크가 변경되었으니, 다시 로그인해 주세요<br>투표시에는 네트워크(WIFI,LTE,3G)를 변경하지 마세요.';	//__('You passed 1-hours after login, or Your network was Changed. Please Login AGAIN.', DOBslug);
 				}
 			}
 			$html_form = <<<HTML
@@ -377,7 +365,7 @@ HTML;
 				dob_elect_accum_stat($result_stat,$vm_type,$v['value'],1);
 			}
 #print_r($result_stat);
-			$html_chart = dob_elect_html_chart($result_stat,$vm_label,$nTotal);
+			$html_chart = dob_elect_html_chart($result_stat,$vm_label,$nTotal,$nDirect);
 		}
 
 		if ( $user_id ) {
@@ -425,49 +413,48 @@ HTML;
 	else return $dob_elect;
 }
 
-function dob_elect_html_chart($result_stat,$vm_label,$nTotal) {/*{{{*/
-	$ret = <<<HTML
-<style>
-#table_barchart { width: 100%; height:20px; }
-#table_barchart td div { text-align:center; overflow: hidden; text-overflow: ellipsis; }
-#table_barchart .cn { background-color: tan; } /*TANGERINE ;*/
-#table_barchart .c0 { background-color: LIGHT BLUE ; }
-#table_barchart .c1 { background-color: TAN ; }
-#table_barchart .c2 { background-color: GOLD   ; }
-#table_barchart .c3 { background-color: CAROLINA BLUE ; }
-#table_barchart .c4 { background-color: SAPPHIRE ; }
-#table_barchart .c5 { background-color: SAFETY PINK ; }
-#table_barchart .c6 { background-color: LIME ; }
-#table_barchart .c7 { background-color: CARDINAL RED ; }
-#table_barchart .un { background-color: #E5E4E2 ; }
-</style>
-	<table id="table_barchart" border=1>
-HTML;
-	arsort($result_stat);
-	$nUnpolled = $nTotal;
-	$legends = array();
-	$htmls = array();
+function dob_elect_html_chart($result_stat,$vm_label,$nTotal,$nDirect) {/*{{{*/
+	global $DOB_INDEX;
+	$ret = /*{{{*/ "<style>
+.barchart { width: 100%; height:20px; border-collapse: collapse; }
+.barchart td div { height:20px; text-align:center; overflow: hidden; text-overflow: ellipsis; }
+.barchart .c-1 { background-color: BLUE; color:white; } /*TANGERINE ;*/
+.barchart .c0 { background-color: #FFF; }
+.barchart .c1 { background-color: RED; color:white; }
+.barchart .c2 { background-color: GREEN; color:white; }
+.barchart .c3 { background-color: TAN; }
+.barchart .c4 { background-color: GOLD ; }
+.barchart .c5 { background-color: #B2FFFF; } /*sky blue;*/ 
+.barchart .c6 { background-color: PINK; }
+.barchart .c7 { background-color: LIME; }
+.barchart .bl { background-color: #EEE; } /*Platinum*/
+</style>"; /*}}}*/
+	$td_format = "<td width='%s' title='%s' class='%s'><div class='%s'>%s</div></td>";
+	ksort($result_stat,SORT_NUMERIC);
+
+  echo '<pre>'.print_r([$nTotal,$nDirect,$result_stat],true).'</pre>';
+
+	$htmls = $tr1 = $tr2 = array();
 	foreach ( $result_stat as $k => $v ) {
-		$class = ($k<0) ? 'cn' : 'c'.$k;
-		$legends[$class] = $vm_label[$k];
-		$f = number_format(100*($v/$nTotal),1);
-		$text = (10<$f) ? "$v($f%)" : "<span title='$f%'>$v</span>" ;
-		$htmls[] = "<td width='$f%' class='$class'><div>$text</div></td>";
-		$nUnpolled -= $v;
+		$class = 'c'.$k;
+		$f = sprintf('%0.1f%%',100*$v/$nTotal);
+		$text = "$f ($v)";
+		$tr1[] = sprintf($td_format, $f, $v, $class, $class, $text );
+		$tr2[] = sprintf($td_format, $f, $vm_label[$k], $class, $class, $vm_label[$k] );
 	}
-	if ( $nUnpolled ) {
-		$legends['un'] = $label_unpolled = '미투표';		//__('Unpolled', DOBslug);
-		$f = number_format(100*($nUnpolled/$nTotal),1);
-		$text = (10<$f) ? "$nUnpolled($f%)" : "<span title='$f%'>$nUnpolled</span>" ;
-		$htmls[] = "<td width='$f%' class='un'><div>$text</div></td>";
+	$nBlank = $nTotal - $nDirect;
+	if ( $nBlank > 0 ) {
+		$class = 'bl';
+    $label = '미투표';   //__('Unpolled', DOBslug);
+		$f = sprintf('%0.1f%%',100*$nBlank/$nTotal);
+		$text = "$f ($nBlank)";
+		$tr1[] = sprintf($td_format, $f, $text, $class, $class, $text );
+		$tr2[] = sprintf($td_format, $f, $label, $class, $class, $label );
 	}
-	$ret .= '<tr>'.implode(' ',$htmls).'</tr>';
-	$htmls = array();
-	foreach ( $legends as $class => $label ) {
-		$htmls[] = "<td class='$class'><div>$label</div></td>";
-	}
-	$ret .= '<tr>'.implode(' ',$htmls).'</tr>';
-	$ret .= '</table>';
+  $ret .= '<table class="barchart" border=1>'
+	  .'<tr>'.implode(' ',$tr1).'</tr>'
+	  .'<tr>'.implode(' ',$tr2).'</tr>'
+	  .'</table>';
 	return $ret;
 }/*}}}*/
 
@@ -571,16 +558,20 @@ function dob_elect_display_mine($post_id,$vm_type,$vm_label,$myval='',$user_id) 
 	$_SESSION['post_id'] = $post_id;
 	$_SESSION['secret'] = $secret = base64_encode(openssl_random_pseudo_bytes(20));
 	if ( $vm_type=='plural' ) { // normalize plural value
-		if ( $myval <= 1 ) $myval = array($myval);
-		$vals = str_split(strrev(base_convert($myval,10,2)));
-		//$myval = array_keys(array_filter($vals, function($v){return $v=='1';}));
-		$myvals = array();
-		foreach ( $vals as $k => $v ) {
-			if ( $v == '1' ) $myvals[] = $k+1;
-		}
+    if ( is_null($myval) || $myval==='' ) $myvals = array();
+    else if ( $myval <= 1 ) $myvals = array($myval);
+    else {
+      $myvals = array();
+      $vals = str_split(strrev(base_convert($myval,10,2)));
+      //$myval = array_keys(array_filter($vals, function($v){return $v=='1';}));
+      foreach ( $vals as $k => $v ) {
+        if ( $v == '1' ) $myvals[] = $k+1;
+      }
+    }
 	}
 	$label_secret = '보안코드';			//__('Statistics', DOBslug);
 	$label_remember = '암호화된 DB에서 직접 투표확인을 원하시면 이 값을 기억해 주세요.';			//__('Statistics', DOBslug);
+  $html_plural_inputs = ($vm_type=='plural') ? '<input type="hidden" name="dob_form_val" value="'.$myval.'">' : '';
 	// display area
 	echo <<<HTML
 		<div class="panel">
@@ -589,23 +580,26 @@ function dob_elect_display_mine($post_id,$vm_type,$vm_label,$myval='',$user_id) 
 			<input type="hidden" name="dob_form_type" value="$vm_type">
 			<input type="hidden" name="dob_form_cart" value="0">
 			<input type="hidden" name="dob_form_old_val" value="$myval">
+      $html_plural_inputs
 			<!--tr><td>
 				$label_secret : <input type="text" name="dob_elect_secret" value="$secret" style="width:300px" READONLY>
 				<br><b>$label_remember</b>
 			</td></tr-->
-			<tr><td>
+			<tr><td id="tdVote">
 HTML;
 	wp_nonce_field( 'dob_form_nonce_'.$vm_type, 'dob_form_nonce' );
 	foreach ( $vm_label as $val => $label ) {
 		$html_input = '';
 		if ( $vm_type == 'plural' ) {
-			$checked = in_array($val,$myvals) ? 'CHECKED' : '';
-			$html_input = "<input type='checkbox' name='dob_form_val[$val]' value='1' $checked>";
+      $control = in_array($val,$myvals) ? 'CHECKED' 
+        : ( ($myval===0||$myval===-1) ? 'DISABLED' : '');
+      $exp = ($val<1) ? $val : 1<<($val-1);
+			$html_input = "<input type='checkbox' data-idx='$val' value='$exp' $control style='margin-left:9px; margin-right:0px;' >";
 		} else {
 			$checked = ($val===$myval) ? 'CHECKED' : '';
 			$html_input = "<input type='radio' name='dob_form_val' value='$val' $checked>";
 		}
-		echo " <label>$html_input $label</label> ";
+		echo " <label style='margin-bottom:0px; font-size:1.1em;'>$html_input$label</label> ";
 	}
 	$html_submit = '';
 	if ( $user_id ) {
