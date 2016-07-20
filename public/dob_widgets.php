@@ -3,7 +3,7 @@
  * Create widgets for this plugin
  */
 
-include_once ('dob_user_hierarchy.inc.php');
+include_once ('dob_common.inc.php');
 
 add_action( 'widgets_init', 'dob_widget_init' );
 function dob_widget_init() { 
@@ -44,12 +44,12 @@ class Dob_Widget_Vote_Result extends WP_Widget {/*{{{*/
 		return $instance;
 	}/*}}}*/
 
-	function dob_get_log($post_id,$user_id) {/*{{{*/
+	function dob_get_log($post_id,$user_id,$type='offer') {/*{{{*/
 		global $wpdb;
-		$t_vote_post_log	= $wpdb->prefix.'dob_vote_post_log';
+		$t_log	= $wpdb->prefix.($type=='offer'?'dob_vote_post_log':'dob_elect_log');
 		$sql = <<<SQL
 SELECT *
-FROM `$t_vote_post_log` 
+FROM `$t_log` 
 WHERE post_id = $post_id AND user_id=$user_id
 SQL;
 		return $wpdb->get_results($sql);
@@ -61,12 +61,13 @@ SQL;
 		if ( ! is_single() ) return;
 
 		$post_id = get_the_ID();
-		if ( 'offer' != get_post_type($post_id) ) return;
+    $cpt = get_post_type($post_id);
+		if ( !in_array($cpt,['offer','elect']) ) return;
 
 		extract($args);
 
 		$uid = $user_id = get_current_user_id();
-		$cached = dob_vote_cache($post_id,'all');
+		$cached = dob_common_cache($post_id,'all',false,$cpt);
 		if ( ! empty($cached) ) extract($cached);
 file_put_contents('/tmp/cached',print_r($cached,true));
 
@@ -74,7 +75,7 @@ file_put_contents('/tmp/cached',print_r($cached,true));
 		# 1. stat
 		$nFixed = $nGroup = $nDirect = $nTotal = 0;
 		if ( isset($stat) ) extract($stat);	// $nFixed,$nGroup,$nDirect,$nTotal
-		$nTotal = dob_vote_get_users_count($cached['ttids']);	// get all user count
+		$nTotal = dob_common_get_users_count($cached['ttids']);	// get all user count
 		$html_stat = dob_vote_html_stat($nFixed,$nGroup,$nDirect,$nTotal);
 
 		# 2. history
@@ -82,7 +83,7 @@ file_put_contents('/tmp/cached',print_r($cached,true));
 		if ( $user_id ) {
 			$label_my_history = '내 투표 기록'; //__('My Vote History', DOBslug);
 			$tr_history = '';
-			foreach ( $this->dob_get_log($post_id,$user_id) as $log ) {
+			foreach ( $this->dob_get_log($post_id,$user_id,$cpt) as $log ) {
 				$tr_history .= "
 					<tr><td>{$log->ts}</td><td>{$log->value}</td><td>{$log->ip}</td></tr>";
 			}

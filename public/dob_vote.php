@@ -3,45 +3,7 @@
  * Create site pages for this plugin
  */
 
-function dob_vote_get_hierarchy_influence($parent_id=0,$ancestor=array()) {/*{{{*/
-	global $wpdb;
-
-	$ret = array( $parent_id => null );
-	$ancestor[] = $parent_id;
-	$t_terms = $wpdb->prefix.'terms';
-	$t_term_taxonomy = $wpdb->prefix.'term_taxonomy';
-	$t_user_category = $wpdb->prefix.'dob_user_category';
-
-	// get self hierarchy user
-	$sql = "SELECT COUNT(1) FROM $t_user_category
-		WHERE taxonomy='hierarchy' AND term_taxonomy_id=$parent_id";
-	$nSelf = (int)$wpdb->get_var($sql);
-
-	// get low hierarchy user count
-	$sql = "SELECT term_taxonomy_id FROM $t_term_taxonomy
-		WHERE taxonomy='hierarchy' AND parent=$parent_id";
-	$rows = $wpdb->get_results($sql,ARRAY_A);
-	$nLow = 0;
-	$bLeaf = empty($rows) ? 1 : 0;
-	foreach ( $rows as $row ) {
-		$tt_id = $row['term_taxonomy_id'];
-		$tmp = dob_vote_get_hierarchy_influence($tt_id,$ancestor);
-		$nLow += (int)$tmp[$tt_id]['nTotal'];
-		$ret += $tmp;
-	}
-	array_pop($ancestor);
-	$ret[$parent_id] = array( 
-		'id'				=> $parent_id, 
-		'nSelf'			=> $nSelf,
-		'nLow'			=> $nLow,
-		'nTotal'		=> $nSelf+$nLow,
-		'bLeaf'			=> $bLeaf,
-		'ancestor'	=> $ancestor,
-	);
-	return $ret;
-}/*}}}*/
-
-#require_once('dob_user_hierarchy.inc.php');
+require_once('dob_common.inc.php');
 
 add_action( 'wp', 'dob_vote_wp_init' );
 function dob_vote_wp_init() {/*{{{*/
@@ -52,15 +14,13 @@ function dob_vote_wp_init() {/*{{{*/
 	
 }/*}}}*/
 
-function dob_vote_get_log($post_id,$user_id) {/*{{{*/
-	global $wpdb;
-	$t_vote_log	= $wpdb->prefix . 'dob_vote_post_log';
-	$sql = <<<SQL
-SELECT *
-FROM `$t_vote_log` 
-WHERE post_id = $post_id AND user_id=$user_id
-SQL;
-	return $wpdb->get_results($sql);
+function dob_vote_get_message($post_id,$user_id) {/*{{{*/
+	$message = 'plz vote';
+	if ( $ret = dob_vote_get_post_latest($post_id,$user_id) ) {
+		$label_last = '마지막 투표';	//__('Last Voted', DOBslug);
+		$message = $label_last.' : '.substr($ret['ts'],0,10);
+	}
+	return $message;
 }/*}}}*/
 
 function dob_vote_get_post_latest($post_id,$user_id=0) {/*{{{*/
@@ -87,18 +47,6 @@ SQL;
 		}
 		return $ret;
 	}
-}/*}}}*/
-
-function dob_vote_get_user_info($user_id) {/*{{{*/
-	global $wpdb;
-
-	$sql = <<<SQL
-SELECT *
-FROM {$wpdb->prefix}dob_user_category
-	JOIN {$wpdb->prefix}users ON user_id=ID
-WHERE taxonomy='hierarchy' AND user_id=$user_id
-SQL;
-	return $wpdb->get_row($sql);
 }/*}}}*/
 
 function dob_vote_get_group_values($post_id) {/*{{{*/
@@ -153,38 +101,6 @@ SQL;
 	}
 }/*}}}*/
 
-function dob_vote_get_message($post_id,$user_id) {/*{{{*/
-	$message = 'plz vote';
-	if ( $ret = dob_vote_get_post_latest($post_id,$user_id) ) {
-		$label_last = '마지막 투표';	//__('Last Voted', DOBslug);
-		$message = $label_last.' : '.substr($ret['ts'],0,10);
-	}
-	return $message;
-}/*}}}*/
-
-function dob_vote_get_count($post_id) {/*{{{*/
-	global $wpdb;
-	$table_name = $wpdb->prefix . 'dob_vote_post_latest';
-
-	$sql = <<<SQL
-SELECT 
-	SUM(IF(value=1,1,0)) AS `like`
-	, SUM(IF(value=-1,-1,0)) AS `unlike`
-FROM `{$table_name}`
-WHERE post_id = %d
-SQL;
-	$prepare = $wpdb->prepare($sql, $post_id);
-	$ret = $wpdb->get_row($prepare,ARRAY_A);
-
-	if ( empty($ret) ) $ret = array ( 'like'=>0, 'unlike'=>0 );
-	else {
-		if ( !isset($ret['like']) ) $ret['like'] = 0;
-		if ( !isset($ret['unlike']) ) $ret['unlike'] = 0;
-	}
-	
-	return $ret;
-}/*}}}*/
-
 add_filter('the_content', 'dob_vote_site_content');
 function dob_vote_site_content($content) {/*{{{*/
 	$post_id = get_the_ID();
@@ -196,91 +112,11 @@ function dob_vote_site_content($content) {/*{{{*/
 		$dob_vm_type = empty($dob_offer_cmb_vote['type']) ? 'updown': $dob_offer_cmb_vote['type'];
 		$dob_vm_data = empty($dob_offer_cmb_vote['data']) ? array() : $dob_offer_cmb_vote['data'];
 
-		/*switch ( $dob_vm_type ) {
-		case 'updown': $dob_vote_content=dob_vote_content_updown($post_id); break;
-		case 'choice': $dob_vote_content=dob_vote_content_choice($post_id,$dob_vm_data); break;
-		case 'plural': $dob_vote_content=dob_vote_content_plural($post_id,$dob_vm_data); break;
-		}*/
 		$dob_vote_content=dob_vote_contents($dob_vm_type,$post_id,$dob_vm_data);
 		$content = $dob_vote_content . $content;
 
-		/*$dob_vote_position = get_option('dob_vote_position');
-		if ($dob_vote_position == 'top') {
-			$content = $dob_vote_content . $content;
-		} elseif ($dob_vote_position == 'bottom') {
-			$content = $content . $dob_vote_content;
-		} else {
-			$content = $dob_vote_content . $content . $dob_vote_content;
-		}*/
 	}
 	return $content;
-}/*}}}*/
-
-function dob_vote_content_updown( $post_id/*=get_the_ID()*/, $bEcho = false) { /*{{{*/
-	global $wpdb;
-	$dob_vote = '';
-
-	// Get the posts ids where we do not need to show like functionality
-/*{{{*/	/*$allowed_posts = $excluded_posts = $excluded_categories = $excluded_sections = array();
-	$allowed_posts = explode(",", get_option('dob_vote_allowed_posts'));
-	$excluded_posts = explode(",", get_option('dob_vote_excluded_posts'));
-	$excluded_categories = get_option('dob_vote_excluded_categories');
-	$excluded_sections = get_option('dob_vote_excluded_sections');
-	if (empty($excluded_categories)) $excluded_categories = array();
-	if (empty($excluded_sections)) $excluded_sections = array();
-
-	// Checking for excluded section. if yes, then dont show the like/dislike option
-	if ( (in_array('home', $excluded_sections) && is_home()) 
-		|| (in_array('archive', $excluded_sections) && is_archive())
-		|| in_array($post_id, $excluded_posts) // Checking for excluded posts
-	) {
-		return;
-	}*//*}}}*/
-
-	/*{{{*//* Checking for excluded categories
-	$excluded = false;
-	$category = get_the_category();
-	foreach($category as $cat) {
-		if (in_array($cat->cat_ID, $excluded_categories) && !in_array($post_id, $allowed_posts)) {
-			$excluded = true;
-		}
-	}
-	// If excluded category, then dont show the like/dislike option
-	if ($excluded) {
-		return;
-	}*/ /*}}}*/
-
-	$title_text_like = 'Like';
-	$title_text_unlike = 'Unlike';
-	/*{{{*//* Check for title text. if empty then have the default value
-	$title_text = ''; //get_option('dob_vote_title_text');
-	if (empty($title_text)) {
-		$title_text_like = __('Like', 'wti-like-post');
-		$title_text_unlike = __('Unlike', 'wti-like-post');
-	} else {
-		$title_text = explode('/', get_option('dob_vote_title_text'));
-		$title_text_like = $title_text[0];
-		$title_text_unlike = isset( $title_text[1] ) ? $title_text[1] : '';
-	}*//*}}}*/
-
-	// Get the nonce for security purpose and create the like and unlike urls
-	$nonce = wp_create_nonce('dob_form_nonce');
-	$ajax_like_link = admin_url('admin-ajax.php?action=dob_vote_process_vote&task=like&post_id=' . $post_id . '&nonce=' . $nonce);
-	$ajax_unlike_link = admin_url('admin-ajax.php?action=dob_vote_process_vote&task=unlike&post_id=' . $post_id . '&nonce=' . $nonce);
-}/*}}}*/
-
-function dob_vote_get_users_count( $ttids = array() ) {/*{{{*/
-	global $wpdb;
-	$t_term_taxonomy = $wpdb->prefix.'term_taxonomy';
-	$sql = "SELECT term_taxonomy_id FROM $t_term_taxonomy WHERE taxonomy='group'";
-	$gr_ttids = $wpdb->get_col($sql);
-	$t_user_category = $wpdb->prefix.'dob_user_category';
-  $sql_ttids = empty($ttids) ? 
-    'AND term_taxonomy_id NOT IN ('.implode(',',[-1=>0]+$gr_ttids).')'
-		: ' AND term_taxonomy_id IN ('.implode(',',$ttids).')';
-	$sql = "SELECT COUNT(1) FROM $t_user_category 
-		WHERE taxonomy='hierarchy' $sql_ttids";
-	return (int)$wpdb->get_var($sql);
 }/*}}}*/
 
 function dob_vote_get_user_nicenames($uid_arr=array()) {/*{{{*/
@@ -301,60 +137,6 @@ function dob_vote_get_user_hierarchy($term_taxonomy_id) {/*{{{*/
 		FROM $t_user_category
 		WHERE taxonomy='hierarchy' AND term_taxonomy_id=$term_taxonomy_id";
 	return $wpdb->get_col($sql,0);
-}/*}}}*/
-
-function dob_vote_get_selected_hierarchy_leaf_ttids($post_id) {/*{{{*/
-	global $wpdb;
-	$t_term_relationships = $wpdb->prefix.'term_relationships';
-	$t_term_taxonomy = $wpdb->prefix.'term_taxonomy';
-
-	$sql = "SELECT term_taxonomy_id AS ttid, anc, lft, rgt, parent
-		FROM $t_term_relationships 
-			JOIN $t_term_taxonomy USING (term_taxonomy_id)
-		WHERE taxonomy='hierarchy' AND object_id=$post_id";
-		//ORDER BY lft";
-	$rows = $wpdb->get_results($sql);
-	$all = array();
-	foreach ( $rows as $r ) {
-		$all[$r->ttid] = array (
-			'anc'		=> explode(',',$r->anc),
-			'lft'		=> $r->lft,
-			'rgt'		=> $r->rgt,
-			'parent'=> $r->parent,
-		);
-	}
-	if ( empty($all) ) return null;	// no selected
-	if ( 1 == count($all) ) {	// root selected
-		$cur = current($all);
-		if ( $cur['parent'] == '0' ) {
-			return null;
-		}
-	}
-#file_put_contents('/tmp/all_w.php',print_r($all,true));
-
-	// branch hierarchy selected
-	$filter = $all;
-	foreach ( $filter as $ttid => $r ) {
-		foreach ( $r['anc'] as $atid ) {
-			if ( $atid && isset($filter[$atid]) ) {
-				unset($filter[$atid]);
-			}
-		}
-	}
-	$arr_lft_rgt = array();
-	foreach ( $filter as $ttid => $r ) {
-		$arr_lft_rgt[] = " ( lft >= {$r['lft']} AND rgt <= {$r['rgt']} )";
-	}
-	$sql_lft_rgt = implode(" OR \n    ",$arr_lft_rgt);
-	$sql = <<<SQL
-SELECT term_taxonomy_id AS ttid
-FROM $t_term_taxonomy
-WHERE taxonomy='hierarchy' 
-  AND ( 
-    $sql_lft_rgt
-  )
-SQL;
-	return $wpdb->get_col($sql);
 }/*}}}*/
 
 function dob_vote_get_hierarchy_voter( $post_id, $ttids=array() ) {/*{{{*/
@@ -481,158 +263,6 @@ function dob_vote_aggregate_plural( $point, $uid_vals ) {/*{{{*/
 	return (int)base_convert($result,2,10);
 }/*}}}*/
 
-function dob_vote_cart( $user_id, $post_id ) {/*{{{*/
-	global $wpdb, $global_real_ip;
-
-	// check required argument
-	if ( ! isset($_POST['dob_form_type'])
-		|| ! isset($_POST['dob_form_val'])
-		|| ! isset($_POST['dob_form_nonce'])
-	) {
-		return 'check1';
-	}
-
-	$type		= $_POST['dob_form_type'];
-	$value	= (int)$_POST['dob_form_val'];
-	$nonce	= $_POST['dob_form_nonce'];
-	if ( ! wp_verify_nonce( $nonce, 'dob_form_nonce_'.$type)
-		|| ! in_array( $type, array('updown','choice','plural') )
-	) {
-		return 'check2';
-	}
-
-	// check duplicated value
-	$t_latest = $wpdb->prefix.'dob_vote_post_latest';
-	$sql = "SELECT value FROM `$t_latest` 
-		WHERE post_id = $post_id AND user_id = $user_id";
-	$old_val = (int)$wpdb->get_var($sql);
-	if ( ! is_null($old_val) && $old_val == $value ) {
-		return $label_duplicated = '기존 투표값과 같습니다.';	//__('Already you voted sam value.', DOBslug);
-	}
-
-	// CHECK dup cart value
-	$t_cart = $wpdb->prefix.'dob_cart';
-	$sql = "SELECT value FROM `$t_cart` 
-		WHERE user_id = $user_id AND type='vote' AND post_id = $post_id";
-	$old_val = $wpdb->get_var($sql);
-	if ( is_null($old_val) ) {	// INSERT
-		$sql = sprintf("INSERT INTO `$t_cart` SET
-			user_id = %d, type='vote', post_id = %d, value = %d",
-			$user_id, $post_id, $value 
-		);
-	} elseif ( $old_val == $value ) {
-		return $label_duplicated = '같은 값이 투표바구니에 있습니다.';	//__('Already same voting is in your Voting-Cart', DOBslug);
-	} else {			// UPDATE
-		$sql = sprintf("UPDATE `$t_cart` 
-				SET value = %d, ts=CURRENT_TIMESTAMP
-			WHERE user_id = %d AND type='vote' AND post_id = %d",
-			$value, $user_id, $post_id 
-		);
-	}
-	$success = $wpdb->query( $sql );	// success == 1 (affected_rows)
-	return $ret = $success ? '' : "DB ERROR(SQL)<br>\n: ".$sql;
-
-}/*}}}*/
-
-function dob_vote_update( $user_id, $post_id ) {/*{{{*/
-	global $wpdb, $global_real_ip;
-
-	// check required argument
-	if ( ! isset($_POST['dob_form_type'])
-		|| ! isset($_POST['dob_form_val'])
-		|| ! isset($_POST['dob_form_nonce'])
-	) {
-		return 'check1';
-	}
-
-	$type		= $_POST['dob_form_type'];
-	$value = (int)$_POST['dob_form_val'];
-	$nonce	= $_POST['dob_form_nonce'];
-	if ( ! wp_verify_nonce( $nonce, 'dob_form_nonce_'.$type)
-		|| ! in_array( $type, array('updown','choice','plural') )
-	) {
-		return 'check2';
-	}
-
-	// INSERT dob_vote_post_log
-	$dml = array (
-		sprintf( "INSERT IGNORE INTO `{$wpdb->prefix}dob_vote_post_log` 
-			SET user_id = %d, post_id = %d, value = %d, ip = '%s'",
-			$user_id, $post_id, $value, $global_real_ip 
-		),
-	);
-
-	$t_latest = $wpdb->prefix.'dob_vote_post_latest';
-	$sql = "SELECT value, ts FROM `$t_latest` 
-		WHERE post_id = $post_id AND user_id = $user_id";
-	$old_info = $wpdb->get_row($sql);
-	if ( is_null($old_info) ) {
-		$dml[] = sprintf("INSERT INTO `$t_latest` SET
-			post_id = %d, user_id = %d, value = %d",
-			$post_id, $user_id, $value 
-		);
-	} else if ( $old_info->value == $value ) {			
-		$label = '동일값 투표는 생략됨'; //__('You can NOT vote with same value', DOBslug);
-		return $label;
-	} else if ( (time() - strtotime($old_info->ts)) < 3 ) {			
-		$label = '투표 대기시간 3초'; //__('TOO FAST VOTE~!! (delay 3sec)', DOBslug);
-		return $label;
-	} else {
-		$dml[] = sprintf("UPDATE `$t_latest` SET value = %d
-			WHERE post_id = %d AND user_id = %d",
-			$value, $post_id, $user_id 
-		);
-	}
-
-	foreach ( $dml as $sql ) {
-		$success = $wpdb->query( $sql );	// success == 1 (affected_rows)
-		if ( empty($success) ) {
-			return "DB ERROR(SQL)<br>\n: ".$sql;
-		}
-	}
-}/*}}}*/
-
-function dob_vote_cache( $post_id, $type, $data = false ) {/*{{{*/
-	global $wpdb;
-
-	if ( !in_array($type,['all','stat','result','detail']) ) return false;
-
-	$t_cache = $wpdb->prefix.'dob_cache';
-	$t_latest = $wpdb->prefix.'dob_vote_post_latest';
-
-	$sql = "SELECT max(ts) FROM `$t_latest` WHERE post_id = $post_id";
-	$ts_latest = $wpdb->get_var($sql);
-  if ( empty($ts_latest) ) return;
-
-	$sql = "SELECT data, ts FROM `$t_cache` 
-		WHERE post_id = $post_id AND type = '$type'";
-	$old = $wpdb->get_row($sql);
-
-	// GET
-	if ( empty($data) ) {
-		return ( !empty($old) && $old->ts == $ts_latest) ? 
-			json_decode($old->data,true) : false ;
-	}
-
-	// SET
-	if ( empty($old) ) {
-		$ret = $wpdb->insert( $t_cache, [
-			'post_id' => $post_id,
-			'type'    => $type,
-			'data'    => json_encode($data,JSON_UNESCAPED_UNICODE),
-			'ts'      => $ts_latest
-		] );
-	} else /*if ( $old->ts <= $ts_latest )*/ {
-		$ret = $wpdb->update( $t_cache, 
-			[ 'data' => json_encode($data,JSON_UNESCAPED_UNICODE), 'ts' => $ts_latest],
-			[ 'post_id' => $post_id, 'type' => $type]
-		);
-	}
-
-	return $ret;
-
-}/*}}}*/
-
 function dob_vote_make_stat( &$stat, $type, $nVal, $cnt=1,$strClass='di') {/*{{{*/
 	$arrVals = array();
 	if ( $type=='updown' || $type=='choice' || $nVal<= 1 ) { 
@@ -672,9 +302,9 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 		if ( ! empty($_POST) && $LOGIN_IP == dob_get_real_ip() ) {
       #echo '<pre>'.print_r($_POST,true).'</pre>';
 			if ( (int)$_POST['dob_form_cart'] ) {
-				$debug = dob_vote_cart($user_id,$post_id);
+				$debug = dob_common_cart($user_id,$post_id,'offer');
 			} else {
-				$debug = dob_vote_update($user_id,$post_id);
+				$debug = dob_common_update($user_id,$post_id,'offer');
 			}
 		}
 		if ( $debug ) {
@@ -687,8 +317,7 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 #var_dump('<pre>',print_r($group_values,true),'</pre>');
 
 #$ts = microtime(true);
-	//$influences = dob_vote_get_hierarchy_influence();	// influences by term_taxonomy_id
-	$ttids = dob_vote_get_selected_hierarchy_leaf_ttids($post_id);
+	$ttids = dob_common_get_selected_hierarchy_leaf_ttids($post_id);
 #var_dump('<pre>',print_r( "select t.* FROM wp_term_taxonomy join wp_terms t using(term_id) where taxonomy='hierarchy' AND term_taxonomy_id IN (". implode(',',$ttids).")",true),'</pre>');
 #var_dump('<pre>',print_r($ttids,true),'</pre>');
 #var_dump('<pre>',microtime(true)-$ts,'</pre>');
@@ -826,18 +455,19 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 #echo '<pre>'.print_r($final_votes,true).'</pre>';
 #echo '<pre>'.print_r($final_stat,true).'</pre>';
 	
-	$myinfo = $user_id ? dob_vote_get_user_info($user_id) : null;
-	$nTotal = dob_vote_get_users_count($ttids);	// get all user count
+	$myinfo = $user_id ? dob_common_get_user_info($user_id) : null;
+	$nTotal = dob_common_get_users_count($ttids);	// get all user count
 
 	// Cache Results
 	if ( is_single() && !empty($hierarchy_voter) ) {
-		dob_vote_cache($post_id,'all',[
+    $data = [
 			'hierarchy_voter'=>$hierarchy_voter,
 			'ttids' => $ttids,
-			'stat'=> ['nFixed'=>$nFixed,'nGroup'=>$nGroup,'nDirect'=>$nDirect,'nTotal'=>$nTotal],
+			'stat'  => ['nFixed'=>$nFixed,'nGroup'=>$nGroup,'nDirect'=>$nDirect,'nTotal'=>$nTotal],
 			'final_stat' => $final_stat,
 			'final_votes'=> $final_votes,
-		]);
+    ];
+		dob_common_cache($post_id,'all',$data,'offer');
 	}
 	
 #echo '</pre>';
@@ -946,7 +576,7 @@ HTML;
 		</li>";
 
 		if ( empty($user_id) ) {
-			$content_form = "<a href='http://wp1.youthpower.kr/wp-login.php' style='color:red; font-weight:bold'>$label_login</a>";
+			$content_form = "<a href='/wp-login.php' style='color:red; font-weight:bold'>$label_login</a>";
 		} else if ( empty($myinfo->term_taxonomy_id) ) {
 			$content_form = "<span style='color:red; font-size:1.2em; font-weight:bold'>$label_no_pos</span>";
 		} else {
@@ -965,7 +595,7 @@ HTML;
 					<table id='table_log'>
 						<tr><th>date_time</th><th>value</th><th>ip</th></tr>
 HTML;
-			foreach ( dob_vote_get_log($post_id,$user_id) as $log ) {
+			foreach ( dob_common_get_log($post_id,$user_id,'offer') as $log ) {
 				$html_history .= <<<HTML
 						<tr><td>{$log->ts}</td><td>{$log->value}</td><td>{$log->ip}</td></tr>
 HTML;
