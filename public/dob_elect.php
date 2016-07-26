@@ -11,46 +11,6 @@ function dob_elect_wp_init() {/*{{{*/
 	wp_enqueue_style( 'toggle-css', plugins_url( 'assets/css/toggle.css', __FILE__ ) );
 }/*}}}*/
 
-function dob_elect_get_message($post_id,$user_id) {/*{{{*/
-	$message = '투표해 주세요';		//__('Please Vote', DOBslug);
-	if ( $ret = dob_elect_get_latest($post_id,$user_id) ) {
-		$label_last = '마지막 투표';		//__('Last Voted', DOBslug);
-		$message = $label_last.' : '.$ret['ts'];
-	}
-	return $message;
-}/*}}}*/
-
-function dob_elect_get_latest($post_id,$user_id=0,$ttids=array()) {/*{{{*/
-	global $wpdb;
-	$t_elect_latest	= $wpdb->prefix.'dob_elect_latest';
-
-	$sql = '';
-	if ( empty($ttids) ) {
-		$sql_user = empty($user_id) ? '' : ' AND user_id='.$user_id;
-		$sql = "SELECT * FROM $t_elect_latest WHERE post_id = $post_id $sql_user";
-	} else {
-		$t_term_taxonomy = $wpdb->prefix.'term_taxonomy';
-		$t_user_category = $wpdb->prefix.'dob_user_category';
-		$sql_ttids = ' AND term_taxonomy_id IN ('.implode(',',$ttids).')';
-		$sql = "SELECT *
-			FROM $t_term_taxonomy
-				JOIN $t_user_category USING (term_taxonomy_id,taxonomy)
-				JOIN $t_elect_latest USING (user_id)
-			WHERE taxonomy = 'hierarchy' AND post_id = $post_id 
-				$sql_ttids";
-	}
-	$rows = $wpdb->get_results($sql,ARRAY_A);
-	if ( $user_id ) {
-		return empty($rows) ? null : $rows[0];
-	} else {
-		$ret = array();
-		foreach ( $rows as $row ) {
-			$ret[$row['user_id']] = $row;
-		}
-		return $ret;
-	}
-}/*}}}*/
-
 add_filter('the_content', 'dob_elect_site_content');
 function dob_elect_site_content($content) {/*{{{*/
 	$post_id = get_the_ID();
@@ -101,7 +61,7 @@ function dob_elect_contents( $post_id, $bEcho = false) {
 	}
 
 	$ttids = dob_common_get_selected_hierarchy_leaf_ttids($post_id);
-	$elect_latest = dob_elect_get_latest($post_id,0,$ttids);	// user_id => rows	// for login_name
+	$elect_latest = dob_common_get_latest_by_ttids($post_id,$ttids,'elect');	// user_id => rows	// for login_name
 	// build final vote results.
 	$nDirect = count($elect_latest);
 	$myinfo = $user_id ? dob_common_get_user_info($user_id) : null;
@@ -410,7 +370,7 @@ HTML;
 	}
 	$html_submit = '';
 	if ( $user_id ) {
-		$html_submit = dob_elect_get_message($post_id,$user_id);	// vote_post_latest timestamp
+		$html_submit = dob_common_get_message($post_id,$user_id,'elect');	// vote_post_latest timestamp
 		$label_vote = '바로투표';	//__('Vote', DOBslug);
 		$label_cart = '투표바구니';	//__('Vote', DOBslug);
 		$style = 'width:100px; height:20px; background:#ccc; color:black; text-decoration: none; font-size: 13px; margin: 0; padding: 0 10px 1px;';

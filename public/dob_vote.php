@@ -14,41 +14,6 @@ function dob_vote_wp_init() {/*{{{*/
 	
 }/*}}}*/
 
-function dob_vote_get_message($post_id,$user_id) {/*{{{*/
-	$message = 'plz vote';
-	if ( $ret = dob_vote_get_post_latest($post_id,$user_id) ) {
-		$label_last = '마지막 투표';	//__('Last Voted', DOBslug);
-		$message = $label_last.' : '.substr($ret['ts'],0,10);
-	}
-	return $message;
-}/*}}}*/
-
-function dob_vote_get_post_latest($post_id,$user_id=0) {/*{{{*/
-	global $wpdb;
-	$sql_user = empty($user_id) ? '' : ' AND user_id='.$user_id;
-
-	$t_latest = $wpdb->prefix . 'dob_vote_post_latest';
-	$t_category = $wpdb->prefix . 'dob_user_category';
-	$t_users = $wpdb->prefix . 'users';
-	$sql = <<<SQL
-SELECT $t_latest.*, term_taxonomy_id AS ttid, user_nicename
-FROM $t_category 
-	JOIN $t_users ON user_id=ID
-	LEFT JOIN `$t_latest` USING (user_id)
-WHERE taxonomy='hierarchy' AND post_id = $post_id $sql_user
-SQL;
-	$rows = $wpdb->get_results($sql,ARRAY_A);
-	if ( $user_id ) {
-		return empty($rows) ? null : $rows[0];
-	} else {
-		$ret = array();
-		foreach ( $rows as $row ) {
-			$ret[(int)$row['user_id']] = $row;
-		}
-		return $ret;
-	}
-}/*}}}*/
-
 function dob_vote_get_group_values($post_id) {/*{{{*/
 	global $wpdb;
 
@@ -492,7 +457,7 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 	// build html hierarchy chart
 	$html_hierarchy = '';/*{{{*/
 	if ( is_single() ) {
-		$vote_latest = dob_vote_get_post_latest($post_id);	// user_id => rows	// for login_name
+		$vote_latest = dob_common_get_latest_by_ttids($post_id,$ttids,'offer');	// user_id => rows	// for login_name
 		$myval = empty($vote_latest[$user_id]) ? null : (int)$vote_latest[$user_id]['value'];
 #echo '<pre>'.print_r($myinfo,true).'</pre>';
 		$hierarchies = array();/*{{{*/
@@ -770,7 +735,7 @@ HTML;
 		echo " <label style='margin-bottom:0px; font-size:1.1em;'>$html_input$label</label> ";
 	}
 
-	$html_submit = empty($user_id) ? $label_login : dob_vote_get_message($post_id,$user_id);	// vote_post_latest timestamp
+	$html_submit = empty($user_id) ? $label_login : dob_common_get_message($post_id,$user_id,'offer');	// vote_post_latest timestamp
 	if ( $LOGIN_IP == dob_get_real_ip() ) {
 		$label_fast = '바로투표';	//__('Vote', DOBslug);
 		$label_cart = '투표바구니';	//__('Vote', DOBslug);

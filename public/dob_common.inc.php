@@ -58,34 +58,35 @@ SQL;
 
 function dob_common_get_message($post_id,$user_id,$cpt='offer') {/*{{{*/
 	$message = '투표해 주세요';		//__('Please Vote', DOBslug);
-	/*if ( $ret = dob_elect_get_latest($post_id,$user_id) ) {
+	if ( $ret = dob_common_get_latest_by_user($post_id,$user_id,$cpt) ) {
 		$label_last = '마지막 투표';		//__('Last Voted', DOBslug);
 		$message = $label_last.' : '.$ret['ts'];
-  }*/
+  }
 	return $message;
 }/*}}}*/
 
-function dob_common_get_latest($post_id,$user_id=0,$ttids=array()) {/*{{{*/
+function dob_common_get_latest_by_user($post_id,$user_id,$cpt='offer') {/*{{{*/
 	global $wpdb;
-	$t_elect_latest	= $wpdb->prefix.'dob_elect_latest';
-
-	$sql = '';
-	if ( empty($ttids) ) {
-		$sql_user = empty($user_id) ? '' : ' AND user_id='.$user_id;
-		$sql = "SELECT * FROM $t_elect_latest WHERE post_id = $post_id $sql_user";
-	} else {
-		$t_term_taxonomy = $wpdb->prefix.'term_taxonomy';
-		$t_user_category = $wpdb->prefix.'dob_user_category';
-		$sql_ttids = ' AND term_taxonomy_id IN ('.implode(',',$ttids).')';
-		$sql = "SELECT *
-			FROM $t_term_taxonomy
-				JOIN $t_user_category USING (term_taxonomy_id,taxonomy)
-				JOIN $t_elect_latest USING (user_id)
-			WHERE taxonomy = 'hierarchy' AND post_id = $post_id 
-				$sql_ttids";
-	}
+  $sql = '';
+  $sql_user = empty($user_id) ? '' : ' AND user_id='.$user_id;
+  if ( $cpt == 'elect' ) {
+    $t_latest	= $wpdb->prefix.'dob_elect_latest';
+    $sql = "SELECT * FROM $t_latest WHERE post_id = $post_id $sql_user";
+  } else {
+    $t_latest = $wpdb->prefix . 'dob_vote_post_latest';
+    $t_category = $wpdb->prefix . 'dob_user_category';
+    $t_users = $wpdb->prefix . 'users';
+    $sql = <<<SQL
+SELECT $t_latest.*, term_taxonomy_id AS ttid, user_nicename
+FROM $t_category c
+	JOIN $t_users ON user_id=ID
+  LEFT JOIN `$t_latest` USING (user_id)  /* left join for blank vote */
+WHERE c.taxonomy='hierarchy' $sql_user AND post_id = $post_id
+SQL;
+  }
 	$rows = $wpdb->get_results($sql,ARRAY_A);
-	if ( $user_id ) {
+  return empty($rows) ? null : $rows[0];
+	/*if ( $user_id ) {
 		return empty($rows) ? null : $rows[0];
 	} else {
 		$ret = array();
@@ -93,7 +94,40 @@ function dob_common_get_latest($post_id,$user_id=0,$ttids=array()) {/*{{{*/
 			$ret[$row['user_id']] = $row;
 		}
 		return $ret;
-	}
+  }*/
+}/*}}}*/
+
+function dob_common_get_latest_by_ttids($post_id,$ttids=array(),$cpt='offer') {/*{{{*/
+	global $wpdb;
+	$t_latest	  = $wpdb->prefix.($cpt=='offer'?'dob_vote_post_latest':'dob_elect_latest');
+  $t_category = $wpdb->prefix.'dob_user_category';
+  $sql_ttids = empty($ttids) ? '' : ' AND term_taxonomy_id IN ('.implode(',',$ttids).')';
+    $t_users    = $wpdb->prefix.'users';
+  $sql = '';
+  if ( $cpt == 'offer' ) {
+    $sql = <<<SQL
+SELECT l.*, term_taxonomy_id AS ttid, user_nicename
+  FROM $t_category
+    JOIN `$t_latest` l USING (user_id)
+      JOIN $t_users ON user_id=ID
+      WHERE taxonomy='hierarchy' $sql_ttids
+  AND l.post_id = $post_id
+SQL;
+  } else {
+    $sql = <<<SQL
+SELECT *
+FROM $t_category 
+  JOIN $t_latest USING (user_id)
+WHERE taxonomy = 'hierarchy' $sql_ttids
+  AND post_id = $post_id
+SQL;
+  }
+	$rows = $wpdb->get_results($sql,ARRAY_A);
+  $ret = array();
+  foreach ( $rows as $row ) {
+    $ret[(int)$row['user_id']] = $row;
+  }
+  return $ret;
 }/*}}}*/
 
 function dob_common_get_user_info($user_id) {/*{{{*/
