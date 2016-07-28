@@ -5,6 +5,7 @@ class jsTree
 	protected $db = null;
 	protected $options = null;
 	protected $default = array(
+		't_cache'			=> 'dob_cache',	    // cache table for record timestamp
 		't_base'			=> 'term_taxonomy',	// the base structural table (containing the id, left, right, level, parent_id and position fields)
 		't_data'			=> 'terms',					// table for data fields (apart from base ones, can be the same as t_base)
 		't_meta'			=> 'termmeta',			// table for more additional fields 
@@ -33,6 +34,7 @@ class jsTree
 	public function __construct( $options = array() ) {/*{{{*/
 		global $wpdb;
 		$this->db = $wpdb;
+		$this->default['t_cache']= $wpdb->prefix.$this->default['t_cache'];
 		$this->default['t_base'] = $wpdb->prefix.$this->default['t_base'];
 		$this->default['t_data'] = $wpdb->prefix.$this->default['t_data'];
 		$this->default['t_meta'] = $wpdb->prefix.$this->default['t_meta'];
@@ -1044,6 +1046,30 @@ class jsTree
 		}
 
 		return $index;
+	}/*}}}*/
+
+  public function log2cache($msg='jsTree Action Log') {/*{{{*/
+		extract($this->options);
+    if ( $taxonomy == 'hierarchy' ) {
+
+      //dob_common_cache(-1,'all',$msg);
+
+      $post_id=-1; $type='all';
+      $sql = "SELECT 1 FROM $t_cache WHERE post_id=$post_id AND type='$type'";
+      $old = $this->db->get_row($sql);
+      if ( empty($old) ) {
+        $ret = $this->db->insert( $t_cache, [
+          'post_id' => $post_id,
+          'type'    => $type,
+          'data'    => $msg,
+        ] );
+      } else {
+        $ret = $this->db->update( $t_cache,
+          [ 'data' => $msg ],
+          [ 'post_id' => $post_id, 'type' => $type]
+        );
+      }
+    }
 	}/*}}}*/
 
 }

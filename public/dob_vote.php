@@ -261,10 +261,12 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 #echo '<pre>';
 	global $wpdb;
 	$user_id = get_current_user_id();
+  $bVote = false;
 	if ( is_single() && $user_id ) {
 		$debug = '';
 		$LOGIN_IP = empty($_SESSION['LOGIN_IP']) ? '' : $_SESSION['LOGIN_IP'];
 		if ( ! empty($_POST) && $LOGIN_IP == dob_get_real_ip() ) {
+      $bVote = true;
       #echo '<pre>'.print_r($_POST,true).'</pre>';
 			if ( (int)$_POST['dob_form_cart'] ) {
 				$debug = dob_common_cart($user_id,$post_id,'offer');
@@ -281,11 +283,11 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 	$group_values = dob_vote_get_group_values($post_id);
 #var_dump('<pre>',print_r($group_values,true),'</pre>');
 
-#$ts = microtime(true);
+$ts = microtime(true);
 	$ttids = dob_common_get_selected_hierarchy_leaf_ttids($post_id);
 #var_dump('<pre>',print_r( "select t.* FROM wp_term_taxonomy join wp_terms t using(term_id) where taxonomy='hierarchy' AND term_taxonomy_id IN (". implode(',',$ttids).")",true),'</pre>');
 #var_dump('<pre>',print_r($ttids,true),'</pre>');
-#var_dump('<pre>',microtime(true)-$ts,'</pre>');
+echo '<pre>'.(microtime(true)-$ts).'</pre>';
 
 #$ts = microtime(true);
 	$hierarchy_voter = dob_vote_get_hierarchy_voter($post_id,$ttids);	// order by lft
@@ -422,18 +424,41 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 	
 	$myinfo = $user_id ? dob_common_get_user_info($user_id) : null;
 	$nTotal = dob_common_get_users_count($ttids);	// get all user count
+  $stat = ['nTotal'=>$nTotal,'nDirect'=>$nDirect,'nFixed'=>$nFixed,'nGroup'=>$nGroup];
 
-	// Cache Results
-	if ( is_single() && !empty($hierarchy_voter) ) {
-    $data = [
-			'hierarchy_voter'=>$hierarchy_voter,
-			'ttids' => $ttids,
-			'stat'  => ['nFixed'=>$nFixed,'nGroup'=>$nGroup,'nDirect'=>$nDirect,'nTotal'=>$nTotal],
-			'final_stat' => $final_stat,
-			'final_votes'=> $final_votes,
-    ];
-		dob_common_cache($post_id,'all',$data,'offer');
-	}
+  // Cache Results
+  if ( is_single() ) {
+    $post_ts = get_the_modified_time('Y-m-d H:i:s');
+    $hier_ts = dob_common_cache(-1,'all');
+
+    // 통계: 신규, 실제 통계값 변경
+    list($cached,$ts) = dob_common_cache($post_id,'stat');
+    if ( empty($cached) || array_diff_assoc($cached,$stat) ) {
+      dob_common_cache($post_id,'stat',$stat);
+    }
+
+    // 결과: 신규, 투표행위, 포스트 계층변경
+    list($cached,$ts) = dob_common_cache($post_id,'result');
+    if ( empty($cached) || $bVote || $ts < $post_ts || $ts < $hier_ts ) {
+      dob_common_cache($post_id,'result',$final_stat);
+    }
+
+    // 결과: 신규, 투표행위, 포스트 계층변경
+    list($cached,$ts) = dob_common_cache($post_id,'ttids');
+    if ( empty($cached) || $bVote || $ts < $post_ts || $ts < $hier_ts ) {
+      dob_common_cache($post_id,'ttids',$ttids);
+    }
+
+    // 결과: 신규, 투표행위, 포스트 계층변경
+    if ( !empty($hierarchy_voter) ) {
+      $data = [
+        'hierarchy_voter'=>$hierarchy_voter,
+        'ttids' => $ttids,
+        'final_votes'=> $final_votes,
+      ];
+      dob_common_cache($post_id,'all',$data);
+    }
+  }
 	
 #echo '</pre>';
 
@@ -591,7 +616,7 @@ HTML;
 }
 
 function dob_vote_html_stat($nFixed,$nGroup,$nDirect,$nTotal) {/*{{{*/
-	$label_stat			= '균형투표 통계';	//__('Statistics', DOBslug);
+	$label_stat			= '공개발의 통계';	//__('Statistics', DOBslug);
 	#$label_turnout	= '투표율';					//__('Total Users', DOBslug);
 	$label_total		= '전체';						//__('Total Users', DOBslug);
 	$label_valid		= '유효';						//__('Total Users', DOBslug);

@@ -44,20 +44,58 @@ class Dob_Widget_Vote_Result extends WP_Widget {/*{{{*/
 		return $instance;
 	}/*}}}*/
 
-	function dob_get_log($post_id,$user_id,$type='offer') {/*{{{*/
-		global $wpdb;
-		$t_log	= $wpdb->prefix.($type=='offer'?'dob_vote_post_log':'dob_elect_log');
-		$sql = <<<SQL
-SELECT *
-FROM `$t_log` 
-WHERE post_id = $post_id AND user_id=$user_id
-SQL;
-		return $wpdb->get_results($sql);
+	function get_stat_html_old($stat,$nTotal,$post_id,$type='offer') {/*{{{*/
+    if ( $type=='offer' )
+      $html = dob_vote_html_stat($stat['nFixed'],$stat['nGroup'],$stat['nDirect'],$nTotal);
+    else {
+      $dob_elect_cmb_vote = get_post_meta( $post_id, 'dob_elect_cmb_vote', true );
+      $vm_begin = empty($dob_elect_cmb_vote['begin']) ? '' : $dob_elect_cmb_vote['begin'];
+      $vm_end = empty($dob_elect_cmb_vote['end']) ? '' : $dob_elect_cmb_vote['end'];
+      $html = dob_elect_html_stat($stat['nDirect'],$nTotal,$vm_begin,$vm_end,true);
+    }
+		return $html;
+	}/*}}}*/
+
+	function get_stat_html($post_id,$type='offer') {/*{{{*/
+		list($stat,$ts) = dob_common_cache($post_id,'stat',false);
+
+    if ( $type=='offer' )
+      $html = dob_vote_html_stat($stat['nFixed'],$stat['nGroup'],$stat['nDirect'],$stat['nTotal']);
+    else {
+      $dob_elect_cmb_vote = get_post_meta( $post_id, 'dob_elect_cmb_vote', true );
+      $vm_begin = empty($dob_elect_cmb_vote['begin']) ? '' : $dob_elect_cmb_vote['begin'];
+      $vm_end = empty($dob_elect_cmb_vote['end']) ? '' : $dob_elect_cmb_vote['end'];
+      $html = dob_elect_html_stat($stat['nDirect'],$stat['nTotal'],$vm_begin,$vm_end,true);
+    }
+		return $html;
+	}/*}}}*/
+
+	function get_history_html($logs) {/*{{{*/
+    $label_my_history = '내 투표 기록'; //__('My Vote History', DOBslug);
+    $tr_history = '';
+    foreach ( $logs as $log ) {
+      $tr_history .= "
+        <tr><td>{$log->ts}</td><td>{$log->value}</td><td>{$log->ip}</td></tr>";
+    }
+    return <<<HTML
+<style>
+#table_log th { background-color:#eee; text-transform:none; text-align:center; padding:0; }
+</style>
+  <li class='toggle'>
+    <h3># $label_my_history<span class='toggler'>[close]</span></h3>
+    <div class='panel' style='display:block'>
+      <table id='table_log'>
+        <tr><th>date_time</th><th width="60px">value</th><th width="100px">ip</th></tr>
+        $tr_history
+      </table>
+    </div>
+  </li>
+HTML;
 	}/*}}}*/
 
 	//show widget in post / page
-	function widget( $args, $instance ) {
-		// return if not single post
+	function widget( $args, $instance ) {/*{{{*/
+		// show only if single post
 		if ( ! is_single() ) return;
 
 		$post_id = get_the_ID();
@@ -66,41 +104,20 @@ SQL;
 
 		extract($args);
 
-		$uid = $user_id = get_current_user_id();
-		$cached = dob_common_cache($post_id,'all',false,$cpt);
-		if ( ! empty($cached) ) extract($cached);
-file_put_contents('/tmp/cached',print_r($cached,true));
-
-		// show only if single post
+		/*$cached = dob_common_cache($post_id,'all',false,$cpt);
+		if ( ! empty($cached) ) extract($cached); // enum('all','stat','result','detail')
+//echo '<pre>'.print_r($cached['stat'],true).'</pre>';
 		# 1. stat
-		$nFixed = $nGroup = $nDirect = $nTotal = 0;
-		if ( isset($stat) ) extract($stat);	// $nFixed,$nGroup,$nDirect,$nTotal
 		$nTotal = dob_common_get_users_count($cached['ttids']);	// get all user count
-		$html_stat = dob_vote_html_stat($nFixed,$nGroup,$nDirect,$nTotal);
+    $html_stat = $this->get_stat_html($cached['stat'],$nTotal,$post_id,$cpt);*/
+		$html_stat = $this->get_stat_html($post_id,$cpt);
 
 		# 2. history
+		$user_id = get_current_user_id();
 		$html_history = '';
 		if ( $user_id ) {
-			$label_my_history = '내 투표 기록'; //__('My Vote History', DOBslug);
-			$tr_history = '';
-			foreach ( $this->dob_get_log($post_id,$user_id,$cpt) as $log ) {
-				$tr_history .= "
-					<tr><td>{$log->ts}</td><td>{$log->value}</td><td>{$log->ip}</td></tr>";
-			}
-			$html_history = <<<HTML
-			<li class='toggle'>
-				<h3># $label_my_history<span class='toggler'>[close]</span></h3>
-				<div class='panel' style='display:block'>
-					<table id='table_log'>
-						<tr><th>date_time</th><th width="60px">value</th><th width="100px">ip</th></tr>
-						$tr_history
-					</table>
-<style>
-#table_log th { background-color:#eee; text-transform:none; text-align:center; padding:0; }
-</style>
-				</div>
-			</li>
-HTML;
+      $logs = dob_common_get_log($post_id,$user_id,$cpt);
+      $html_history = $this->get_history_html($logs);
 		}
 
 		$content = <<<HTML
@@ -113,54 +130,16 @@ HTML;
 
 #file_put_contents('/tmp/w',$content);
 
-		/* # 1. build parent hierarchy
-		$hierarchy = array();
-		$text_chart ='';
-
-		$value_result = 0;
-		$hierarchy = get_user_hierarchy($user_id);
-		foreach ( $hierarchy as $row ) {
-			$tab = $row['lvl'].')';
-			for ( $i=0; $i<$row['lvl']; ++$i ) { $tab .= " "; }
-			$tab .= $row['name'];
-
-			$value_text = '';
-			$value_current = 0;
-			$user_ids = empty($row['user_ids']) ? array() : explode(',',$row['user_ids']);
-			#var_dump($user_ids);
-			# 3. analyze balanced decision.
-			if ( empty($user_ids) ) {
-				$value_text = 'NULL';
-			} else {
-				$value_sum = 0;
-				foreach ( $user_ids as $uid ) {
-					$data = dob_get_voted_data_user($post_id,$uid);
-					$value_text .= $data['user_login'].':'.$data['value'].',';
-					$value_sum += (int)$data['value'];
-				}
-				if ( 0.666 < abs($value_sum/count($user_ids)) ) {
-					$value_current = (0<$value_sum) ? 1 : -1;
-				} else {
-					$value_current = 0;
-				}
-			}
-			$value_result = $value_current ? $value_current : $value_result;
-			$value_text = substr($value_text,0,-1);
-			$text_chart .= "\n$tab:$value_result [$value_current]($value_text)"; 
-		}
-		$content = '<pre>'.htmlentities(print_r($text_chart,true)).'</pre>';
-		 */
-
 		$title = isset($instance['title']) ?
 			apply_filters('widget_title', $instance['title'])
 			: __('DoBalance Vote Result', DOBslug);
 
 		echo $before_widget;
 		echo $before_title.$title.$after_title;
-		//echo $contents;
 		echo $content;
 		echo $after_widget;
-	}
+	}/*}}}*/
+
 }/*}}}*/
 
 class Dob_Widget_Sub_Category extends WP_Widget {/*{{{*/

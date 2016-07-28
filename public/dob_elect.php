@@ -46,9 +46,11 @@ function dob_elect_contents( $post_id, $bEcho = false) {
 
 	$user_id = get_current_user_id();
 	$LOGIN_IP = empty($_SESSION['LOGIN_IP']) ? '' : $_SESSION['LOGIN_IP'];
+  $bVote = false;
 	if ( is_single() && $user_id ) {
 		$debug = '';
 		if ( ! empty($_POST) && $LOGIN_IP == dob_get_real_ip() ) {
+      $bVote = true;
 			if ( (int)$_POST['dob_form_cart'] ) {
 				$debug = dob_common_cart($user_id,$post_id,'elect');
 			} else {
@@ -70,13 +72,11 @@ function dob_elect_contents( $post_id, $bEcho = false) {
 
 	## build HTML /*{{{*/
 	//$label_title		= '균형 투표';	//__('Balance Voting', DOBslug);
-	$label_stat			= '선거정보';			//__('Statistics', DOBslug);
-	$label_time			= '투표시간';			//__('Statistics', DOBslug);
-	$label_turnout	= '투표율';				//__('Total Users', DOBslug);
 	$label_result		= '투표결과';			//__('My Vote', DOBslug);
 	$label_before 	= '시작전';			//__('Statistics', DOBslug);
 	$label_ing			= '진행중';			//__('Statistics', DOBslug);
 	$label_after		= '종료됨';			//__('Statistics', DOBslug);
+	$label_chart		= '결과 차트';			//__('Direct voter', DOBslug);
 	$label_my				= '내 투표';			//__('My Vote', DOBslug);
 	$label_history	= '기록';				//__('My Vote', DOBslug);
 	$label_login		= '로그인 해주세요';	//__('Please Login', DOBslug);
@@ -95,6 +95,17 @@ function dob_elect_contents( $post_id, $bEcho = false) {
 				$vm_label[$k+1] = $v;
 			}
 		}/*}}}*/
+
+    // Cache Results
+    if ( $bVote ) {
+      $data = [
+        'elect_latest'=>$elect_latest,
+        'ttids' => $ttids,
+        'stat'  => ['nDirect'=>$nDirect,'nTotal'=>$nTotal],
+      ];
+      dob_common_cache($post_id,'all',$data,'elect');
+      dob_common_cache($post_id,'stat',['nDirect'=>$nDirect,'nTotal'=>$nTotal],'elect');
+    }
 
 		$ts = time();
 		$html_timer = dob_elect_html_timer($ts);
@@ -132,45 +143,34 @@ HTML;
 			foreach ( $elect_latest as $uid => $v ) {
 				dob_elect_accum_stat($result_stat,$vm_type,$v['value'],1);
 			}
+      $cached = dob_common_cache($post_id,'stat',false,'elect');
+      if ( empty($cached) ) {
+        $data = [
+          'elect_latest'=>$elect_latest,
+          'ttids' => $ttids,
+          'stat'  => ['nDirect'=>$nDirect,'nTotal'=>$nTotal],
+        ];
+        dob_common_cache($post_id,'all',$data,'elect');
+        dob_common_cache($post_id,'stat',['nDirect'=>$nDirect,'nTotal'=>$nTotal],'elect');
+      }
+      dob_common_cache($post_id,'final',$result_stat,'elect');
 #print_r($result_stat);
-			$html_chart = dob_elect_html_chart($result_stat,$vm_label,$nTotal,$nDirect);
+
+			$content_chart = dob_elect_html_chart($result_stat,$vm_label,$nTotal,$nDirect);
+      $html_chart = "<li>
+        <h3># $label_chart</h3>
+        <div class='panel'> $content_chart </div>
+      </li>";
 		}
 
-		if ( $user_id ) {
-			$html_history = <<<HTML
-			<li class='toggle'>
-				<h3># $label_my $label_history<span class='toggler'>[open]</span></h3>
-				<div class='panel' style='display:none'>
-					<table id='table_log'>
-						<tr><th>date_time</th><th>value</th><th>ip</th></tr>
-HTML;
-			foreach ( dob_common_get_log($post_id,$user_id,'elect') as $log ) {
-				$html_history .= <<<HTML
-						<tr><td>{$log->ts}</td><td>{$log->value}</td><td>{$log->ip}</td></tr>
-HTML;
-			}
-			$html_history .= <<<HTML
-					</table>
-				</div>
-			</li>
-<style>
-#table_log th { background-color:#eee; text-transform:none; text-align:center; padding:0; }
-</style>
-HTML;
-		}
 	}
 #echo '</pre>';
 
+	$html_stat = dob_elect_html_stat($nDirect,$nTotal,$vm_begin,$vm_end,false);
+
 	$dob_elect = <<<HTML
 <ul id="toggle-view"><!--{{{-->
-	<li>
-		<h3># $label_stat</h3>
-		<div class="panel">
-			<div>$label_time : $vm_begin ~ $vm_end</div>
-			<div>$label_turnout : $fValid% ( $nDirect / $nTotal )</div>
-		</div>
-	</li>
-	$html_timer 
+	$html_stat
 	$html_chart
 	$html_form
 	$html_history
@@ -180,6 +180,40 @@ HTML;
 	if ($bEcho) echo $dob_elect;
 	else return $dob_elect;
 }
+
+function dob_elect_html_stat($nDirect,$nTotal,$vm_begin,$vm_end,$bTable=false) {/*{{{*/
+	$label_stat			= '비밀선거 정보';			//__('Statistics', DOBslug);
+	$label_begin		= '투표시작';			//__('Statistics', DOBslug);
+	$label_end	  	= '투표종료';			//__('Statistics', DOBslug);
+	$label_time			= '투표시간';			//__('Statistics', DOBslug);
+	$label_turnout	= '투표율';				//__('Total Users', DOBslug);
+
+	$fValid = empty($nTotal) ? 0 : number_format(100*($nDirect/$nTotal),1);
+
+  return $bTable ? 
+    <<<HTML
+	<li class="toggle">
+		<h3># $label_stat <small style="font-weight:normal;font-size:0.9em;"> - $label_turnout : $fValid% </small><span class="toggler">[close]</span></h3>
+		<div class="panel" style="display:block">
+			<table>
+				<tr><td class="left">$label_begin</td><td>$vm_begin</td></tr>
+				<tr><td class="left">$label_end</td><td>$vm_end</td></tr>
+				<tr><td class="left">$label_turnout</td><td>$fValid% ( $nDirect / $nTotal )</td></tr>
+			</table>
+		</div>
+	</li>
+HTML
+  : <<<HTML
+	<li>
+		<h3># $label_stat</h3>
+		<div class="panel">
+			<div>$label_time : $vm_begin ~ $vm_end</div>
+			<div>$label_turnout : $fValid% ( $nDirect / $nTotal )</div>
+		</div>
+	</li>
+HTML;
+
+}/*}}}*/
 
 function dob_elect_html_chart($result_stat,$vm_label,$nTotal,$nDirect) {/*{{{*/
 	$ret = /*{{{*/ "<style>

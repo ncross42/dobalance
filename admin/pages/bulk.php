@@ -96,6 +96,7 @@ if ( is_array($_POST)
 	}
 	$last_index = $jstree->rebuild_mptt_index();
 	$message .= " Added: $added // Updated: $updated // Skipped: $skipped // Last_Index: $last_index";
+	$jstree->log2cache("admin bulk page $message");
 } else {
 	$message .= 'ADD ONLY, Overwite if duplicated';
 }

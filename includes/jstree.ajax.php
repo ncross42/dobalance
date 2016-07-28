@@ -24,18 +24,17 @@ if( !function_exists( 'dob_admin_jstree_ajax' ) ) :
 
 		//$terms = $_REQUEST['terms'];
 		if(isset($_GET['operation'])) {
-			//$fs = new tree(db::get('mysqli://root@127.0.0.1/wp'), array('structure_table' => 'tree_struct', 'data_table' => 'tree_data', 'data' => array('nm')));
-			$fs = new jsTree( array('taxonomy'=>$taxonomy) );
+			$tree = new jsTree( array('taxonomy'=>$taxonomy) );
 			try {
 				$rslt = null;
 				switch($_GET['operation']) {
 				case 'analyze':
-					var_dump($fs->analyze(true));
+					var_dump($tree->analyze(true));
 					die();
 					break;
 				case 'get_node':
 					$node = isset($_GET['id']) && $_GET['id'] !== '#' ? (int)$_GET['id'] : 0;
-					$temp = $fs->get_children($node);
+					$temp = $tree->get_children($node);
 					$rslt = array();
 					foreach($temp as $v) {
 						switch ( $v['taxonomy'] ) {
@@ -65,7 +64,7 @@ if( !function_exists( 'dob_admin_jstree_ajax' ) ) :
 					if(count($node) > 1) {
 						$rslt = array('content' => 'Multiple selected');
 					} else {
-						$temp = $fs->get_node((int)$node[0], array('with_path' => true));
+						$temp = $tree->get_node((int)$node[0], array('with_path' => true));
 						$content = 'Selected: /' . implode('/',array_map(function($v){ return $v['name']; }, $temp['path'])). '/'.$temp['name'];
 						$rslt = array(
 							'content' => $content,
@@ -82,30 +81,34 @@ if( !function_exists( 'dob_admin_jstree_ajax' ) ) :
 					} else {
 						list( $name, $slug ) = explode('//',$text);
 					}
-					$temp = $fs->mk($parent_id, $position, array('name'=>$name,'slug'=>$slug) );
+					$temp = $tree->mk($parent_id, $position, array('name'=>$name,'slug'=>$slug) );
 					$rslt = array('id' => $temp);
+          $tree->log2cache($_GET['operation']." name:$name, slug:$slug");
 					break;
 				case 'rename_node':
 					$node = isset($_GET['id']) && $_GET['id'] !== '#' ? (int)$_GET['id'] : 0;
 					$text = trim($_GET['text']);
 					if ( 1 <= strpos($text,'//') ) {
 						list($name,$slug) = explode('//',$text);
-						$rslt = $fs->rn( $node, array('name'=>$name,'slug'=>$slug) );
+						$rslt = $tree->rn( $node, array('name'=>$name,'slug'=>$slug) );
 					}
 					break;
 				case 'delete_node':
 					$node = isset($_GET['id']) && $_GET['id'] !== '#' ? (int)$_GET['id'] : 0;
-					$rslt = $fs->rm($node);
+					$rslt = $tree->rm($node);
+          $tree->log2cache($_GET['operation']." name:$name, slug:$slug");
 					break;
 				case 'move_node':
 					$node = isset($_GET['id']) && $_GET['id'] !== '#' ? (int)$_GET['id'] : 0;
 					$parn = isset($_GET['parent']) && $_GET['parent'] !== '#' ? (int)$_GET['parent'] : 0;
-					$rslt = $fs->mv($node, $parn, isset($_GET['position']) ? (int)$_GET['position'] : 0);
+					$rslt = $tree->mv($node, $parn, isset($_GET['position']) ? (int)$_GET['position'] : 0);
+          $tree->log2cache($_GET['operation']." node:$node, parent:$parn");
 					break;
 				case 'copy_node':
 					$node = isset($_GET['id']) && $_GET['id'] !== '#' ? (int)$_GET['id'] : 0;
 					$parn = isset($_GET['parent']) && $_GET['parent'] !== '#' ? (int)$_GET['parent'] : 0;
-					$rslt = $fs->cp($node, $parn, isset($_GET['position']) ? (int)$_GET['position'] : 0);
+					$rslt = $tree->cp($node, $parn, isset($_GET['position']) ? (int)$_GET['position'] : 0);
+          $tree->log2cache($_GET['operation']." node:$node, parent:$parn");
 					break;
 				default:
 					throw new Exception('Unsupported operation: ' . $_GET['operation']);

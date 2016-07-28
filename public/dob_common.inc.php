@@ -1,7 +1,4 @@
 <?php
-/**
- * Create site pages for this plugin
- */
 
 function dob_common_get_selected_hierarchy_leaf_ttids($post_id) {/*{{{*/
 	global $wpdb;
@@ -167,12 +164,13 @@ SQL;
 	return $wpdb->get_results($sql);
 }/*}}}*/
 
-function dob_common_cache( $post_id, $type, $data=false, $cpt='offer' ) {/*{{{*/
+function dob_common_cache_old( $post_id, $type, $data=false, $cpt='offer' ) {/*{{{*/
 	global $wpdb;
 
 	if ( !in_array($type,['all','stat','result','detail']) ) return false;
 
 	$t_cache = $wpdb->prefix.'dob_cache';
+
 	$t_latest = $wpdb->prefix.($cpt=='offer'?'dob_vote_post_latest':'dob_elect_latest');
 
 	$sql = "SELECT max(ts) FROM `$t_latest` WHERE post_id = $post_id";
@@ -206,6 +204,51 @@ function dob_common_cache( $post_id, $type, $data=false, $cpt='offer' ) {/*{{{*/
 
 	return $ret;
 
+}/*}}}*/
+
+function dob_common_cache( $post_id, $type, $input=false ) {/*{{{*/
+	global $wpdb;
+
+	if ( !in_array($type,['all','stat','result','detail']) ) return false;
+
+	$t_cache = $wpdb->prefix.'dob_cache';
+
+	$sql = "SELECT data, ts FROM $t_cache WHERE post_id=$post_id AND type='$type'";
+	$old = $wpdb->get_row($sql);
+
+	// GET
+	if ( empty($input) ) {
+		return empty($old) ? false : [ json_decode($old->data,true), $old->ts ];
+	}
+
+	// SET
+	if ( empty($old) ) {
+		$ret = $wpdb->insert( $t_cache, [
+			'post_id' => $post_id,
+			'type'    => $type,
+			'data'    => json_encode($input,JSON_UNESCAPED_UNICODE),
+		] );
+	} else {
+		$ret = $wpdb->update( $t_cache, 
+			[ 'data' => json_encode($input,JSON_UNESCAPED_UNICODE) ],
+			[ 'post_id' => $post_id, 'type' => $type]
+		);
+	}
+
+	return $ret;
+
+}/*}}}*/
+
+function dob_common_cache_check_old( $post_id, $type, $ts_in=false ) {/*{{{*/
+	global $wpdb;
+
+	if ( !in_array($type,['all','stat','result','detail']) ) return false;
+
+	$t_cache = $wpdb->prefix.'dob_cache';
+	$sql = "SELECT ts FROM `$t_cache` WHERE post_id = $post_id AND type = '$type'";
+	$ts_cache = $wpdb->get_var($sql);
+
+  return empty($ts_in) ? $ts_cache : ($ts_cache<$ts_in);
 }/*}}}*/
 
 function dob_common_update( $user_id, $post_id, $cpt='offer' ) {/*{{{*/

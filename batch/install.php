@@ -12,9 +12,9 @@ global $wpdb;
 $table_name = $wpdb->prefix.'dob_cache';
 $sql = "CREATE TABLE IF NOT EXISTS `$table_name` (
 	`post_id` int(11) NOT NULL DEFAULT 0,
-	`type` ENUM('all','stat','result','detail') NOT NULL DEFAULT 'all',
+	`type` enum('all','ttids','stat','result','detail') CHARACTER SET ascii COLLATE ascii_bin NOT NULL DEFAULT 'all',
 	`data` text COLLATE utf8mb4_unicode_ci,
-	`ts` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	`ts` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	PRIMARY KEY (`post_id`,`type`)
 )";
 $wpdb->query($sql);
