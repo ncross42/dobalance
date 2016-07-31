@@ -21,10 +21,10 @@ function dob_common_get_selected_hierarchy_leaf_ttids($post_id) {/*{{{*/
 		);
 	}
 	if ( empty($all) ) return null;	// no selected
-	if ( 1 == count($all) ) { // root selected
+	if ( 1 == count($all) ) {
 		$cur = current($all);
 		if ( $cur['parent'] == '0' ) {
-			return array();
+			return array();   // root selected
 		}
   }
 
@@ -144,6 +144,7 @@ function dob_common_get_users_count( $ttids = array() ) {/*{{{*/
 	$t_term_taxonomy = $wpdb->prefix.'term_taxonomy';
 	$sql = "SELECT term_taxonomy_id FROM $t_term_taxonomy WHERE taxonomy='group'";
 	$gr_ttids = $wpdb->get_col($sql);
+
 	$t_user_category = $wpdb->prefix.'dob_user_category';
   $sql_ttids = empty($ttids) ? 
     'AND term_taxonomy_id NOT IN ('.implode(',',[-1=>0]+$gr_ttids).')'
@@ -164,49 +165,7 @@ SQL;
 	return $wpdb->get_results($sql);
 }/*}}}*/
 
-function dob_common_cache_old( $post_id, $type, $data=false, $cpt='offer' ) {/*{{{*/
-	global $wpdb;
-
-	if ( !in_array($type,['all','stat','result','detail']) ) return false;
-
-	$t_cache = $wpdb->prefix.'dob_cache';
-
-	$t_latest = $wpdb->prefix.($cpt=='offer'?'dob_vote_post_latest':'dob_elect_latest');
-
-	$sql = "SELECT max(ts) FROM `$t_latest` WHERE post_id = $post_id";
-	$ts_latest = $wpdb->get_var($sql);
-  if ( empty($ts_latest) ) return;
-
-	$sql = "SELECT data, ts FROM `$t_cache` 
-		WHERE post_id = $post_id AND type = '$type'";
-	$old = $wpdb->get_row($sql);
-
-	// GET
-	if ( empty($data) ) {
-		return ( !empty($old) && $old->ts == $ts_latest) ? 
-			json_decode($old->data,true) : false ;
-	}
-
-	// SET
-	if ( empty($old) ) {
-		$ret = $wpdb->insert( $t_cache, [
-			'post_id' => $post_id,
-			'type'    => $type,
-			'data'    => json_encode($data,JSON_UNESCAPED_UNICODE),
-			'ts'      => $ts_latest
-		] );
-	} else /*if ( $old->ts <= $ts_latest )*/ {
-		$ret = $wpdb->update( $t_cache, 
-			[ 'data' => json_encode($data,JSON_UNESCAPED_UNICODE), 'ts' => $ts_latest],
-			[ 'post_id' => $post_id, 'type' => $type]
-		);
-	}
-
-	return $ret;
-
-}/*}}}*/
-
-function dob_common_cache( $post_id, $type, $input=false ) {/*{{{*/
+function dob_common_cache( $post_id, $type, $input=false, &$ts='', $bCode=true ) {/*{{{*/
 	global $wpdb;
 
 	if ( !in_array($type,['all','stat','result','detail']) ) return false;
@@ -218,19 +177,22 @@ function dob_common_cache( $post_id, $type, $input=false ) {/*{{{*/
 
 	// GET
 	if ( empty($input) ) {
-		return empty($old) ? false : [ json_decode($old->data,true), $old->ts ];
+    if ( ! empty($old) ) $ts = $old->ts;
+		return empty($old) ? false : ($bCode?json_decode($old->data,true):$old->data);
 	}
 
 	// SET
+  $ts = date('Y-m-d H:i:s');
 	if ( empty($old) ) {
 		$ret = $wpdb->insert( $t_cache, [
 			'post_id' => $post_id,
 			'type'    => $type,
-			'data'    => json_encode($input,JSON_UNESCAPED_UNICODE),
+			'data'    => ($bCode?json_encode($input,JSON_UNESCAPED_UNICODE):$input),
+			'ts'      => $ts,
 		] );
 	} else {
 		$ret = $wpdb->update( $t_cache, 
-			[ 'data' => json_encode($input,JSON_UNESCAPED_UNICODE) ],
+			[ 'data' => ($bCode?json_encode($input,JSON_UNESCAPED_UNICODE):$input), 'ts'=>$ts ],
 			[ 'post_id' => $post_id, 'type' => $type]
 		);
 	}

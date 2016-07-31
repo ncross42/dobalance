@@ -44,30 +44,11 @@ class Dob_Widget_Vote_Result extends WP_Widget {/*{{{*/
 		return $instance;
 	}/*}}}*/
 
-	function get_stat_html_old($stat,$nTotal,$post_id,$type='offer') {/*{{{*/
-    if ( $type=='offer' )
-      $html = dob_vote_html_stat($stat['nFixed'],$stat['nGroup'],$stat['nDirect'],$nTotal);
-    else {
-      $dob_elect_cmb_vote = get_post_meta( $post_id, 'dob_elect_cmb_vote', true );
-      $vm_begin = empty($dob_elect_cmb_vote['begin']) ? '' : $dob_elect_cmb_vote['begin'];
-      $vm_end = empty($dob_elect_cmb_vote['end']) ? '' : $dob_elect_cmb_vote['end'];
-      $html = dob_elect_html_stat($stat['nDirect'],$nTotal,$vm_begin,$vm_end,true);
-    }
-		return $html;
-	}/*}}}*/
-
-	function get_stat_html($post_id,$type='offer') {/*{{{*/
-		list($stat,$ts) = dob_common_cache($post_id,'stat',false);
-
-    if ( $type=='offer' )
-      $html = dob_vote_html_stat($stat['nFixed'],$stat['nGroup'],$stat['nDirect'],$stat['nTotal']);
-    else {
-      $dob_elect_cmb_vote = get_post_meta( $post_id, 'dob_elect_cmb_vote', true );
-      $vm_begin = empty($dob_elect_cmb_vote['begin']) ? '' : $dob_elect_cmb_vote['begin'];
-      $vm_end = empty($dob_elect_cmb_vote['end']) ? '' : $dob_elect_cmb_vote['end'];
-      $html = dob_elect_html_stat($stat['nDirect'],$stat['nTotal'],$vm_begin,$vm_end,true);
-    }
-		return $html;
+	function get_elect_html_stat($post_id,$stat) {/*{{{*/
+    $dob_elect_cmb_vote = get_post_meta( $post_id, 'dob_elect_cmb_vote', true );
+    $vm_begin = empty($dob_elect_cmb_vote['begin']) ? '' : $dob_elect_cmb_vote['begin'];
+    $vm_end = empty($dob_elect_cmb_vote['end']) ? '' : $dob_elect_cmb_vote['end'];
+		return dob_elect_html_stat($stat['nDirect'],$stat['nTotal'],$vm_begin,$vm_end,true);
 	}/*}}}*/
 
 	function get_history_html($logs) {/*{{{*/
@@ -102,15 +83,27 @@ HTML;
     $cpt = get_post_type($post_id);
 		if ( !in_array($cpt,['offer','elect']) ) return;
 
+/*{{{*/ /*$args = [
+  [name] => Widget DoBalance
+  [id] => widget-dobalance
+  [description] => Sidebar of DoBalance Voting
+  [class] => 
+  [before_widget] => 
+  [after_widget] => 
+  [before_title] => 
+  [after_title] => 
+  [widget_id] => dob_vote_result-2
+  [widget_name] => DoBalance Vote Result
+]; */ /*}}}*/
 		extract($args);
 
-		/*$cached = dob_common_cache($post_id,'all',false,$cpt);
-		if ( ! empty($cached) ) extract($cached); // enum('all','stat','result','detail')
-//echo '<pre>'.print_r($cached['stat'],true).'</pre>';
+		$stat = dob_common_cache($post_id,'stat',false);
+#echo '<pre>'.print_r($stat,true).'</pre>';
 		# 1. stat
-		$nTotal = dob_common_get_users_count($cached['ttids']);	// get all user count
-    $html_stat = $this->get_stat_html($cached['stat'],$nTotal,$post_id,$cpt);*/
-		$html_stat = $this->get_stat_html($post_id,$cpt);
+    $html_stat = empty($stat) ? '' : ( 
+      ($cpt=='offer') ? dob_vote_html_stat($stat['stat_sum'])
+      : $this->get_elect_html_stat($post_id,$stat)
+    );
 
 		# 2. history
 		$user_id = get_current_user_id();

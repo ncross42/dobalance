@@ -4,6 +4,7 @@ if ( ! defined ('WP_USE_THEMES') ) {
 	define('WP_USE_THEMES', false);
 	require_once (dirname(dirname(dirname(dirname(__DIR__)))).DIRECTORY_SEPARATOR.'wp-blog-header.php');
 }
+require_once (dirname(__DIR__).DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'dob_common.inc.php');
 
 ############ version 0.1 ############
 global $wpdb;
@@ -87,5 +88,7 @@ recalc_chl();
 recalc_inf();
 
 recalc_anc();
+
+dob_common_cache(-1,'all','recalc_inf_chl_anc.php');
 
 echo PHP_EOL;

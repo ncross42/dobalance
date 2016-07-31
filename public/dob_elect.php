@@ -103,8 +103,8 @@ function dob_elect_contents( $post_id, $bEcho = false) {
         'ttids' => $ttids,
         'stat'  => ['nDirect'=>$nDirect,'nTotal'=>$nTotal],
       ];
-      dob_common_cache($post_id,'all',$data,'elect');
-      dob_common_cache($post_id,'stat',['nDirect'=>$nDirect,'nTotal'=>$nTotal],'elect');
+      dob_common_cache($post_id,'all',$data);
+      dob_common_cache($post_id,'stat',['nDirect'=>$nDirect,'nTotal'=>$nTotal]);
     }
 
 		$ts = time();
@@ -143,17 +143,17 @@ HTML;
 			foreach ( $elect_latest as $uid => $v ) {
 				dob_elect_accum_stat($result_stat,$vm_type,$v['value'],1);
 			}
-      $cached = dob_common_cache($post_id,'stat',false,'elect');
+      $cached = dob_common_cache($post_id,'stat',false);
       if ( empty($cached) ) {
         $data = [
           'elect_latest'=>$elect_latest,
           'ttids' => $ttids,
           'stat'  => ['nDirect'=>$nDirect,'nTotal'=>$nTotal],
         ];
-        dob_common_cache($post_id,'all',$data,'elect');
-        dob_common_cache($post_id,'stat',['nDirect'=>$nDirect,'nTotal'=>$nTotal],'elect');
+        dob_common_cache($post_id,'all',$data);
+        dob_common_cache($post_id,'stat',['nDirect'=>$nDirect,'nTotal'=>$nTotal]);
       }
-      dob_common_cache($post_id,'final',$result_stat,'elect');
+      dob_common_cache($post_id,'final',$result_stat);
 #print_r($result_stat);
 
 			$content_chart = dob_elect_html_chart($result_stat,$vm_label,$nTotal,$nDirect);

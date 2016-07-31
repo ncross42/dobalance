@@ -14,7 +14,7 @@ function dob_vote_wp_init() {/*{{{*/
 	
 }/*}}}*/
 
-function dob_vote_get_group_values($post_id) {/*{{{*/
+function dob_vote_get_gr_vals($post_id) {/*{{{*/
 	global $wpdb;
 
 	$t_latest		= $wpdb->prefix . 'dob_vote_post_latest';
@@ -30,15 +30,15 @@ FROM $t_term_taxonomy tt
 WHERE tt.taxonomy = 'group' AND c.taxonomy='hierarchy'
 	AND post_id = $post_id
 SQL;
-	$rows = $wpdb->get_results($sql);
+	$rows = $wpdb->get_results($sql,ARRAY_A);
 	$ret = array();
 	foreach ( $rows as $row ) {
-		$ret[(int)$row->ttid] = $row;
+		$ret[(int)$row['ttid']] = $row;
 	}
 	return $ret;
 }/*}}}*/
 
-function dob_vote_get_user_group_all_ttid_values($user_id,$group_values,$vm_type,$bAll=true) {/*{{{*/
+function dob_vote_get_user_group_all_ttid_values($user_id,$gr_vals,$vm_type,$bAll=true) {/*{{{*/
 	global $wpdb;
 
 	$t_category = $wpdb->prefix.'dob_user_category';
@@ -52,9 +52,9 @@ SQL;
 	$gtid_vals = array();
 	foreach ( $rows as $gtid ) {
 		if ( $bAll ) {	// include null
-			$gtid_vals[$gtid] = isset($group_values[$gtid]) ? $group_values[$gtid]->value : null;
-		} else if ( isset($group_values[$gtid]) && $group_values[$gtid]->value ) {
-			$gtid_vals[$gtid] = $group_values[$gtid]->value;	// only available value is counted
+			$gtid_vals[$gtid] = isset($gr_vals[$gtid]) ? $gr_vals[$gtid]['value'] : null;
+		} else if ( isset($gr_vals[$gtid]) && $gr_vals[$gtid]['value'] ) {
+			$gtid_vals[$gtid] = $gr_vals[$gtid]['value'];	// only available value is counted
 		}
 	}
 	if ( empty($gtid_vals) ) {
@@ -120,7 +120,7 @@ SELECT
 	term_taxonomy_id, lft, name, slug, lvl, user_id, value
 	, inf, chl, anc
 FROM $t_user_category c
-	JOIN $t_term_taxonomy USING (term_taxonomy_id,taxonomy)
+	JOIN $t_term_taxonomy USING (taxonomy,term_taxonomy_id)
 	JOIN $t_terms USING (term_id)
 	LEFT JOIN $t_vote_post_latest l USING (user_id)
 WHERE taxonomy = 'hierarchy' 
@@ -279,188 +279,200 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 		}
 	}
 
+$ts = microtime(true);
+  // load CACHE
+  $ts_post = get_the_modified_time('Y-m-d H:i:s');
+  $cached_struct = dob_common_cache(-1,'all',false,$ts_struct);
+  $cached_all = dob_common_cache($post_id,'all',false,$ts_all);
+  $gr_vals = $ttids = $hier_voter = $stat_detail = $stat_sum = null;
+  if ( is_array($cached_all) ) extract($cached_all); 
+  $nTotal = null; $nDirect = $nGroup = $nFixed = 0;
+  if ( !empty($stat_sum) ) extract($stat_sum);
+echo '<pre>ca:'.(microtime(true)-$ts).'</pre>';
+
+  if ( is_null($nTotal) || $ts_all<$ts_post || $ts_all<$ts_struct ) {
+    // ttids: 신규 or (포스트,계층구조) 변경
+    $nTotal = dob_common_get_users_count($ttids);	// get all user count
+  }
+
 	// group values
-	$group_values = dob_vote_get_group_values($post_id);
-#var_dump('<pre>',print_r($group_values,true),'</pre>');
+$ts = microtime(true);
+  if ( is_null($gr_vals) || $bVote || $ts_all<$ts_struct ) {
+    // gr_vals: 신규 or 투표 or 계층구조 변경
+    $gr_vals = dob_vote_get_gr_vals($post_id);
+  }
+#echo '<pre>'.print_r($gr_vals,true).'</pre>';
+#echo '<pre>gr:'.(microtime(true)-$ts).'</pre>';
 
 $ts = microtime(true);
-	$ttids = dob_common_get_selected_hierarchy_leaf_ttids($post_id);
-#var_dump('<pre>',print_r( "select t.* FROM wp_term_taxonomy join wp_terms t using(term_id) where taxonomy='hierarchy' AND term_taxonomy_id IN (". implode(',',$ttids).")",true),'</pre>');
-#var_dump('<pre>',print_r($ttids,true),'</pre>');
-echo '<pre>'.(microtime(true)-$ts).'</pre>';
+  if ( !is_array($ttids) || $ts_all<$ts_post || $ts_all<$ts_struct ) {
+    // ttids: 신규 or (포스트,계층구조) 변경
+    $ttids = dob_common_get_selected_hierarchy_leaf_ttids($post_id);
+  }
+#echo '<pre>'.print_r($ttids,true).'</pre>';
+#echo '<pre>tt:'.(microtime(true)-$ts).'</pre>';
 
-#$ts = microtime(true);
-	$hierarchy_voter = dob_vote_get_hierarchy_voter($post_id,$ttids);	// order by lft
-#var_dump('<pre>',microtime(true)-$ts,'</pre>');
-#echo '<pre>'.print_r($hierarchy_voter,true).'</pre>';
-	foreach ( $hierarchy_voter as $ttid => $v ) {/*{{{*/
-		$all_ids = dob_vote_get_user_hierarchy($ttid);
-		if ( empty($all_ids) ) {
-			continue;	// no hierarchy member
-		}
-		$uid_vals	= $v['uid_vals'];
-		$uvc_voted	= count($uid_vals);
-		$uv_valid	= array_filter( $uid_vals, function($v){return !empty($v);} );
-		$uvc_valid	= count($uv_valid);
-		$uv_null = array_diff( $all_ids, array_keys($uv_valid) );
+  if ( !is_array($hier_voter) || $bVote || $ts_all < $ts_post || $ts_all < $ts_struct ) {
+    // hier_voter: 신규 or 투표 or (포스트,계층구조) 변경
+$ts = microtime(true);
+    $hier_voter = dob_vote_get_hierarchy_voter($post_id,$ttids);	// order by lft
+#echo '<pre>'.print_r($hier_voter,true).'</pre>';
+echo '<pre>hi:'.(microtime(true)-$ts).'</pre>';
 
-		// check leaf's direct voting
-		if ( empty($v['chl']) ) {
-			// check null-user's group delegator
-			$uv_group = array();
-			$uv_tmp = $uv_null;
-			/*if ( $user_id && ! in_array($user_id,$uv_null) 
-				&& $myinfo && $ttid == $myinfo->term_taxonomy_id
-			) {
-				$uv_tmp[] = $user_id;
-			} TODO: WHY??? */
-			foreach ( $uv_tmp as $uid ) {
-				// get only available group values
-				$tmp_gtid_vals = dob_vote_get_user_group_all_ttid_values($uid,$group_values,$vm_type,false);
-				if ( !empty($tmp_gtid_vals) && !empty($tmp_gtid_vals['value']) ) {
-					$uv_group[$uid] = $tmp_gtid_vals;
-				}
-				/*{{{*/ /*$gtid_vals = array();
-				foreach ( $gr_ttids as $gtid ) {
-					$gtid_vals[$gtid] = $group_values[$gtid]->value;
-				}
-				if ( !empty($gtid_vals) ) {
-					// TODO: cache this
-					if ( $value = dob_vote_aggregate_value($vm_type,$gtid_vals) ) {
-						$uv_group[$uid] = array (
-							'gtid_vals' => $gtid_vals,
-							'value' => $value,
-						);
-					}
-				}*/ /*}}}*/
-			}
+$ts = microtime(true);
+    foreach ( $hier_voter as $ttid => $v ) {/*{{{*/
+      $all_ids = dob_vote_get_user_hierarchy($ttid);
+      if ( empty($all_ids) ) {
+        continue;	// no hierarchy member
+      }
+      $uid_vals	= $v['uid_vals'];
+      $uvc_voted	= count($uid_vals);
+      $uv_valid	= array_filter( $uid_vals, function($v){return !empty($v);} );
+      $uvc_valid	= count($uv_valid);
+      $uv_null = array_diff( $all_ids, array_keys($uv_valid) );
 
-			// deduct last-ancestor's influences
-			$uvc_group_reflected = count( array_diff( array_keys($uv_group), array_keys($uv_valid)) ) ;
-			foreach ( array_reverse($v['anc']) as $a_ttid ) {
-				if ( isset($hierarchy_voter[$a_ttid]) ) {	// only exists
-					$hierarchy_voter[$a_ttid]['inf'] -= ($uvc_valid+$uvc_group_reflected);
-					if ( $hierarchy_voter[$a_ttid]['value'] ) break;
-				}
-			}
+      // check leaf's direct voting
+      if ( empty($v['chl']) ) {
+        // check null-user's group delegator
+        $uv_group = array();
+        $uv_tmp = $uv_null;
+        /*if ( $user_id && ! in_array($user_id,$uv_null) 
+          && $myinfo && $ttid == $myinfo->term_taxonomy_id
+        ) {
+          $uv_tmp[] = $user_id;
+        } TODO: WHY??? */
+        foreach ( $uv_tmp as $uid ) {
+          // get only available group values
+          $tmp_gtid_vals = dob_vote_get_user_group_all_ttid_values($uid,$gr_vals,$vm_type,false);
+          if ( !empty($tmp_gtid_vals) && !empty($tmp_gtid_vals['value']) ) {
+            $uv_group[$uid] = $tmp_gtid_vals;
+          }
+          /*{{{*/ /*$gtid_vals = array();
+          foreach ( $gr_ttids as $gtid ) {
+            $gtid_vals[$gtid] = $gr_vals[$gtid]->value;
+          }
+          if ( !empty($gtid_vals) ) {
+            // TODO: cache this
+            if ( $value = dob_vote_aggregate_value($vm_type,$gtid_vals) ) {
+              $uv_group[$uid] = array (
+                'gtid_vals' => $gtid_vals,
+                'value' => $value,
+              );
+            }
+          }*/ /*}}}*/
+        }
 
-			// self added leaf data
-			$hierarchy_voter[$ttid]['uv_group'] = $uv_group;
-			$hierarchy_voter[$ttid]['value'] = null;
-		} else {	## BRANCH NODE ##
-			// decision value
-			$value = dob_vote_aggregate_value($vm_type,$uid_vals,count($all_ids));
+        // deduct last-ancestor's influences
+        $uvc_group_reflected = count( array_diff( array_keys($uv_group), array_keys($uv_valid)) ) ;
+        foreach ( array_reverse($v['anc']) as $a_ttid ) {
+          if ( isset($hier_voter[$a_ttid]) ) {	// only exists
+            $hier_voter[$a_ttid]['inf'] -= ($uvc_valid+$uvc_group_reflected);
+            if ( $hier_voter[$a_ttid]['value'] ) break;
+          }
+        }
 
-			// deduct last-ancestor's influences
-			if ( $value ) {	// not 0
-				foreach ( array_reverse($v['anc']) as $a_ttid ) {
-					if ( isset($hierarchy_voter[$a_ttid]) ) {
-						$hierarchy_voter[$a_ttid]['inf'] -= $v['inf'];
-						if ( $hierarchy_voter[$a_ttid]['value'] ) break;
-					}
-				}
-			}
-			// deduct last-ancestor's influences by uvc_valid(Direct-voting)
-			if ( $uvc_valid ) {
-				foreach ( array_reverse($v['anc']) as $a_ttid ) {
-					if ( isset($hierarchy_voter[$a_ttid]) ) {
-						$hierarchy_voter[$a_ttid]['inf'] -= $uvc_valid;
-						if ( $hierarchy_voter[$a_ttid]['value'] ) break;
-					}
-				}
-			}
-			// self added non-leaf data
-			$hierarchy_voter[$ttid]['value'] = $value;
-			$hierarchy_voter[$ttid]['all_ids'] = $all_ids;
-		}
-		// self added common data
-		$hierarchy_voter[$ttid]['uv_valid'] = $uv_valid;
-		#$hierarchy_voter[$ttid]['uv_null'] = $uv_null;
-		#$hierarchy_voter[$ttid]['all_ids'] = $all_ids;
-	}/*}}}*/
-#echo '<pre>'.print_r($hierarchy_voter,true).'</pre>';
-#file_put_contents('/tmp/hv.'.date('His').'.php',print_r($hierarchy_voter,true));
+        // self added leaf data
+        $hier_voter[$ttid]['uv_group'] = $uv_group;
+        $hier_voter[$ttid]['value'] = null;
+      } else {	## BRANCH NODE ##
+        // decision value
+        $value = dob_vote_aggregate_value($vm_type,$uid_vals,count($all_ids));
 
-	// build final result stat. /*{{{*/
-	$nGroup = $nFixed = $nDirect = 0;
-	$final_stat = $final_votes = array();
-	foreach ( $hierarchy_voter as $ttid => $v ) {
-		if ( empty($v['chl']) ) {	// leaf
-			// final decision by Direct-Voting
-			foreach ( $v['uv_valid'] as $uid => $val ) {
-				dob_vote_make_stat($final_stat,$vm_type,$val,1,'di');
-				$final_votes[$uid] = "1,$val";
-				if ( !empty($val) ) ++$nDirect;
-			} 
-			// decision by group-voting
-			foreach ( $v['uv_group'] as $uid => $info ) {
-				if ( empty($v['uv_valid'][$uid]) ) {
-#echo '<pre>'.print_r([$uid,$info,$v['uv_valid']],true).'</pre>';
-					dob_vote_make_stat($final_stat,$vm_type,$info['value'],1,'gr');
-					$final_votes[$uid] = "1,{$info['value']}";
-					++$nGroup;
-				}
-			} 
-		} else  { // non-leaf
-			if ( $v['value'] ) {	// Delegator's decision value is NOT 0
-				$nFixed += $inf = $v['inf'];	// accum inf.(deducted nLow)
-				dob_vote_make_stat($final_stat,$vm_type,$v['value'],$inf,'hi');
-#echo '<pre>'.print_r($v,true).'</pre>';
-				$final_votes[$uid] = "$inf,{$v['value']}";
-			}
-			if ( ! empty($v['uid_vals']) ) {	// Delegator's private value
-				foreach ( $v['uid_vals'] as $uid => $val ) {
-					if ( $val ) {
-						$nDirect += 1;
-						dob_vote_make_stat($final_stat,$vm_type,$val,1,'di');
-						$final_votes[$uid] = "1,$val";
-					}
-				}
-			}
-		}
-	}/*}}}*/
-#echo '<pre>'.print_r($final_votes,true).'</pre>';
-#echo '<pre>'.print_r($final_stat,true).'</pre>';
-	
-	$myinfo = $user_id ? dob_common_get_user_info($user_id) : null;
-	$nTotal = dob_common_get_users_count($ttids);	// get all user count
-  $stat = ['nTotal'=>$nTotal,'nDirect'=>$nDirect,'nFixed'=>$nFixed,'nGroup'=>$nGroup];
+        // deduct last-ancestor's influences
+        if ( $value ) {	// not 0
+          foreach ( array_reverse($v['anc']) as $a_ttid ) {
+            if ( isset($hier_voter[$a_ttid]) ) {
+              $hier_voter[$a_ttid]['inf'] -= $v['inf'];
+              if ( $hier_voter[$a_ttid]['value'] ) break;
+            }
+          }
+        }
+        // deduct last-ancestor's influences by uvc_valid(Direct-voting)
+        if ( $uvc_valid ) {
+          foreach ( array_reverse($v['anc']) as $a_ttid ) {
+            if ( isset($hier_voter[$a_ttid]) ) {
+              $hier_voter[$a_ttid]['inf'] -= $uvc_valid;
+              if ( $hier_voter[$a_ttid]['value'] ) break;
+            }
+          }
+        }
+        // self added non-leaf data
+        $hier_voter[$ttid]['value'] = $value;
+        $hier_voter[$ttid]['all_ids'] = $all_ids;
+      }
+      // self added common data
+      $hier_voter[$ttid]['uv_valid'] = $uv_valid;
+      #$hier_voter[$ttid]['uv_null'] = $uv_null;
+      #$hier_voter[$ttid]['all_ids'] = $all_ids;
+    }/*}}}*/
+echo '<pre>hv:'.(microtime(true)-$ts).'</pre>';
+
+$ts = microtime(true);
+    $stat_detail = array(); 
+    // build final stat_detail. /*{{{*/
+    foreach ( $hier_voter as $ttid => $v ) {
+      if ( empty($v['chl']) ) {	// leaf
+        // final decision by Direct-Voting
+        foreach ( $v['uv_valid'] as $uid => $val ) {
+          dob_vote_make_stat($stat_detail,$vm_type,$val,1,'di');
+          if ( !empty($val) ) ++$nDirect;
+        } 
+        // decision by group-voting
+        foreach ( $v['uv_group'] as $uid => $info ) {
+          if ( empty($v['uv_valid'][$uid]) ) {
+  #echo '<pre>'.print_r([$uid,$info,$v['uv_valid']],true).'</pre>';
+            dob_vote_make_stat($stat_detail,$vm_type,$info['value'],1,'gr');
+            ++$nGroup;
+          }
+        } 
+      } else  { // non-leaf
+        if ( $v['value'] ) {	// Delegator's decision value is NOT 0
+          $nFixed += $inf = $v['inf'];	// accum inf.(deducted nLow)
+          dob_vote_make_stat($stat_detail,$vm_type,$v['value'],$inf,'hi');
+        }
+        if ( ! empty($v['uid_vals']) ) {	// Delegator's private value
+          foreach ( $v['uid_vals'] as $uid => $val ) {
+            if ( $val ) {
+              $nDirect += 1;
+              dob_vote_make_stat($stat_detail,$vm_type,$val,1,'di');
+            }
+          }
+        }
+      }
+    }/*}}}*/
+echo '<pre>'.print_r($stat_detail,true).'</pre>';
+echo '<pre>st:'.(microtime(true)-$ts).'</pre>';
+  }
+#echo '<pre>'.print_r($hier_voter,true).'</pre>';
+#file_put_contents('/tmp/hv.'.date('His').'.php',print_r($hier_voter,true));
+
+  $stat_sum = compact('nTotal','nDirect','nFixed','nGroup');
 
   // Cache Results
   if ( is_single() ) {
-    $post_ts = get_the_modified_time('Y-m-d H:i:s');
-    $hier_ts = dob_common_cache(-1,'all');
-
     // 통계: 신규, 실제 통계값 변경
-    list($cached,$ts) = dob_common_cache($post_id,'stat');
-    if ( empty($cached) || array_diff_assoc($cached,$stat) ) {
-      dob_common_cache($post_id,'stat',$stat);
+    $cached = dob_common_cache($post_id,'stat',false,$ts_stat,false);
+    $stat = json_encode(compact('stat_sum','stat_detail'),JSON_UNESCAPED_UNICODE);
+    if ( empty($cached) || $cached != $stat ) {
+      dob_common_cache( $post_id,'stat',$stat,$ts_now=date('Y-m-d H:i:s'),false);
     }
 
     // 결과: 신규, 투표행위, 포스트 계층변경
-    list($cached,$ts) = dob_common_cache($post_id,'result');
-    if ( empty($cached) || $bVote || $ts < $post_ts || $ts < $hier_ts ) {
-      dob_common_cache($post_id,'result',$final_stat);
-    }
-
-    // 결과: 신규, 투표행위, 포스트 계층변경
-    list($cached,$ts) = dob_common_cache($post_id,'ttids');
-    if ( empty($cached) || $bVote || $ts < $post_ts || $ts < $hier_ts ) {
-      dob_common_cache($post_id,'ttids',$ttids);
-    }
-
-    // 결과: 신규, 투표행위, 포스트 계층변경
-    if ( !empty($hierarchy_voter) ) {
+    if ( !is_array($cached_all) || $ts_all<$ts_post || $ts_all<$ts_struct ) {
       $data = [
-        'hierarchy_voter'=>$hierarchy_voter,
-        'ttids' => $ttids,
-        'final_votes'=> $final_votes,
+        'gr_vals'     => $gr_vals,
+        'ttids'       => $ttids,
+        'hier_voter'  => $hier_voter,
+        'stat_detail' => $stat_detail,
+        'stat_sum'    => $stat_sum,
       ];
-      dob_common_cache($post_id,'all',$data);
+      dob_common_cache($post_id,'all',$data );
     }
   }
 	
 #echo '</pre>';
+
+	$myinfo = $user_id ? dob_common_get_user_info($user_id) : null;
 
 	## build HTML 
 	# labels /*{{{*/
@@ -487,19 +499,19 @@ echo '<pre>'.(microtime(true)-$ts).'</pre>';
 #echo '<pre>'.print_r($myinfo,true).'</pre>';
 		$hierarchies = array();/*{{{*/
 		$all_group_vals = array();
-		foreach( $group_values as $gr ) {
-			$all_group_vals[] = $gr->name.':'.$gr->value;
+		foreach( $gr_vals as $gr ) {
+			$all_group_vals[] = $gr['name'].':'.$gr['value'];
 		}
 		$hierarchies[] = " ## $label_total $label_group $label_vote <br> &nbsp; ".implode(', ',$all_group_vals);
 		$hierarchies[] = " ## $label_hierarchy $label_influence";
 
-		foreach ( $hierarchy_voter as $ttid => $v ) {
+		foreach ( $hier_voter as $ttid => $v ) {
 			$uv_valid = $v['uv_valid'];
 			$indent = ' &nbsp; '.str_repeat(' -- ',$v['lvl']);
 			$inherit = 0;
 			foreach ( $v['anc'] as $a_ttid ) {
-				if ( !empty($hierarchy_voter[$a_ttid]['value']) ) {
-					$inherit = $hierarchy_voter[$a_ttid]['value'];
+				if ( !empty($hier_voter[$a_ttid]['value']) ) {
+					$inherit = $hier_voter[$a_ttid]['value'];
 				}
 			}
 			if ( empty($v['chl']) ) {	// leaf
@@ -508,12 +520,12 @@ echo '<pre>'.(microtime(true)-$ts).'</pre>';
 				// info of myval and mygroup
 				if ( $myinfo && $ttid == $myinfo->term_taxonomy_id ) {
 					$mygroup = isset($v['uv_group'][$user_id]) ? $v['uv_group'][$user_id]
-						: dob_vote_get_user_group_all_ttid_values($user_id,$group_values,$vm_type,true) ;
-#echo '<pre>'.var_export([$user_id,$group_values,$mygroup],true).'</pre>';
+						: dob_vote_get_user_group_all_ttid_values($user_id,$gr_vals,$vm_type,true) ;
+#echo '<pre>'.var_export([$user_id,$gr_vals,$mygroup],true).'</pre>';
 					if ( ! empty($mygroup) ) {
 						$grname_vals[] = "<span style='background-color:yellow'>[ {$mygroup['value']} ]</span>";
 						foreach ( $mygroup['gtid_vals'] as $gtid => $val ) {
-							$grname_vals[] = isset($group_values[$gtid]) ? $group_values[$gtid]->name.":<b>$val</b>" : '';
+							$grname_vals[] = isset($gr_vals[$gtid]) ? $gr_vals[$gtid]['name'].":<b>$val</b>" : '';
 						}
 					}
 					$str_mine = "<span style='color:red'>@{$myinfo->user_nicename}:<b>".(is_null($myval)?'null':$myval)."</b></span>";
@@ -545,7 +557,7 @@ echo '<pre>'.(microtime(true)-$ts).'</pre>';
 HTML;
 	}/*}}}*/
 
-	$html_stat = ''; // dob_vote_html_stat($nFixed,$nGroup,$nDirect,$nTotal);
+	$html_stat = ''; // dob_vote_html_stat($stat_sum);
 
 	$html_chart = $html_form = $html_history = '';/*{{{*/
 	if ( is_single() ) {
@@ -559,7 +571,7 @@ HTML;
 				$vm_legend[$k+1] = $v;
 			}
 		}
-		$content_chart = dob_vote_html_chart($final_stat,$vm_legend,$nTotal);
+		$content_chart = dob_vote_html_chart($stat_detail,$vm_legend,$nTotal);
 		$html_chart = "<li>
 			<h3># $label_chart</h3>
 			<div class='panel'> $content_chart </div>
@@ -615,7 +627,10 @@ HTML;
 	else return $dob_vote;
 }
 
-function dob_vote_html_stat($nFixed,$nGroup,$nDirect,$nTotal) {/*{{{*/
+function dob_vote_html_stat($stat_sum) {/*{{{*/
+  $nFixed=$nGroup=$nDirect=$nTotal=0;
+  extract($stat_sum);
+
 	$label_stat			= '공개발의 통계';	//__('Statistics', DOBslug);
 	#$label_turnout	= '투표율';					//__('Total Users', DOBslug);
 	$label_total		= '전체';						//__('Total Users', DOBslug);
@@ -648,7 +663,7 @@ HTML;
 
 }/*}}}*/
 
-function dob_vote_html_chart($final_stat,$vm_legend,$nTotal) {/*{{{*/
+function dob_vote_html_chart($stat_detail,$vm_legend,$nTotal) {/*{{{*/
 	$ret = "<style> /*{{{*/
 .barchart { width: 100%; border-width:0px; border-collapse: collapse; }
 .barchart td div { height:20px; text-align:center; overflow: hidden; text-overflow: ellipsis; }
@@ -669,11 +684,11 @@ function dob_vote_html_chart($final_stat,$vm_legend,$nTotal) {/*{{{*/
 	$str_gr = '그룹'; //__('Group', DOBslug),
 	$str_un = '미투표';	//__('Blank', DOBslug)
 	$td_format = "<td width='%s' title='%s' class='%s'><div class='%s'>%s</div></td>";
-	ksort($final_stat,SORT_NUMERIC);
+	ksort($stat_detail,SORT_NUMERIC);
 
 	$nBlank = $nTotal;
 	$tr1 = $tr2 = array();
-	foreach ( $final_stat as $i => $data ) {
+	foreach ( $stat_detail as $i => $data ) {
 		extract($data);	// 'all', 'di', 'hi'
 		$nBlank -= $all;
 		// row1
