@@ -62,13 +62,69 @@ function dob_elect_contents( $post_id, $bEcho = false) {
 		}
 	}
 
-	$ttids = dob_common_get_selected_hierarchy_leaf_ttids($post_id);
-	$elect_latest = dob_common_get_latest_by_ttids($post_id,$ttids,'elect');	// user_id => rows	// for login_name
+  // load CACHE
+  $ts_struct = $ts_all = $ts_stat = '';
+  $ts_post = get_the_modified_time('Y-m-d H:i:s');
+  $cached_struct = dob_common_cache(-1,'all',false,$ts_struct);
+  $cached_all = dob_common_cache($post_id,'all',false,$ts_all);
+  $cached_stat_json = dob_common_cache($post_id,'stat',false,$ts_stat,false);
+  $ttids = $elect_latest = $result_stat = $stat = null;
+  if ( is_array($cached_all) ) extract($cached_all); 
+  $nTotal = null; $nDirect = null;
+  if ( !empty($stat) ) extract($stat);
+
+  // ttids: 신규, 포스트변경, 계층변경
+  $bTtids = false;
+  if ( $ttids===null || $ts_all<$ts_post || $ts_all<$ts_struct ) {
+    $ttids = dob_common_get_selected_hierarchy_leaf_ttids($post_id);
+    $bTtids = true;
+  }
+
+  // nTotal: 신규, 포스트변경, 계층변경
+  if ( $nTotal===null || $ts_all<$ts_post || $ts_all<$ts_struct ) {
+    $nTotal = dob_common_get_users_count($ttids);	// get all user count
+  }
+
+  // elect_latest, stat_detail: 신규, 투표, 포스트변경, 계층변경
+  $bLatest = false;
+  if ( $elect_latest===null || $bVote || $ts_all<$ts_post || $ts_all<$ts_struct ) {
+    $elect_latest = dob_common_get_latest_by_ttids($post_id,$ttids,'elect');
+    // user_id => rows	// for login_name
+    $nDirect = is_array($elect_latest) ? count($elect_latest) : 0;
+    $bLatest = true;
+  }
+
 	// build final vote results.
-	$nDirect = count($elect_latest);
 	$myinfo = $user_id ? dob_common_get_user_info($user_id) : null;
 	$myval = isset($elect_latest[$user_id]) ? (int)$elect_latest[$user_id]['value'] : '';
 #print_r($elect_latest);
+
+  // Cache STAT, 통계: 신규, 실제 통계값 변경
+  $bStat = false;
+  $stat = ['nDirect'=>$nDirect,'nTotal'=>$nTotal];
+  $stat_json = json_encode($stat,JSON_UNESCAPED_UNICODE);
+  if ( empty($cached_stat_json) || $cached_stat_json != $stat_json ) {
+    $ts_now = date('Y-m-d H:i:s');
+    dob_common_cache($post_id,'stat',$stat_json,$ts_now,false);
+    $bStat = true;
+  }
+
+  $bResult = false;
+  if ( strtotime($vm_end)<time() && 
+    ( $result_stat===null || $bTtids || $bLatest || $bStat )
+  ){ // AFTER voting period
+    $result_stat = array();
+    foreach ( $elect_latest as $uid => $v ) {
+      dob_elect_accum_stat($result_stat,$vm_type,$v['value'],1);
+    }
+    $bResult = true;
+  }
+
+  if ( $bTtids || $bLatest || $bStat || $bResult ) {
+    // Cache Results, 결과: 신규, 포스트변경, 계층변경
+    $data = compact('ttids','elect_latest','result_stat','stat'); 
+    dob_common_cache($post_id,'all',$data);
+  }
 
 	## build HTML /*{{{*/
 	//$label_title		= '균형 투표';	//__('Balance Voting', DOBslug);
@@ -82,9 +138,7 @@ function dob_elect_contents( $post_id, $bEcho = false) {
 	$label_login		= '로그인 해주세요';	//__('Please Login', DOBslug);
 	/*}}}*/
 
-	$nTotal = dob_common_get_users_count($ttids);	// get all user count
-	$fValid = number_format(100*($nDirect/$nTotal),1);
-	$html_timer = $html_chart= $html_form = $html_history = '';
+	$html_timer = $html_chart = $html_form = $html_history = '';
 	if ( is_single() ) {
 		$vm_label = ($vm_type=='updown') ? /*{{{*/ 
 			array( -1=>'반대', 0=>'기권' ) : array( -1=>'모두반대', 0=>'기권' );
@@ -96,23 +150,11 @@ function dob_elect_contents( $post_id, $bEcho = false) {
 			}
 		}/*}}}*/
 
-    // Cache Results
-    if ( $bVote ) {
-      $data = [
-        'elect_latest'=>$elect_latest,
-        'ttids' => $ttids,
-        'stat'  => ['nDirect'=>$nDirect,'nTotal'=>$nTotal],
-      ];
-      dob_common_cache($post_id,'all',$data);
-      dob_common_cache($post_id,'stat',['nDirect'=>$nDirect,'nTotal'=>$nTotal]);
-    }
-
 		$ts = time();
 		$html_timer = dob_elect_html_timer($ts);
 		if ( $ts < strtotime($vm_begin) ) {	// BEFORE
 			$label_result .= ' : '.$label_before;
-		} elseif ( strtotime($vm_begin) < $ts && $ts < strtotime($vm_end) ) {
-			// VOTING
+		} elseif ( strtotime($vm_begin) < $ts && $ts < strtotime($vm_end) ) { // VOTING /*{{{*/
 			$label_result .= ' : '.$label_ing;
 			$content_form = "<a href='/wp-login.php' style='color:red; font-weight:bold'>$label_login</a>";
 			if ( $user_id ) {
@@ -137,34 +179,16 @@ function dob_elect_contents( $post_id, $bEcho = false) {
 			</div>
 		</li>
 HTML;
-		} else {	// AFTER
+      /*}}}*/
+		} else {	// AFTER /*{{{*/
 			$label_result .= ' : '.$label_after;
-			$result_stat = array();
-			foreach ( $elect_latest as $uid => $v ) {
-				dob_elect_accum_stat($result_stat,$vm_type,$v['value'],1);
-			}
-      $cached = dob_common_cache($post_id,'stat',false);
-      if ( empty($cached) ) {
-        $data = [
-          'elect_latest'=>$elect_latest,
-          'ttids' => $ttids,
-          'stat'  => ['nDirect'=>$nDirect,'nTotal'=>$nTotal],
-        ];
-        dob_common_cache($post_id,'all',$data);
-        dob_common_cache($post_id,'stat',['nDirect'=>$nDirect,'nTotal'=>$nTotal]);
-      }
-      dob_common_cache($post_id,'final',$result_stat);
-#print_r($result_stat);
-
 			$content_chart = dob_elect_html_chart($result_stat,$vm_label,$nTotal,$nDirect);
       $html_chart = "<li>
         <h3># $label_chart</h3>
         <div class='panel'> $content_chart </div>
       </li>";
-		}
-
+		} /*}}}*/
 	}
-#echo '</pre>';
 
 	$html_stat = dob_elect_html_stat($nDirect,$nTotal,$vm_begin,$vm_end,false);
 
@@ -182,23 +206,23 @@ HTML;
 }
 
 function dob_elect_html_stat($nDirect,$nTotal,$vm_begin,$vm_end,$bTable=false) {/*{{{*/
-	$label_stat			= '비밀선거 정보';			//__('Statistics', DOBslug);
-	$label_begin		= '투표시작';			//__('Statistics', DOBslug);
-	$label_end	  	= '투표종료';			//__('Statistics', DOBslug);
-	$label_time			= '투표시간';			//__('Statistics', DOBslug);
-	$label_turnout	= '투표율';				//__('Total Users', DOBslug);
+	$label_stat    = '기본 정보';			//__('Statistics', DOBslug);
+	$label_begin   = '시작';			//__('Statistics', DOBslug);
+	$label_end     = '종료';			//__('Statistics', DOBslug);
+	$label_time    = '투표시간';			//__('Statistics', DOBslug);
+	$label_turnout = '투표율';				//__('Total Users', DOBslug);
 
-	$fValid = empty($nTotal) ? 0 : number_format(100*($nDirect/$nTotal),1);
+  $fValid = empty($nTotal) ? '0.0%' : sprintf('%0.1f%%',100*($nDirect/$nTotal));
 
   return $bTable ? 
     <<<HTML
 	<li class="toggle">
-		<h3># $label_stat <small style="font-weight:normal;font-size:0.9em;"> - $label_turnout : $fValid% </small><span class="toggler">[close]</span></h3>
+		<h3># $label_stat <small style="font-weight:normal;font-size:0.9em;"> - $label_turnout: $fValid </small><span class="toggler">[close]</span></h3>
 		<div class="panel" style="display:block">
 			<table>
-				<tr><td class="left">$label_begin</td><td>$vm_begin</td></tr>
-				<tr><td class="left">$label_end</td><td>$vm_end</td></tr>
-				<tr><td class="left">$label_turnout</td><td>$fValid% ( $nDirect / $nTotal )</td></tr>
+				<tr><td style="width:60px">$label_begin</td><td>$vm_begin</td></tr>
+				<tr><td style="width:60px">$label_end</td><td>$vm_end</td></tr>
+				<tr><td style="width:60px">$label_turnout</td><td>$fValid ( $nDirect / $nTotal )</td></tr>
 			</table>
 		</div>
 	</li>
@@ -208,7 +232,7 @@ HTML
 		<h3># $label_stat</h3>
 		<div class="panel">
 			<div>$label_time : $vm_begin ~ $vm_end</div>
-			<div>$label_turnout : $fValid% ( $nDirect / $nTotal )</div>
+			<div>$label_turnout : $fValid ( $nDirect / $nTotal )</div>
 		</div>
 	</li>
 HTML;

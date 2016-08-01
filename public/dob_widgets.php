@@ -66,7 +66,7 @@ class Dob_Widget_Vote_Result extends WP_Widget {/*{{{*/
     <h3># $label_my_history<span class='toggler'>[close]</span></h3>
     <div class='panel' style='display:block'>
       <table id='table_log'>
-        <tr><th>date_time</th><th width="60px">value</th><th width="100px">ip</th></tr>
+        <tr><th>date time</th><th width="35px">value</th><th>ip</th></tr>
         $tr_history
       </table>
     </div>

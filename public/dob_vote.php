@@ -279,47 +279,39 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 		}
 	}
 
-$ts = microtime(true);
   // load CACHE
+  $ts_struct = $ts_all = $ts_stat = '';
   $ts_post = get_the_modified_time('Y-m-d H:i:s');
   $cached_struct = dob_common_cache(-1,'all',false,$ts_struct);
   $cached_all = dob_common_cache($post_id,'all',false,$ts_all);
+  $cached_stat_json = dob_common_cache($post_id,'stat',false,$ts_stat,false);
   $gr_vals = $ttids = $hier_voter = $stat_detail = $stat_sum = null;
   if ( is_array($cached_all) ) extract($cached_all); 
   $nTotal = null; $nDirect = $nGroup = $nFixed = 0;
   if ( !empty($stat_sum) ) extract($stat_sum);
-echo '<pre>ca:'.(microtime(true)-$ts).'</pre>';
 
+  // ttids: 신규, 포스트변경, 계층변경
+  if ( !is_array($ttids) || $ts_all<$ts_post || $ts_all<$ts_struct ) {
+    $ttids = dob_common_get_selected_hierarchy_leaf_ttids($post_id);
+  }
+
+  // nTotal: 신규, 포스트변경, 계층변경
   if ( is_null($nTotal) || $ts_all<$ts_post || $ts_all<$ts_struct ) {
-    // ttids: 신규 or (포스트,계층구조) 변경
     $nTotal = dob_common_get_users_count($ttids);	// get all user count
   }
 
-	// group values
-$ts = microtime(true);
+  // gr_vals: 신규, 투표, 계층변경
   if ( is_null($gr_vals) || $bVote || $ts_all<$ts_struct ) {
-    // gr_vals: 신규 or 투표 or 계층구조 변경
     $gr_vals = dob_vote_get_gr_vals($post_id);
   }
-#echo '<pre>'.print_r($gr_vals,true).'</pre>';
-#echo '<pre>gr:'.(microtime(true)-$ts).'</pre>';
 
-$ts = microtime(true);
-  if ( !is_array($ttids) || $ts_all<$ts_post || $ts_all<$ts_struct ) {
-    // ttids: 신규 or (포스트,계층구조) 변경
-    $ttids = dob_common_get_selected_hierarchy_leaf_ttids($post_id);
-  }
-#echo '<pre>'.print_r($ttids,true).'</pre>';
-#echo '<pre>tt:'.(microtime(true)-$ts).'</pre>';
-
-  if ( !is_array($hier_voter) || $bVote || $ts_all < $ts_post || $ts_all < $ts_struct ) {
-    // hier_voter: 신규 or 투표 or (포스트,계층구조) 변경
-$ts = microtime(true);
+  // hier_voter, stat_detail: 신규, 투표, 포스트변경, 계층변경
+  if ( !is_array($hier_voter) || $bVote || $ts_all<$ts_post || $ts_all<$ts_struct ) {
+#$ts = microtime(true);
     $hier_voter = dob_vote_get_hierarchy_voter($post_id,$ttids);	// order by lft
-#echo '<pre>'.print_r($hier_voter,true).'</pre>';
-echo '<pre>hi:'.(microtime(true)-$ts).'</pre>';
+#echo '<pre>hi:'.(microtime(true)-$ts).'</pre>';
 
-$ts = microtime(true);
+#$ts = microtime(true);
     foreach ( $hier_voter as $ttid => $v ) {/*{{{*/
       $all_ids = dob_vote_get_user_hierarchy($ttid);
       if ( empty($all_ids) ) {
@@ -405,10 +397,10 @@ $ts = microtime(true);
       #$hier_voter[$ttid]['uv_null'] = $uv_null;
       #$hier_voter[$ttid]['all_ids'] = $all_ids;
     }/*}}}*/
-echo '<pre>hv:'.(microtime(true)-$ts).'</pre>';
+#echo '<pre>hv:'.(microtime(true)-$ts).'</pre>';
 
-$ts = microtime(true);
-    $stat_detail = array(); 
+#$ts = microtime(true);
+    $stat_detail = array(); // with $nDirect,$nFixed,$nGroup
     // build final stat_detail. /*{{{*/
     foreach ( $hier_voter as $ttid => $v ) {
       if ( empty($v['chl']) ) {	// leaf
@@ -440,36 +432,32 @@ $ts = microtime(true);
         }
       }
     }/*}}}*/
-echo '<pre>'.print_r($stat_detail,true).'</pre>';
-echo '<pre>st:'.(microtime(true)-$ts).'</pre>';
+#echo '<pre>st:'.(microtime(true)-$ts).'</pre>';
   }
 #echo '<pre>'.print_r($hier_voter,true).'</pre>';
 #file_put_contents('/tmp/hv.'.date('His').'.php',print_r($hier_voter,true));
 
   $stat_sum = compact('nTotal','nDirect','nFixed','nGroup');
 
-  // Cache Results
-  if ( is_single() ) {
-    // 통계: 신규, 실제 통계값 변경
-    $cached = dob_common_cache($post_id,'stat',false,$ts_stat,false);
-    $stat = json_encode(compact('stat_sum','stat_detail'),JSON_UNESCAPED_UNICODE);
-    if ( empty($cached) || $cached != $stat ) {
-      dob_common_cache( $post_id,'stat',$stat,$ts_now=date('Y-m-d H:i:s'),false);
-    }
-
-    // 결과: 신규, 투표행위, 포스트 계층변경
-    if ( !is_array($cached_all) || $ts_all<$ts_post || $ts_all<$ts_struct ) {
-      $data = [
-        'gr_vals'     => $gr_vals,
-        'ttids'       => $ttids,
-        'hier_voter'  => $hier_voter,
-        'stat_detail' => $stat_detail,
-        'stat_sum'    => $stat_sum,
-      ];
-      dob_common_cache($post_id,'all',$data );
-    }
+  // Cache STAT, 통계: 신규, 실제 통계값 변경
+  $stat_json = json_encode(compact('stat_sum','stat_detail'),JSON_UNESCAPED_UNICODE);
+  if ( empty($cached_stat_json) || $cached_stat_json != $stat_json ) {
+    $ts_now = date('Y-m-d H:i:s');
+    dob_common_cache($post_id,'stat',$stat_json,$ts_now,false);
   }
-	
+
+  // Cache Results, 결과: 신규, 투표행위, 포스트변경, 계층변경
+  if ( ! is_array($cached_all) || $bVote || $ts_all<$ts_post || $ts_all<$ts_struct ) {
+    $data = [
+      'gr_vals'     => $gr_vals,
+      'ttids'       => $ttids,
+      'hier_voter'  => $hier_voter,
+      'stat_detail' => $stat_detail,
+      'stat_sum'    => $stat_sum,
+    ];
+    dob_common_cache($post_id,'all',$data);
+  }
+
 #echo '</pre>';
 
 	$myinfo = $user_id ? dob_common_get_user_info($user_id) : null;
@@ -628,10 +616,10 @@ HTML;
 }
 
 function dob_vote_html_stat($stat_sum) {/*{{{*/
-  $nFixed=$nGroup=$nDirect=$nTotal=0;
+  $nTotal=$nDirect=$nFixed=$nGroup=0;
   extract($stat_sum);
 
-	$label_stat			= '공개발의 통계';	//__('Statistics', DOBslug);
+	$label_stat			= '기본 통계';	//__('Statistics', DOBslug);
 	#$label_turnout	= '투표율';					//__('Total Users', DOBslug);
 	$label_total		= '전체';						//__('Total Users', DOBslug);
 	$label_valid		= '유효';						//__('Total Users', DOBslug);
@@ -639,23 +627,23 @@ function dob_vote_html_stat($stat_sum) {/*{{{*/
 	$label_group		= '그룹';						//__('Delegate voter', DOBslug);
 	$label_direct		= '직접';						//__('Direct voter', DOBslug);
 
+  $fValid = $fFixed = $fGroup = $fDirect = '0.0%';
 	$nValid = $nFixed+$nGroup+$nDirect;
-	$fValid = empty($nTotal) ? 0 : number_format(100*($nValid/$nTotal),1);
-	$fFixed = $fGroup = $fDirect = 0.0;
+	if ( $nTotal ) $fValid = sprintf('%0.1f%%',100*($nValid/$nTotal));
 	if ( $nValid ) {
-		$fFixed = number_format(100*($nFixed/$nValid),1);
-		$fGroup = number_format(100*($nGroup/$nValid),1);
-		$fDirect = number_format(100*($nDirect/$nValid),1);
+		$fFixed = sprintf('%0.1f%%',100*($nFixed/$nValid));
+		$fGroup = sprintf('%0.1f%%',100*($nGroup/$nValid));
+		$fDirect = sprintf('%0.1f%%',100*($nDirect/$nValid));
 	}
 	return <<<HTML
 	<li class="toggle">
-		<h3># $label_stat <small style="font-weight:normal;font-size:0.9em;"> - $label_valid : $fValid% </small><span class="toggler">[close]</span></h3>
+		<h3># $label_stat <small style="font-weight:normal;font-size:0.9em;"> - $label_valid: $fValid </small><span class="toggler">[close]</span></h3>
 		<div class="panel" style="display:block">
 			<table>
-				<tr><td class="left">$label_valid    / $label_total</td><td>$fValid% ( $nValid / $nTotal )</td></tr>
-				<tr><td class="left">$label_hierarchy/ $label_valid</td><td>$fFixed% ( $nFixed / $nValid )</td></tr>
-				<tr><td class="left">$label_group    / $label_valid</td><td>$fGroup% ( $nGroup / $nValid )</td></tr>
-				<tr><td class="left">$label_direct   / $label_valid</td><td>$fDirect% ( $nDirect / $nValid )</td></tr>
+				<tr><td style="width:80px">$label_valid     / $label_total</td><td>$fValid ( $nValid / $nTotal )</td></tr>
+				<tr><td style="width:80px">$label_hierarchy / $label_valid</td><td>$fFixed ( $nFixed / $nValid )</td></tr>
+				<tr><td style="width:80px">$label_group     / $label_valid</td><td>$fGroup ( $nGroup / $nValid )</td></tr>
+				<tr><td style="width:80px">$label_direct    / $label_valid</td><td>$fDirect ( $nDirect / $nValid )</td></tr>
 			</table>
 		</div>
 	</li>
