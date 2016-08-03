@@ -18,16 +18,31 @@
     // Use this variable to set up the common and page specific functions. If you
     // rename this variable, you will also need to rename the namespace below.
     var Plugin_Name = {
-      // All pages
-      common: {
+      common: { // All pages
         init: function() {
           // JavaScript to be fired on all pages
         }
       },
-      // Home page
-      home: {
+      home: { // Home page
         init: function() {
           // JavaScript to be fired on the home page
+        }
+      },
+      single: { // Single page
+        init: function() {
+          // JavaScript to be fired on the home page
+        }
+      },
+      single_offer: { // Offer page
+        init: function() {
+          // JavaScript to be fired on the home page
+          console.log('single_offer');
+        }
+      },
+      single_elect: { // Elect page
+        init: function() {
+          // JavaScript to be fired on the home page
+          console.log('single_elect');
         }
       }
     };
