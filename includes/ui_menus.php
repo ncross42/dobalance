@@ -44,8 +44,8 @@ function dob_add_auto_nav_menu( $items, $args ){
 		$label_login    = __('Log in');
 		$label_register = __('Register');
 		$html = <<<HTML
-<li id="menu-item-mypage" class="menu-item menu-item-mypage menu-item-has-children dropdown" aria-haspopup="true" >
-	<a href="#" data-toggle="dropdown" class="dropdown-toggle" aria-haspopup="true">$label_settings<span class="caret"></span></a>
+<li id="menu-item-settings" class="menu-item menu-item-settings menu-item-has-children dropdown" aria-haspopup="true" >
+	<a href="#" data-toggle="dropdown" aria-haspopup="true">$label_settings<span class="caret"></span></a>
   <ul class="dropdown-menu">
 		<li class="menu-item"><a href="/wp-login.php">$label_login</a></li>
 		<li class="menu-item"><a href="/wp-login.php?action=register">$label_register</a></li>
@@ -59,8 +59,8 @@ HTML;
 			$label_cart      = '투표바구니'; //__('my voting cart',DOBslug);
 			$label_user      = '유저 계층도';//__('jsTree user hierarchy',DOBslug),
 			$html = <<<HTML
-<li id="menu-item-mypage" class="menu-item menu-item-mypage menu-item-has-children dropdown" aria-haspopup="true">
-	<a href="/wp-admin/" data-toggle="dropdown" class="dropdown-toggle" aria-haspopup="true">$label_settings<span class="caret"></span></a>
+<li id="menu-item-settings" class="menu-item menu-item-settings menu-item-has-children dropdown" aria-haspopup="true">
+	<a href="/wp-admin/" data-toggle="dropdown" aria-haspopup="true">$label_settings<span class="caret"></span></a>
   <ul class="dropdown-menu">
 		<li class="menu-item"><a href="/wp-admin/admin.php?page=dobalance">$label_dobalance</a></li>
 		<li class="menu-item"><a href="/wp-admin/admin.php?page=dobalance_jstree_favorite">$label_favorite</a></li>
@@ -100,7 +100,7 @@ function dob_make_menu_favorite() {
   $dd = $a_attr = $ul_cls = '';
   if ( $html_sub ) {
     $dd     = 'dropdown';
-    $a_attr = 'data-toggle="dropdown" class="dropdown-toggle" aria-haspopup="true"';
+    $a_attr = 'data-toggle="dropdown" aria-haspopup="true"';
     $ul_cls = 'class="dropdown-menu"';
     $label_favorite .= '<span class="caret"></span>';
   }
@@ -136,9 +136,8 @@ function dob_make_menu_taxonomy($taxonomy) {
   $dd = $a_attr = $ul_cls = '';
   if ( $html_sub ) {
     $dd     = 'dropdown';
-    $a_attr = 'data-toggle="dropdown" class="dropdown-toggle" aria-haspopup="true"';
+    $a_attr = 'data-toggle="dropdown" aria-haspopup="true"';
     $ul_cls = 'class="dropdown-menu"';
-    $ddt = 'class="dropdown-toggle"';
     $title_name .= '<span class="caret"></span>';
   }
 	return <<<HTML
