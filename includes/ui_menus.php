@@ -40,26 +40,27 @@ function dob_add_auto_nav_menu( $items, $args ){
 	}
 
 	if ( $mymenu ) {
-		$label_login    = '로그인';    // __('Log In',DOBslug);
-		$label_register = '회원가입';  // __('Register',DOBslug);
+    $label_settings = __('Settings');
+		$label_login    = __('Log in');
+		$label_register = __('Register');
 		$html = <<<HTML
 <li id="menu-item-mypage" class="menu-item menu-item-mypage menu-item-has-children dropdown" aria-haspopup="true" >
-	<a href="/wp-login.php" data-toggle="dropdown" class="dropdown-toggle" aria-haspopup="true">$label_login<span class="caret"></span></a>
+	<a href="#" data-toggle="dropdown" class="dropdown-toggle" aria-haspopup="true">$label_settings<span class="caret"></span></a>
   <ul class="dropdown-menu">
+		<li class="menu-item"><a href="/wp-login.php">$label_login</a></li>
 		<li class="menu-item"><a href="/wp-login.php?action=register">$label_register</a></li>
 	</ul>
 </li>
 HTML;
 		if ( is_user_logged_in() ) {
-			$label_mypage    = '관리';       //__('Management',DOBslug);
-			$label_dobalance = '기본설정';   //__('Basic Setting',DOBslug);
+			$label_logout    = __('Log out');
+			$label_dobalance = '기본설정';   //__('Basic Settings',DOBslug);
 			$label_favorite  = '즐겨찾기';   //__('Favorites',DOBslug);
 			$label_cart      = '투표바구니'; //__('my voting cart',DOBslug);
 			$label_user      = '유저 계층도';//__('jsTree user hierarchy',DOBslug),
-			$label_logout    = __('Log out');
 			$html = <<<HTML
 <li id="menu-item-mypage" class="menu-item menu-item-mypage menu-item-has-children dropdown" aria-haspopup="true">
-	<a href="/wp-admin/" data-toggle="dropdown" class="dropdown-toggle" aria-haspopup="true">$label_mypage<span class="caret"></span></a>
+	<a href="/wp-admin/" data-toggle="dropdown" class="dropdown-toggle" aria-haspopup="true">$label_settings<span class="caret"></span></a>
   <ul class="dropdown-menu">
 		<li class="menu-item"><a href="/wp-admin/admin.php?page=dobalance">$label_dobalance</a></li>
 		<li class="menu-item"><a href="/wp-admin/admin.php?page=dobalance_jstree_favorite">$label_favorite</a></li>
