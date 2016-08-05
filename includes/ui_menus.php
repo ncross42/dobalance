@@ -97,16 +97,17 @@ function dob_make_menu_favorite() {
 		$html_sub .= "
 			<li class='menu-item menu-item-type-favorite'><a href='/?{$m->taxonomy}={$m->slug}'>{$m->name}</a></li>";
 	}
-  $dd = $a_attr = $ul_cls = '';
+  $dd = $children = $a_attr = $ul_cls = '';
   if ( $html_sub ) {
-    $dd     = 'dropdown';
-    $a_attr = 'data-toggle="dropdown" aria-haspopup="true"';
-    $ul_cls = 'class="dropdown-menu"';
+    $dd       = 'dropdown';
+    $children = 'menu-item-has-children';
+    $a_attr   = 'data-toggle="dropdown" aria-haspopup="true"';
+    $ul_cls   = 'class="dropdown-menu"';
     $label_favorite .= '<span class="caret"></span>';
   }
 #file_put_contents('/tmp/fa.html',$sql.PHP_EOL.$html_sub);
 	return <<<HTML
-<li id="menu-item-favorite" class="menu-item menu-item-type-favorite menu-item-favorite menu-item-has-children $dd" aria-haspopup="true">
+<li id="menu-item-favorite" class="menu-item menu-item-type-favorite menu-item-favorite $children $dd" aria-haspopup="true">
 	<a href="#" $a_attr >$label_favorite</a>
 	<ul $ul_cls >
 		$html_sub
@@ -135,13 +136,14 @@ function dob_make_menu_taxonomy($taxonomy) {
 	}
   $dd = $a_attr = $ul_cls = '';
   if ( $html_sub ) {
-    $dd     = 'dropdown';
-    $a_attr = 'data-toggle="dropdown" aria-haspopup="true"';
-    $ul_cls = 'class="dropdown-menu"';
+    $dd       = 'dropdown';
+    $children = 'menu-item-has-children';
+    $a_attr   = 'data-toggle="dropdown" aria-haspopup="true"';
+    $ul_cls   = 'class="dropdown-menu"';
     $title_name .= '<span class="caret"></span>';
   }
 	return <<<HTML
-<li id="menu-item-$taxonomy" class="menu-item menu-item-type-taxonomy menu-item-$taxonomy menu-item-has-children $dd" aria-haspopup="true">
+<li id="menu-item-$taxonomy" class="menu-item menu-item-type-taxonomy menu-item-$taxonomy $children $dd" aria-haspopup="true">
 	<a href="/?$taxonomy=$title_slug/" $a_attr >$title_name</a>
 	<ul $ul_cls >
 		$html_sub
