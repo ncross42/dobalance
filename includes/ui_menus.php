@@ -14,13 +14,17 @@ function dob_add_auto_nav_menu( $items, $args ){
 	$tomenu = get_option('dob_menu_topic');
 	$mymenu = get_option('dob_menu_mypage');
 
+  $taxonomy = $slug = '';
+  if ( $slug = get_query_var('hierarchy') ) $taxonomy = 'hierarchy';
+  elseif ( $slug = get_query_var('topic') ) $taxonomy = 'topic';
+
 	// favorites
-	$html = dob_make_menu_favorite();
+	$html = dob_make_menu_favorite($taxonomy,$slug);
 	#$items = $html."\n".$items; // insert
   $items .= "\n".$html;       // append
 
 	if ( $himenu ) {
-		$html = dob_make_menu_taxonomy('hierarchy');
+		$html = dob_make_menu_taxonomy('hierarchy',($taxonomy=='hierarchy'?$slug:''));
 #file_put_contents('/tmp/hi.html',$html);
 		if ( $himenu == 'insert' ) {
 			$items = $html."\n".$items;
@@ -30,7 +34,7 @@ function dob_add_auto_nav_menu( $items, $args ){
 	}
 
 	if ( $tomenu ) {
-		$html = dob_make_menu_taxonomy('topic');
+		$html = dob_make_menu_taxonomy('topic',($taxonomy=='topic'?$slug:''));
 #file_put_contents('/tmp/to.html',$html);
 		if ( $tomenu == 'insert' ) {
 			$items = $html."\n".$items;
@@ -83,8 +87,9 @@ HTML;
 	return $items;
 }
 
-function dob_make_menu_favorite() {
+function dob_make_menu_favorite($taxonomy,$slug) {
 	global $wpdb;
+
 	$label_favorite  = '즐겨찾기';   //__('Favorites',DOBslug);
 	$sql = "SELECT term_taxonomy_id, tt.taxonomy, name, slug
 		FROM {$wpdb->prefix}dob_user_category cate
@@ -92,10 +97,15 @@ function dob_make_menu_favorite() {
 			JOIN {$wpdb->prefix}terms USING (term_id)
 		WHERE cate.taxonomy='favorite' AND user_id=".(int)get_current_user_id();
 	$menus = $wpdb->get_results($sql);
-	$html_sub = '';
+	$html_sub = $parent = '';
 	foreach ( $menus as $m ) {
+    $active = '';
+    if ( $m->taxonomy == $taxonomy && $m->slug == $slug ) {
+      $parent = 'current-menu-ancestor current-menu-parent';
+      $active = 'active';
+    }
 		$html_sub .= "
-			<li class='menu-item menu-item-type-favorite'><a href='/?{$m->taxonomy}={$m->slug}'>{$m->name}</a></li>";
+			<li class='menu-item menu-item-type-favorite $active'><a href='/?{$m->taxonomy}={$m->slug}'>{$m->name}</a></li>";
 	}
   $dd = $children = $a_attr = $ul_cls = '';
   if ( $html_sub ) {
@@ -107,7 +117,7 @@ function dob_make_menu_favorite() {
   }
 #file_put_contents('/tmp/fa.html',$sql.PHP_EOL.$html_sub);
 	return <<<HTML
-<li id="menu-item-favorite" class="menu-item menu-item-type-favorite menu-item-favorite $children $dd" aria-haspopup="true">
+<li id="menu-item-favorite" class="menu-item menu-item-type-favorite menu-item-favorite $parent $children $dd" aria-haspopup="true">
 	<a href="#" $a_attr >$label_favorite</a>
 	<ul $ul_cls >
 		$html_sub
@@ -116,7 +126,7 @@ function dob_make_menu_favorite() {
 HTML;
 }
 
-function dob_make_menu_taxonomy($taxonomy) {
+function dob_make_menu_taxonomy($taxonomy,$slug) {
 	global $wpdb;
 	$title = $wpdb->get_row("SELECT name, slug 
 		FROM {$wpdb->prefix}term_taxonomy JOIN {$wpdb->prefix}terms USING(term_id)
@@ -129,10 +139,15 @@ function dob_make_menu_taxonomy($taxonomy) {
 		WHERE taxonomy='$taxonomy' AND lvl=1
 		ORDER BY pos";
 	$menus = $wpdb->get_results($sql);
-	$html_sub = '';
+	$html_sub = $parent = '';
 	foreach ( $menus as $m ) {
+    $active = '';
+    if ( $m->slug == $slug ) {
+      $parent = 'current-menu-ancestor current-menu-parent';
+      $active = 'active';
+    }
 		$html_sub .= "
-			<li class='menu-item menu-item-type-taxonomy'><a href='/?$taxonomy={$m->slug}'>{$m->name}</a></li>";
+			<li class='menu-item menu-item-type-taxonomy $active'><a href='/?$taxonomy={$m->slug}'>{$m->name}</a></li>";
 	}
   $dd = $a_attr = $ul_cls = '';
   if ( $html_sub ) {
@@ -143,7 +158,7 @@ function dob_make_menu_taxonomy($taxonomy) {
     $title_name .= '<span class="caret"></span>';
   }
 	return <<<HTML
-<li id="menu-item-$taxonomy" class="menu-item menu-item-type-taxonomy menu-item-$taxonomy $children $dd" aria-haspopup="true">
+<li id="menu-item-$taxonomy" class="menu-item menu-item-type-taxonomy menu-item-$taxonomy $parent $children $dd" aria-haspopup="true">
 	<a href="/?$taxonomy=$title_slug/" $a_attr >$title_name</a>
 	<ul $ul_cls >
 		$html_sub
