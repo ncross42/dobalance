@@ -14,22 +14,23 @@ function dob_widget_init() {
 class Dob_Widget_Vote_Result extends WP_Widget {/*{{{*/
 
 	private $ttids;
+  private $title = '균형투표 결과'; //__( 'DoBalance Vote Result', DOBslug ), // Name
 
 	function __construct() {/*{{{*/
 		parent::__construct(
 			'dob_vote_result', // Base ID
-			__( 'DoBalance Vote Result', 'dobalance' ), // Name
+			'균형투표 결과', //__( 'DoBalance Vote Result', DOBslug ), // Name
 			array(  // Args
 				//'classname' => 'dob_class',	// CSS
-				'description' => __( 'Review the Balanced Decision Hierarchy', 'dobalance' ), 
+				'description' => __( 'Review the Balanced Decision Hierarchy', DOBslug ), 
 			)
 		);
 	}/*}}}*/
 
 	// show widget from in Appearance /*{{{*/
 	function form($instance) {	
-		//$defaults = array ( 'title' => 'get_option('dob_dashboard_title') );
-		$defaults = array ( 'title' => __( 'DoBalance Vote Result', 'dobalance' ) );
+		//$defaults = array ( 'title' => get_option('dob_dashboard_title') );
+    $defaults = array ( 'title' => $this->title );
 		$instance = wp_parse_args( (array) $instance, $defaults );
 
 		$title = esc_attr($instance['title']);
@@ -53,6 +54,9 @@ class Dob_Widget_Vote_Result extends WP_Widget {/*{{{*/
 
 	function get_history_html($logs) {/*{{{*/
     $label_my_history = '내 투표 기록'; //__('My Vote History', DOBslug);
+    $label_date_time = '일시';          //__('Date Time', DOBslug);
+    $label_value = '값';                //__('Value', DOBslug);
+/*{{{*//*
     $tr_history = '';
     foreach ( $logs as $log ) {
       $tr_history .= "
@@ -71,6 +75,28 @@ class Dob_Widget_Vote_Result extends WP_Widget {/*{{{*/
       </table>
     </div>
   </li>
+HTML;*/ /*}}}*/
+    $tr_history = '';
+    foreach ( $logs as $log ) {
+      $ip2long = ip2long($log->ip);
+      $tr_history .= "
+        <tr><td>".substr($log->ts,2)."</td><td>{$log->value}</td><td class='ip_td'>{$log->ip}</td></tr>";
+    }
+    $nLogs = count($logs);
+    return <<<HTML
+  <div class="panel-group">
+    <div class="panel panel-default">
+      <div class="panel-heading" data-toggle="collapse" data-target="#dob_widget_history">
+        <span class="panel-title">$label_my_history <span class="label label-primary pull-right">$nLogs</span></span>
+      </div>
+      <div id="dob_widget_history" class="panel-collapse collapse in">
+        <table id='table_log' class="table-bordered">
+          <tr><th style="min-width:60px">$label_date_time</th><th>$label_value</th><th>ip</th></tr>
+          $tr_history
+        </table>
+      </div>
+    </div>
+  </div>
 HTML;
 	}/*}}}*/
 
@@ -93,12 +119,11 @@ HTML;
   [before_title] => 
   [after_title] => 
   [widget_id] => dob_vote_result-2
-  [widget_name] => DoBalance Vote Result
+  [widget_name] => 균형투표 결과
 ]; */ /*}}}*/
 		extract($args);
 
 		$stat = dob_common_cache($post_id,'stat',false);
-#echo '<pre>'.print_r($stat,true).'</pre>';
 		# 1. stat
     $html_stat = empty($stat) ? '' : ( 
       ($cpt=='offer') ? dob_vote_html_stat($stat['stat_sum'])
@@ -114,18 +139,15 @@ HTML;
 		}
 
 		$content = <<<HTML
-<ul id="toggle-view">
-	<div class="bg-info">$html_stat</div>
-	<br>
-	<div class="bg-info">$html_history</div>
-</ul>
+	$html_stat
+	$html_history
 HTML;
 
 #file_put_contents('/tmp/w',$content);
 
 		$title = isset($instance['title']) ?
 			apply_filters('widget_title', $instance['title'])
-			: __('DoBalance Vote Result', DOBslug);
+			: $this->title;
 
 		echo $before_widget;
 		echo $before_title.$title.$after_title;
@@ -137,13 +159,15 @@ HTML;
 
 class Dob_Widget_Sub_Category extends WP_Widget {/*{{{*/
 
+  private $title = '하위 카테고리'; //__( 'DoBalance Sub Category', DOBslug );
+
 	function __construct() {/*{{{*/
 		parent::__construct(
 			'dob_sub_category', // Base ID
-			__( 'DoBalance Sub Category', 'dobalance' ), // Name
+			$this->title,
 			array(  // Args
 				//'classname' => 'dob_class',	// CSS
-				'description' => __( 'List Sub Category', 'dobalance' ), 
+				'description' => __( 'List Sub Category', DOBslug ), 
 			)
 		);
 	}/*}}}*/

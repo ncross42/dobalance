@@ -5,14 +5,8 @@
 
 require_once('dob_common.inc.php');
 
-add_action( 'wp', 'dob_vote_wp_init' );
-function dob_vote_wp_init() {/*{{{*/
-	//wp_enqueue_style( 'bdd-css', plugins_url( 'assets/css/bdd.css', __FILE__ ) );
-	wp_enqueue_script('dob-form-js', plugins_url('assets/js/dob_form.js',__FILE__), array('jquery'));
-	//wp_localize_script('dob-vote-js', 'dob_vote_js', array( 'ajaxurl' => admin_url( 'admin-ajax.php' )));
-	wp_enqueue_style( 'toggle-css', plugins_url( 'assets/css/toggle.css', __FILE__ ) );
-	
-}/*}}}*/
+//add_action( 'wp', 'dob_vote_wp_init' );
+//function dob_vote_wp_init() { }
 
 function dob_vote_get_gr_vals($post_id) {/*{{{*/
 	global $wpdb;
@@ -267,7 +261,7 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 		$LOGIN_IP = empty($_SESSION['LOGIN_IP']) ? '' : $_SESSION['LOGIN_IP'];
 		if ( ! empty($_POST) && $LOGIN_IP == dob_get_real_ip() ) {
       $bVote = true;
-      #echo '<pre>'.print_r($_POST,true).'</pre>';
+#echo '<pre>'.print_r($_POST,true).'</pre>';
 			if ( (int)$_POST['dob_form_cart'] ) {
 				$debug = dob_common_cart($user_id,$post_id,'offer');
 			} else {
@@ -307,6 +301,8 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 
   // hier_voter, stat_detail: 신규, 투표, 포스트변경, 계층변경
   if ( !is_array($hier_voter) || $bVote || $ts_all<$ts_post || $ts_all<$ts_struct ) {
+    // RESET count
+    $nDirect = $nGroup = $nFixed = 0;
 #$ts = microtime(true);
     $hier_voter = dob_vote_get_hierarchy_voter($post_id,$ttids);	// order by lft
 #echo '<pre>hi:'.(microtime(true)-$ts).'</pre>';
@@ -340,6 +336,7 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
             $uv_group[$uid] = $tmp_gtid_vals;
           }
           /*{{{*/ /*$gtid_vals = array();
+          // RESET count
           foreach ( $gr_ttids as $gtid ) {
             $gtid_vals[$gtid] = $gr_vals[$gtid]->value;
           }
@@ -412,7 +409,7 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
         // decision by group-voting
         foreach ( $v['uv_group'] as $uid => $info ) {
           if ( empty($v['uv_valid'][$uid]) ) {
-  #echo '<pre>'.print_r([$uid,$info,$v['uv_valid']],true).'</pre>';
+#echo '<pre>'.print_r([$uid,$info,$v['uv_valid']],true).'</pre>';
             dob_vote_make_stat($stat_detail,$vm_type,$info['value'],1,'gr');
             ++$nGroup;
           }
@@ -636,17 +633,21 @@ function dob_vote_html_stat($stat_sum) {/*{{{*/
 		$fDirect = sprintf('%0.1f%%',100*($nDirect/$nValid));
 	}
 	return <<<HTML
-	<li class="toggle">
-		<h3># $label_stat <small style="font-weight:normal;font-size:0.9em;"> - $label_valid: $fValid </small><span class="toggler">[close]</span></h3>
-		<div class="panel" style="display:block">
-			<table>
-				<tr><td style="width:80px">$label_valid     / $label_total</td><td>$fValid ( $nValid / $nTotal )</td></tr>
-				<tr><td style="width:80px">$label_hierarchy / $label_valid</td><td>$fFixed ( $nFixed / $nValid )</td></tr>
-				<tr><td style="width:80px">$label_group     / $label_valid</td><td>$fGroup ( $nGroup / $nValid )</td></tr>
-				<tr><td style="width:80px">$label_direct    / $label_valid</td><td>$fDirect ( $nDirect / $nValid )</td></tr>
-			</table>
-		</div>
-	</li>
+  <div class="panel-group">
+    <div class="panel panel-default">
+      <div class="panel-heading" data-toggle="collapse" data-target="#dob_vote_html_stat">
+        <span class="panel-title">$label_stat <span class="label label-primary pull-right">$fValid</span></span>
+      </div>
+      <div id="dob_vote_html_stat" class="panel-collapse collapse in">
+        <table class="table-bordered">
+          <tr><td style="width:80px">$label_valid     / $label_total</td><td>$fValid <span class="bg-success pull-right">$nValid / $nTotal</span></td></tr>
+          <tr><td style="width:80px">$label_hierarchy / $label_valid</td><td>$fFixed <span class="bg-success pull-right">$nFixed / $nValid</span></td></tr>
+          <tr><td style="width:80px">$label_group     / $label_valid</td><td>$fGroup <span class="bg-success pull-right">$nGroup / $nValid</span></td></tr>
+          <tr><td style="width:80px">$label_direct    / $label_valid</td><td>$fDirect<span class="bg-success pull-right">$nDirect / $nValid</span></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
 HTML;
 
 }/*}}}*/

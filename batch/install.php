@@ -22,7 +22,7 @@ $wpdb->query($sql);
 $table_name = $wpdb->prefix.'dob_cart';
 $sql = "CREATE TABLE IF NOT EXISTS `$table_name` (
 	`user_id` bigint unsigned NOT NULL DEFAULT '0',
-	`type` ENUM('vote','elect') NOT NULL DEFAULT 'vote',
+	`type` enum('offer','elect') CHARACTER SET ascii COLLATE ascii_bin NOT NULL DEFAULT 'offer',
 	`post_id` int(11) NOT NULL DEFAULT 0,
 	`value` smallint(2) NOT NULL DEFAULT 0,
 	`ts` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

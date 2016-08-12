@@ -1,1 +1,50 @@
 /* This stylesheet is used to style the public-facing components of the plugin. */
+
+/* styles by TAG  */
+article header {
+  margin-bottom: 20px;
+}
+
+table { width:100%; margin:0; }
+table th { text-align:center; background-color:#eee; min-width:20px; }
+/*table td div { overflow: hidden; text-overflow: ellipsis; }*/
+
+/* styles by CLASS  */
+.panel-title { font-weight:bold; }
+div.panel-heading {
+  padding-left: 5px;
+  padding-right: 5px;
+}
+.panel-heading:hover {
+  cursor: pointer;
+}
+.panel-heading:hover span {
+  text-decoration: underline;
+}
+
+.panel-heading:before
+, .comments-link:before
+, .edit-link:before
+, .byline:before
+, .entry-date:before {
+  font-family:'Glyphicons Halflings';
+}
+
+.comments-link:before { content: "\e111"; }
+.edit-link:before     { content: "\e065"; }
+.byline:before        { content: "\e008"; }
+.entry-date:before    { content: "\e023"; }
+
+.panel-heading:before  { content:"\e114"; }
+.panel-heading.collapsed:before { content:"\e080"; }
+
+/* detail styles by Element-ID  */
+#table_log td { text-align:right; }
+
+/* media query */
+@media (max-width:991px) {
+  div.container { width: 100%; }
+}
+@media (max-width:900px) {
+  .ip_td { word-break: break-all; }
+}

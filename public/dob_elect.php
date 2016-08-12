@@ -5,11 +5,8 @@
 
 require_once('dob_common.inc.php');
 
-add_action( 'wp', 'dob_elect_wp_init' );
-function dob_elect_wp_init() {/*{{{*/
-	wp_enqueue_script('dob-form-js', plugins_url('assets/js/dob_form.js',__FILE__), array('jquery'));
-	wp_enqueue_style( 'toggle-css', plugins_url( 'assets/css/toggle.css', __FILE__ ) );
-}/*}}}*/
+//add_action( 'wp', 'dob_elect_wp_init' );
+//function dob_elect_wp_init() { }
 
 add_filter('the_content', 'dob_elect_site_content');
 function dob_elect_site_content($content) {/*{{{*/
@@ -216,16 +213,20 @@ function dob_elect_html_stat($nDirect,$nTotal,$vm_begin,$vm_end,$bTable=false) {
 
   return $bTable ? 
     <<<HTML
-	<li class="toggle">
-		<h3># $label_stat <small style="font-weight:normal;font-size:0.9em;"> - $label_turnout: $fValid </small><span class="toggler">[close]</span></h3>
-		<div class="panel" style="display:block">
-			<table>
-				<tr><td style="width:60px">$label_begin</td><td>$vm_begin</td></tr>
-				<tr><td style="width:60px">$label_end</td><td>$vm_end</td></tr>
-				<tr><td style="width:60px">$label_turnout</td><td>$fValid ( $nDirect / $nTotal )</td></tr>
-			</table>
-		</div>
-	</li>
+  <div class="panel-group">
+    <div class="panel panel-default">
+      <div class="panel-heading" data-toggle="collapse" data-target="#dob_elect_html_stat">
+        <span class="panel-title">$label_stat <span class="label label-primary pull-right">$fValid</span></span>
+      </div>
+      <div id="dob_elect_html_stat" class="panel-collapse collapse in">
+        <table class="table-bordered">
+          <tr><td style="width:60px">$label_begin</td><td>$vm_begin</td></tr>
+          <tr><td style="width:60px">$label_end</td><td>$vm_end</td></tr>
+          <tr><td style="width:60px">$label_turnout</td><td>$fValid <span class="bg-success pull-right">$nDirect / $nTotal</span></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
 HTML
   : <<<HTML
 	<li>
