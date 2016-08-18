@@ -169,33 +169,39 @@ function dob_elect_contents( $post_id, $bEcho = false) {
 				}
 			}
 			$html_form = <<<HTML
-		<li>
-			<h3># $label_my</h3>
-			<div class='panel'>
+    <div class="panel panel-default">
+      <div class="panel-heading" data-toggle="collapse" data-target="#dob_elect_my">
+        <span class="panel-title">$label_my</span>
+      </div>
+      <div id="dob_elect_my" class="panel-collapse collapse in">
 				$content_form 
-			</div>
-		</li>
+      </div>
+    </div>
 HTML;
       /*}}}*/
 		} else {	// AFTER /*{{{*/
 			$label_result .= ' : '.$label_after;
-			$content_chart = dob_elect_html_chart($result_stat,$vm_label,$nTotal,$nDirect);
-      $html_chart = "<li>
-        <h3># $label_chart</h3>
-        <div class='panel'> $content_chart </div>
-      </li>";
+			$content_chart = dob_elect_html_chart($result_stat,$vm_label,$nTotal,$nDirect,$vm_type=='plural');
+      $html_chart = <<<HTML
+    <div class="panel panel-default">
+      <div class="panel-heading" data-toggle="collapse" data-target="#dob_elect_html_chart">
+        <span class="panel-title">$label_chart</span>
+      </div>
+      <div id="dob_elect_html_chart" class="panel-collapse collapse in">
+        $content_chart
+      </div>
+    </div>
+HTML;
 		} /*}}}*/
 	}
 
 	$html_stat = dob_elect_html_stat($nDirect,$nTotal,$vm_begin,$vm_end,false);
 
 	$dob_elect = <<<HTML
-<ul id="toggle-view"><!--{{{-->
 	$html_stat
 	$html_chart
 	$html_form
 	$html_history
-</ul><!--}}}-->
 HTML;
 
 	if ($bEcho) echo $dob_elect;
@@ -229,20 +235,22 @@ function dob_elect_html_stat($nDirect,$nTotal,$vm_begin,$vm_end,$bTable=false) {
   </div>
 HTML
   : <<<HTML
-	<li>
-		<h3># $label_stat</h3>
-		<div class="panel">
-			<div>$label_time : $vm_begin ~ $vm_end</div>
-			<div>$label_turnout : $fValid ( $nDirect / $nTotal )</div>
-		</div>
-	</li>
+    <div class="panel panel-default" style="clear:both;">
+      <div class="panel-heading" data-toggle="collapse" data-target="#dob_elect_stat">
+        <span class="panel-title">$label_stat</span>
+      </div>
+      <div id="dob_elect_stat" class="panel-collapse collapse in">
+        <div>$label_time : $vm_begin ~ $vm_end</div>
+        <div>$label_turnout : $fValid ( $nDirect / $nTotal )</div>
+      </div>
+    </div>
 HTML;
 
 }/*}}}*/
 
-function dob_elect_html_chart($result_stat,$vm_label,$nTotal,$nDirect) {/*{{{*/
+function dob_elect_html_chart($result_stat,$vm_label,$nTotal,$nDirect,$bPlural=false) {/*{{{*/
 	$ret = /*{{{*/ "<style>
-.barchart { width: 100%; height:20px; border-collapse: collapse; }
+.barchart { width: 100%; height:25px; border-collapse: collapse; }
 .barchart td div { height:20px; text-align:center; overflow: hidden; text-overflow: ellipsis; }
 .barchart .c-1 { background-color: BLUE; color:white; } /*TANGERINE ;*/
 .barchart .c0 { background-color: #FFF; }
@@ -259,16 +267,17 @@ function dob_elect_html_chart($result_stat,$vm_label,$nTotal,$nDirect) {/*{{{*/
 	ksort($result_stat,SORT_NUMERIC);
 
 #echo '<pre>'.print_r([$nTotal,$nDirect,$result_stat],true).'</pre>';
+	$nBlank = $nTotal - $nDirect;
+  $fBlank = $nBlank/$nTotal;
 
 	$htmls = $tr1 = $tr2 = array();
 	foreach ( $result_stat as $k => $v ) {
 		$class = 'c'.$k;
-		$f = sprintf('%0.1f%%',100*$v/$nTotal);
+		$f = sprintf('%0.1f%%',100*$v*($bPlural?$fBlank:1)/$nTotal);
 		$text = "$f ($v)";
 		$tr1[] = sprintf($td_format, $f, $v, $class, $class, $text );
 		$tr2[] = sprintf($td_format, $f, $vm_label[$k], $class, $class, $vm_label[$k] );
 	}
-	$nBlank = $nTotal - $nDirect;
 	if ( $nBlank > 0 ) {
 		$class = 'bl';
     $label = '미투표';   //__('Unpolled', DOBslug);

@@ -535,10 +535,14 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 		$content_hierarchy = implode('<br>',$hierarchies);
 		$label_analysis = '투표 분석';	//__('Direct voter', DOBslug);
 		$html_hierarchy = <<<HTML
-	<li class="toggle">
-		<h3># $label_analysis<span class="toggler">[close]</span></h3>
-		<div class="panel" style='display:block; font-size:1.12em'> $content_hierarchy </div>
-	</li>
+    <div class="panel panel-default" style="clear:both;">
+      <div class="panel-heading" data-toggle="collapse" data-target="#dob_vote_html_hierarchy">
+        <span class="panel-title">$label_analysis</span>
+      </div>
+      <div id="dob_vote_html_hierarchy" class="panel-collapse collapse in">
+        $content_hierarchy
+      </div>
+    </div>
 HTML;
 	}/*}}}*/
 
@@ -556,11 +560,19 @@ HTML;
 				$vm_legend[$k+1] = $v;
 			}
 		}
+    #echo '<pre>'.print_r($stat_sum,true).'</pre>';
+    #echo '<pre>'.print_r($stat_detail,true).'</pre>';
 		$content_chart = dob_vote_html_chart($stat_detail,$vm_legend,$nTotal);
-		$html_chart = "<li>
-			<h3># $label_chart</h3>
-			<div class='panel'> $content_chart </div>
-		</li>";
+    $html_chart = <<<HTML
+    <div class="panel panel-default" style="clear:both;">
+      <div class="panel-heading" data-toggle="collapse" data-target="#dob_vote_html_chart">
+        <span class="panel-title">$label_chart</span>
+      </div>
+      <div id="dob_vote_html_chart" class="panel-collapse collapse in">
+        $content_chart
+      </div>
+    </div>
+HTML;
 
 		if ( empty($user_id) ) {
 			$content_form = "<a href='/wp-login.php' style='color:red; font-weight:bold'>$label_login</a>";
@@ -569,12 +581,18 @@ HTML;
 		} else {
 			$content_form = dob_vote_display_mine($post_id,$vm_type,$vm_legend,$myval,$user_id);
 		}
-		$html_form = "<li>
-			<h3># $label_my</h3>
-			<div class='panel'> $content_form </div>
-		</li>";
+    $html_form = <<<HTML
+    <div class="panel panel-default" style="clear:both;">
+      <div class="panel-heading" data-toggle="collapse" data-target="#dob_vote_html_form">
+        <span class="panel-title">$label_my</span>
+      </div>
+      <div id="dob_vote_html_form" class="panel-collapse collapse in">
+        $content_form
+      </div>
+    </div>
+HTML;
 
-		/*if ( $user_id ) {
+		/*{{{*/ /*if ( $user_id ) {
 			$html_history = <<<HTML
 			<li class='toggle'>
 				<h3># $label_my $label_history<span class='toggler'>[open]</span></h3>
@@ -595,17 +613,15 @@ HTML;
 				</div>
 			</li>
 HTML;
-		}*/
+		}*/ /*}}}*/
 	}/*}}}*/
 
 	$dob_vote = <<<HTML
-<ul id="toggle-view"><!--{{{-->
 	$html_stat
 	$html_chart
 	$html_hierarchy
 	$html_form
 	$html_history 
-</ul><!--}}}-->
 HTML;
 
 	if ($bEcho) echo $dob_vote;
@@ -654,7 +670,7 @@ HTML;
 
 function dob_vote_html_chart($stat_detail,$vm_legend,$nTotal) {/*{{{*/
 	$ret = "<style> /*{{{*/
-.barchart { width: 100%; border-width:0px; border-collapse: collapse; }
+.barchart { width: 100%; height:25px; border-collapse: collapse; }
 .barchart td div { height:20px; text-align:center; overflow: hidden; text-overflow: ellipsis; }
 .barchart .c-1 { background-color: BLUE; color:white; } /*TANGERINE ;*/
 .barchart .c0  { background-color: #FFF; }
@@ -706,8 +722,8 @@ function dob_vote_html_chart($stat_detail,$vm_legend,$nTotal) {/*{{{*/
 		$un = sprintf($td_format, $ratio, $text, '', '', $text );
 		$tr1[] = $un; $tr2[] = $un;
 	}
-	$ret .= '<table class="barchart"><tr>'.implode(' ',$tr1).'</tr></table>';
-	$ret .= '<table class="barchart"><tr>'.implode(' ',$tr2).'</tr></table>';
+	$ret .= '<table class="barchart" border="1px"><tr>'.implode(' ',$tr1).'</tr></table>';
+	$ret .= '<table class="barchart" border="1px"><tr>'.implode(' ',$tr2).'</tr></table>';
 
 	return $ret;
 }/*}}}*/

@@ -56,26 +56,6 @@ class Dob_Widget_Vote_Result extends WP_Widget {/*{{{*/
     $label_my_history = '내 투표 기록'; //__('My Vote History', DOBslug);
     $label_date_time = '일시';          //__('Date Time', DOBslug);
     $label_value = '값';                //__('Value', DOBslug);
-/*{{{*//*
-    $tr_history = '';
-    foreach ( $logs as $log ) {
-      $tr_history .= "
-        <tr><td>{$log->ts}</td><td>{$log->value}</td><td>{$log->ip}</td></tr>";
-    }
-    return <<<HTML
-<style>
-#table_log th { background-color:#eee; text-transform:none; text-align:center; padding:0; }
-</style>
-  <li class='toggle'>
-    <h3># $label_my_history<span class='toggler'>[close]</span></h3>
-    <div class='panel' style='display:block'>
-      <table id='table_log'>
-        <tr><th>date time</th><th width="35px">value</th><th>ip</th></tr>
-        $tr_history
-      </table>
-    </div>
-  </li>
-HTML;*/ /*}}}*/
     $tr_history = '';
     foreach ( $logs as $log ) {
       $ip2long = ip2long($log->ip);
