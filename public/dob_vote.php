@@ -299,6 +299,8 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
     $gr_vals = dob_vote_get_gr_vals($post_id);
   }
 
+  #$bVote = true;
+#echo '<pre>'.print_r(compact('nTotal','nDirect','nFixed','nGroup'),true).'</pre>';
   // hier_voter, stat_detail: 신규, 투표, 포스트변경, 계층변경
   if ( !is_array($hier_voter) || $bVote || $ts_all<$ts_post || $ts_all<$ts_struct ) {
     // RESET count
@@ -435,6 +437,7 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 #file_put_contents('/tmp/hv.'.date('His').'.php',print_r($hier_voter,true));
 
   $stat_sum = compact('nTotal','nDirect','nFixed','nGroup');
+#echo '<pre>'.print_r($stat_sum,true).'</pre>';
 
   // Cache STAT, 통계: 신규, 실제 통계값 변경
   $stat_json = json_encode(compact('stat_sum','stat_detail'),JSON_UNESCAPED_UNICODE);

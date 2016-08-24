@@ -26,6 +26,7 @@ function dob_admin_init() {
 
 	// register_setting
 	// MENUS
+	register_setting( DOBslug.'_options_menu', 'dob_menu_style'     , 'trim' );
 	register_setting( DOBslug.'_options_menu', 'dob_menu_hierarchy' , 'trim' );
 	register_setting( DOBslug.'_options_menu', 'dob_menu_topic'     , 'trim' );
 	register_setting( DOBslug.'_options_menu', 'dob_menu_mypage'    , 'trim' );

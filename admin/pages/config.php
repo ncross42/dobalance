@@ -20,6 +20,15 @@ $label_spi = '개인정보 취급'; //__('Successfully Certified', DOBslug);
 				<form method="post" action="options.php">
 					<?php settings_fields(DOBslug.'_options_menu'); ?>
 					<table class="form-table">
+						<tr valign="top"><th scope="row">Nav Menu Styles</th>
+							<td>
+								<label><input type="radio" name="dob_menu_style" value="" <?php checked(get_option('dob_menu_style'), ''); ?> >default</label>
+								&nbsp; &nbsp;
+								<label>
+									<input type="radio" name="dob_menu_style" value="bootstrap" <?php checked(get_option('dob_menu_style'), 'bootstrap'); ?> >bootstrap</label>
+								<br><span class="description"><?php echo __( 'Auto generated Menu CSS Styles (default or bootstrap)', DOBslug ); ?></span>
+							</td>
+						</tr>
 						<tr valign="top"><th scope="row">Auto Hierarchy Menu</th>
 							<td>
 								<label><input type="radio" name="dob_menu_hierarchy" value="" <?php checked(get_option('dob_menu_hierarchy'), ''); ?> >disable</label>

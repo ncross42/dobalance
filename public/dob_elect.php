@@ -268,7 +268,7 @@ function dob_elect_html_chart($result_stat,$vm_label,$nTotal,$nDirect,$bPlural=f
 
 #echo '<pre>'.print_r([$nTotal,$nDirect,$result_stat],true).'</pre>';
 	$nBlank = $nTotal - $nDirect;
-  $fBlank = $nBlank/$nTotal;
+  $fBlank = 1.0 - $nBlank/$nTotal;
 
 	$htmls = $tr1 = $tr2 = array();
 	foreach ( $result_stat as $k => $v ) {
