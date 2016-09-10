@@ -20,7 +20,7 @@ function recalc_chl() {/*{{{*/
 
 	$sql = "SELECT parent, COUNT(1) AS chl
 		FROM $t_term_taxonomy 
-		WHERE taxonomy='hierarchy'
+		WHERE taxonomy='hierarchy' AND parent<>0
 		GROUP BY parent";
 	$rows = $wpdb->get_results($sql);
 	foreach ( $rows as $r ) {

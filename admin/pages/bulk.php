@@ -94,6 +94,7 @@ if ( is_array($_POST)
 			++$skipped;
 		}
 	}
+	$jstree->rebuild_children();
 	$last_index = $jstree->rebuild_mptt_index();
 	$message .= " Added: $added // Updated: $updated // Skipped: $skipped // Last_Index: $last_index";
 	$jstree->log2cache("admin bulk page $message");

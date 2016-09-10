@@ -12,6 +12,8 @@
 *.sass-cache
 *.concat.js
 *.concat.css
+*.min.js
+*.min.css
 
 # OS or Editor folders
 .DS_Store

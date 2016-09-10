@@ -390,7 +390,7 @@ class jsTree
 		$sql[] = "
 			UPDATE ".$t_base."
 				SET ".$base['left']." = ".$base['left']." + ".$width."
-			WHERE `taxonomy`='$taxonomy'
+			WHERE `taxonomy`='$taxonomy' AND
 				".$base['left']." >= ".(int)$ref_lft." AND
 				".$base['id']." NOT IN(".implode(',',$tmp).")
 			";
@@ -408,7 +408,7 @@ class jsTree
 		$sql[] = "
 			UPDATE ".$t_base."
 				SET ".$base['right']." = ".$base['right']." + ".$width."
-			WHERE `taxonomy`='$taxonomy'
+			WHERE `taxonomy`='$taxonomy' AND
 				".$base['right']." >= ".(int)$ref_rgt." AND
 				".$base['id']." NOT IN(".implode(',',$tmp).")
 			";
@@ -446,7 +446,7 @@ class jsTree
 		$sql[] = "
 			UPDATE ".$t_base."
 				SET ".$base['left']." = ".$base['left']." - ".$width."
-			WHERE `taxonomy`='$taxonomy'
+			WHERE `taxonomy`='$taxonomy' AND
 				".$base['left']." > ".(int)$src[$base['right']]." AND
 				".$base['id']." NOT IN(".implode(',',$tmp).")
 		";
@@ -454,7 +454,7 @@ class jsTree
 		$sql[] = "
 			UPDATE ".$t_base."
 				SET ".$base['right']." = ".$base['right']." - ".$width."
-			WHERE `taxonomy`='$taxonomy'
+			WHERE `taxonomy`='$taxonomy' AND
 				".$base['right']." > ".(int)$src[$base['right']]." AND
 				".$base['id']." NOT IN(".implode(',',$tmp).")
 		";
@@ -963,6 +963,28 @@ class jsTree
 		}
 		echo str_repeat("-",40);
 		echo "\n\n";
+	}/*}}}*/
+
+	public function rebuild_children() {/*{{{*/
+		extract($this->options);
+		echo $sql = "
+			SELECT
+				{$base['parent_id']} AS parent, COUNT(1) AS chl
+			FROM `$t_base`
+			WHERE `taxonomy` = '$taxonomy' AND {$base['parent_id']} <> 0
+			GROUP BY parent";
+		$rows = $this->db->get_results($sql);
+    foreach ( $rows as $r ) {
+      //$sql = "UPDATE $t_term_taxonomy SET chl = {$r->chl} WHERE term_taxonomy_id = {$r->parent}";
+      //$aff = $wpdb->query($sql);
+      //echo "\n".preg_replace('/\s+/',' ',print_r($r,true))." : ".var_export($aff,true);
+			$this->db->update( $t_base	// table
+				, array( $base['children'] => $r->chl )	// data
+				, array( $base['id'] => $r->parent )		// where
+				, array( '%d' )		// data_format
+				, array( '%d' )		// where_format
+			);
+    }
 	}/*}}}*/
 
 	public function rebuild_position() {/*{{{*/

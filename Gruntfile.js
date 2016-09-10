@@ -5,21 +5,23 @@ module.exports = function(grunt) {
     compass: {//{{{
       admin: {
         options: {
+          environment: 'production',
+          sourcemap: false,
           sassDir: 'admin/assets/sass',
           cssDir: 'admin/assets/css',
-          environment: 'production',
           relativeAssets: true
         }
       },
       public: {
         options: {
+          environment: 'production',
+          sourcemap: false,
           sassDir: 'public/assets/sass',
           cssDir: 'public/assets/css',
-          environment: 'production',
           relativeAssets: true
         }
       },
-      adminDev: {//{{{
+      adminDev: {
         options: {
           environment: 'development',
           debugInfo: true,
@@ -40,9 +42,9 @@ module.exports = function(grunt) {
           outputStyle: 'expanded',
           relativeAssets: true
         }
-      }//}}}
+      }
     },//}}}
-		concat:{
+		concat:{//{{{
 			admin_js: {
 				src: ['admin/assets/js/*.js'], //concat 타겟 설정(순서대로 합쳐진다.)
 				dest: 'admin/assets/admin.concat.js' //concat 결과 파일
@@ -59,7 +61,7 @@ module.exports = function(grunt) {
 				src: ['public/assets/css/*.css'], //concat 타겟 설정(순서대로 합쳐진다.)
 				dest: 'public/assets/public.concat.css' //concat 결과 파일
 			}
-		},
+		},//}}}
 		uglify: {//{{{
 			options: {
 				preserveComments: 'some'
@@ -86,7 +88,7 @@ module.exports = function(grunt) {
 				dest: 'public/assets/public.min.css' //uglify 결과 파일 설정
 			}
 		},//}}}
-    watch: {
+    watch: {//{{{
       compass: {
         files: [
           'admin/assets/sass/*.scss',
@@ -131,7 +133,7 @@ module.exports = function(grunt) {
 					'cssmin:public'
 				]
 			}
-    }
+    }//}}}
   });
 
   // Load tasks
