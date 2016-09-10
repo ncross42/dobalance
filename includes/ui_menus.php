@@ -166,7 +166,7 @@ function dob_make_menu_taxonomy($bBS,$taxonomy,$slug) {
   return <<<HTML
 <li id="menu-item-$taxonomy" class="menu-item menu-item-type-taxonomy menu-item-$taxonomy $parent $children $dd" aria-haspopup="true">
   <a href="/?$taxonomy=$title_slug/" $a_attr >$title_name</a>
-  <ul $ul_cls >
+  <ul class="$ul_cls" >
     $html_sub
   </ul>
 </li>
