@@ -243,7 +243,7 @@ class DoBalance_Admin {
 		 * 'manage_options' : http://codex.wordpress.org/Roles_and_Capabilities
 		 */
 		$this->plugin_screen_hook_suffix[] = add_options_page(
-			__( 'aa Page Title', $this->plugin_slug ), $this->plugin_name, 'manage_options', $this->plugin_slug
+			__( 'DoBalance Admin', $this->plugin_slug ), $this->plugin_name, 'manage_options', $this->plugin_slug
 			, array( $this, 'display_plugin_admin_page' )
 		);
 

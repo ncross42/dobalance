@@ -105,8 +105,8 @@ function dob_admin_add_menu() {/*{{{*/
 
 	// MAIN menu
 	$dob_screen_hook[] = add_menu_page( 
-		__('DoBalance',DOBslug), __('DoBalance',DOBslug), 'read'
-		, DOBslug, 'dob_admin_page', 'dashicons-hammer', 3
+    __('DoBalance',DOBslug), __('DoBalance',DOBslug), 
+    'edit_posts' , DOBslug, 'dob_admin_page', 'dashicons-hammer', 3
 	);
 
 	// SUB menu : jsTree favorite (default)

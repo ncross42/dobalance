@@ -138,9 +138,9 @@ function dob_make_menu_taxonomy($bBS,$taxonomy,$slug) {
     FROM {$wpdb->prefix}term_taxonomy JOIN {$wpdb->prefix}terms USING(term_id)
     WHERE taxonomy='$taxonomy' AND lvl=0 LIMIT 1");
   if ( empty($title) ) return '';
-  $title_name = $title->name; $title_slug = $title->slug;
-  $title_name .= ' 전체';	// __('All',DOBslug);
-  $sql = "SELECT name, slug
+  $title_name = '전체 ';	// __('All',DOBslug);
+  $title_name .= $title->name; $title_slug = $title->slug;
+  $sql = "SELECT name, slug, chl, term_taxonomy_id
     FROM {$wpdb->prefix}term_taxonomy JOIN {$wpdb->prefix}terms USING(term_id) 
     WHERE taxonomy='$taxonomy' AND lvl=1
     ORDER BY pos";
@@ -152,8 +152,28 @@ function dob_make_menu_taxonomy($bBS,$taxonomy,$slug) {
         $parent = 'current-menu-ancestor current-menu-parent';
         $active = 'active';
       }
-      $html_sub .= "
-      <li class='menu-item menu-item-type-taxonomy $active'><a href='/?$taxonomy={$m->slug}'>{$m->name}</a></li>";
+      $html_sub_hr = '';
+      $html_sub2 = '';
+      if ( !empty($m->chl) && $m->slug=='seoulyg' ) {
+        $html_sub_hr = '<li class="menu-item" style="height:5px; background-color:silver;"></li>';
+        $sql = "SELECT name, slug
+          FROM {$wpdb->prefix}term_taxonomy JOIN {$wpdb->prefix}terms USING(term_id) 
+          WHERE taxonomy='$taxonomy' AND parent={$m->term_taxonomy_id}
+          ORDER BY pos";
+          $sub_menus = $wpdb->get_results($sql);
+          foreach ( $sub_menus as $sub_m ) {
+            $active = '';
+            if ( $sub_m->slug == $slug ) {
+              $parent = 'current-menu-ancestor current-menu-parent';
+              $active = 'active';
+            }
+            $html_sub2 .= "
+              <li class='menu-item menu-item-type-taxonomy $active'><a href='/?$taxonomy={$sub_m->slug}'> &gt; {$sub_m->name}</a></li>";
+          }
+      }
+      $html_sub .= $html_sub_hr."
+        <li class='menu-item menu-item-type-taxonomy $active'><a href='/?$taxonomy={$m->slug}'>{$m->name}</a></li>";
+      $html_sub .= $html_sub2;
   }
   $dd = $a_attr = $ul_cls = '';
   if ( $html_sub ) {
