@@ -3,7 +3,7 @@
 require_once( DOBpath.'includes/jstree.class.php' );
 
 
-function dob_admin_ajax_get_users($ttid) {
+function dob_admin_ajax_get_users($ttid) {/*{{{*/
 	global $wpdb;
 	$sql = <<<SQL
 SELECT chl, user_id, user_login, display_name
@@ -13,9 +13,9 @@ FROM {$wpdb->prefix}dob_user_category
 WHERE taxonomy = 'hierarchy' AND term_taxonomy_id = $ttid
 SQL;
 	return $wpdb->get_results($sql);
-}
+}/*}}}*/
 
-function dob_admin_ajax_check_child_users($lft,$rgt) {
+function dob_admin_ajax_check_child_users($lft,$rgt) {/*{{{*/
 	global $wpdb;
 	$sql = <<<SQL
 SELECT MAX(inf)
@@ -24,7 +24,7 @@ WHERE taxonomy = 'hierarchy'
 	AND $lft < lft AND rgt < $rgt
 SQL;
 	return $wpdb->get_var($sql);
-}
+}/*}}}*/
 
 add_action( 'wp_ajax_dob_admin_page_user', 'dob_admin_page_user' );
 function dob_admin_page_user() { /*{{{*/
@@ -51,13 +51,14 @@ function dob_admin_page_user() { /*{{{*/
 	$jstree = new jsTree(array('taxonomy'=>'hierarchy'));
 	$branches = $jstree->get_children($pid);
 	foreach ( $branches as $v ) {
-		if ( empty($v['inf']) ) { 
+		$ttid = (int)$v['term_taxonomy_id'];
+		$users = dob_admin_ajax_get_users($ttid);
+
+		if ( empty($users) &&  empty($v['inf']) ) { 
 			if ( empty($v['chl']) ) continue;
 			$max_inf = dob_admin_ajax_check_child_users( (int)$v['lft'], (int)$v['rgt'] );
 			if ( empty($max_inf) ) continue;
 		}
-		$ttid = (int)$v['term_taxonomy_id'];
-		$users = dob_admin_ajax_get_users($ttid);
 
 		switch ( $v['taxonomy'] ) {
 		case 'hierarchy': $icon = 'dashicons dashicons-networking'; break;

@@ -95,8 +95,8 @@ class jsTree
 		$fields_base = implode("`, s.`", $base);
 		$fields_data = implode("`, d.`", $data);
 		$sql_taxonomy = empty($taxonomy) ? '' 
-			: ( is_string($taxonomy) ?  "s.`taxonomy` = '$taxonomy' AND "
-				: "s.`taxonomy` IN ('".implode("','",$taxonomy)."') AND"
+			: ( is_string($taxonomy) ?  "s.taxonomy = '$taxonomy' AND "
+				: "s.taxonomy IN ('".implode("','",$taxonomy)."') AND"
 			);
 		$sql = false;
 		if($recursive) {
@@ -105,14 +105,11 @@ class jsTree
 				SELECT
 					s.".implode(", s.", $base).",
 					d.".implode(", d.", $data)."
-				FROM
-					`$t_base` s JOIN `$t_data` d USING (`$k_d2b`)
-				WHERE
-					$sql_taxonomy
+				FROM `$t_base` s JOIN `$t_data` d USING (`$k_d2b`)
+				WHERE $sql_taxonomy
 					s.".$base['left']." > ".(int)$node[$base['left']]." AND
 					s.".$base['right']." < ".(int)$node[$base['right']]."
-				ORDER BY
-					s.".$base['left']."
+				ORDER BY s.".$base['left']."
 			";
 		}
 		else {
@@ -120,13 +117,10 @@ class jsTree
 				SELECT
 					s.".implode(", s.", $base).",
 					d.".implode(", d.", $data)."
-				FROM
-					`$t_base` s JOIN `$t_data` d USING (`$k_d2b`)
-				WHERE
-					$sql_taxonomy
+				FROM `$t_base` s JOIN `$t_data` d USING (`$k_d2b`)
+				WHERE $sql_taxonomy
 					s.".$base['parent_id']." = ".(int)$id."
-				ORDER BY
-					s.".$base['position']."
+				ORDER BY s.".$base['position']."
 			";
 		}
 		return $this->db->get_results($sql, ARRAY_A);
