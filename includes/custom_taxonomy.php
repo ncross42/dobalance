@@ -4,11 +4,11 @@ add_action( 'init', 'dob_register_taxonomy' );
 function dob_register_taxonomy() {
 
 	// register_taxonomy: hierarchy /*{{{*/
-	$singular	= __( 'hierarchy', DOBslug );
-	$plural		= __( 'hierarchies', DOBslug );
+	$singular	= '계층'; //__( 'hierarchy', DOBslug );
+	$plural		= '계층들'; //__( 'hierarchies', DOBslug );
 	$args = array (
 		'hierarchical'			=> true,
-		'label'							=> $plural,
+		'label'							=> $singular,
 		//'labels'						=> $labels,
 		'public'						=> true,	// effects [ show_ui, show_in_nav_menus ]
 		'show_ui'						=> true,	// effects [ show_tagcloud, show_in_quick_edit ]
@@ -20,11 +20,11 @@ function dob_register_taxonomy() {
 	register_taxonomy( 'hierarchy', array('elect', 'offer','post'), $args );/*}}}*/
 
 	// register_taxonomy: topic /*{{{*/
-	$singular	= __( 'topic', DOBslug );
-	$plural		= __( 'topics', DOBslug );
+	$singular	= '주제'; //__( 'topic', DOBslug );
+	$plural		= '주제들'; //__( 'topics', DOBslug );
 	$args = array (
 		'hierarchical'			=> true,
-		'label'							=> $plural,
+		'label'							=> $singular,
 		//'labels'						=> $labels,
 		'public'						=> true,	// effects [ show_ui, show_in_nav_menus ]
 		'show_ui'						=> true,	// effects [ show_tagcloud, show_in_quick_edit ]

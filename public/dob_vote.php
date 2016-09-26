@@ -465,18 +465,19 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 	## build HTML 
 	# labels /*{{{*/
 	//$label_title		= '균형 투표';		//__('Balance Voting', DOBslug);
-	$label_total		= '전체';						//__('Total Users', DOBslug);
-	$label_valid		= '유효';						//__('Total Users', DOBslug);
-	$label_hierarchy= '계층';						//__('Hierarchy voter', DOBslug);
-	$label_group		= '그룹';						//__('Delegate voter', DOBslug);
-	$label_direct		= '직접';						//__('Direct voter', DOBslug);
-	$label_chart		= '결과 차트';			//__('Direct voter', DOBslug);
-	$label_my				= '내 투표';				//__('My Vote', DOBslug);
-	#$label_history	= '기록';				//__('My Vote', DOBslug);
-	$label_vote			= '투표';						//__('Vote', DOBslug);
-	$label_influence= '영향력 관계도';	//__('Direct voter', DOBslug);
-	$label_no_pos		= '계층이 지정되지 않아, 투표할 수 없습니다.';	//__('Direct voter', DOBslug); 
-	$label_login		= '로그인 해주세요';	//__('Please Login', DOBslug);
+	$label_total		  = '전체';						//__('Total Users', DOBslug);
+	$label_valid		  = '유효';						//__('Total Users', DOBslug);
+	$label_hierarchy  = '계층';						//__('Hierarchy voter', DOBslug);
+	$label_group		  = '그룹';						//__('Delegate voter', DOBslug);
+	$label_direct		  = '직접';						//__('Direct voter', DOBslug);
+	$label_chart		  = '결과 차트';			//__('Direct voter', DOBslug);
+	$label_my				  = '내 투표';				//__('My Vote', DOBslug);
+	#$label_history	  = '기록';				//__('My Vote', DOBslug);
+	$label_vote			  = '투표';						//__('Vote', DOBslug);
+	$label_influence  = '영향력 관계도';	//__('Direct voter', DOBslug);
+	$label_no_pos		  = '계층이 지정되지 않아, 투표할 수 없습니다.';	//__('Direct voter', DOBslug); 
+	$label_invalid_pos= '소속계층이 투표대상이 아닙니다.';	//__('Direct voter', DOBslug); 
+	$label_login      = '로그인 해주세요';	//__('Please Login', DOBslug);
 	/*}}}*/
 
 	// build html hierarchy chart
@@ -581,6 +582,8 @@ HTML;
 			$content_form = "<a href='/wp-login.php' style='color:red; font-weight:bold'>$label_login</a>";
 		} else if ( empty($myinfo->term_taxonomy_id) ) {
 			$content_form = "<span style='color:red; font-size:1.2em; font-weight:bold'>$label_no_pos</span>";
+		} else if ( ! in_array($myinfo->term_taxonomy_id,$ttids) ) {
+			$content_form = "<span style='color:red; font-size:1.2em; font-weight:bold'>$label_invalid_pos</span>";
 		} else {
 			$content_form = dob_vote_display_mine($post_id,$vm_type,$vm_legend,$myval,$user_id);
 		}

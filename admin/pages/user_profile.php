@@ -34,10 +34,16 @@ function dob_admin_profile( $user ) {/*{{{*/
 	dob_admin_multiple_select_scripts();
 	$target_user_id = $user->ID;
 
-	$tr_hierarchy = dob_admin_user_hierarchy($target_user_id);
-	$tr_group = dob_admin_user_group($target_user_id);
+	$label_denial = '사용자 등급이 낮습니다. "안내" -> "등업 요청" 게시판에 요청해 주세요.'; // __( "You don't have 'Author' Roll, plz request Roll-upgrade at the 'upgrade-roll' BBS.", DOBslug );
+  $tr_hierarchy = $tr_group = '';
+  if ( user_can( $target_user_id, 'publish_posts' ) ) {
+    $tr_hierarchy = dob_admin_user_hierarchy($target_user_id);
+    $tr_group = dob_admin_user_group($target_user_id);
+  } else {
+    $tr_hierarchy = $label_denial;
+  }
 
-	$label_dob = '균형 직접 민주주의 시스템'; // __( 'DoBalance', DOBslug );
+	$label_dob = '균형 민주주의 시스템'; // __( 'DoBalance', DOBslug );
 	echo <<<HTML
 	<h3>$label_dob</h3>
 	<table class="form-table">
