@@ -131,9 +131,13 @@ function dob_common_get_user_info($user_id) {/*{{{*/
 	global $wpdb;
 
 	$sql = <<<SQL
-SELECT *
-FROM {$wpdb->prefix}dob_user_category
-	JOIN {$wpdb->prefix}users ON user_id=ID
+SELECT 
+  user_id, user_login, user_nicename, display_name,
+  taxonomy, term_taxonomy_id, 
+  term_id, description, parent, `count`, inf, chl, anc
+FROM {$wpdb->prefix}dob_user_category duc
+	JOIN {$wpdb->prefix}users u ON user_id=ID
+	JOIN {$wpdb->prefix}term_taxonomy tt USING(taxonomy,term_taxonomy_id)
 WHERE taxonomy='hierarchy' AND user_id=$user_id
 SQL;
 	return $wpdb->get_row($sql);
@@ -323,5 +327,17 @@ function dob_common_cart( $user_id, $post_id, $cpt='offer' ) {/*{{{*/
 	$success = $wpdb->query( $sql );	// success == 1 (affected_rows)
 	return $ret = $success ? '' : "DB ERROR(SQL)<br>\n: ".$sql;
 
+}/*}}}*/
+
+function dob_common_get_hierarchy_info( $ttids = array() ) {/*{{{*/
+ /*
+  global $wpdb;
+  $t_terms         = $wpdb->prefix.'terms';
+  $t_term_taxonomy = $wpdb->prefix.'term_taxonomy';
+  $sql = "SELECT term_taxonomy_id, term_id, name, slug
+    FROM $t_term_taxonomy tt JOIN $t_terms t USING (term_id)
+    WHERE term_taxonomy_id IN (".implode(',',$ttids).')';
+	$rows = $wpdb->get_results($sql);
+  */
 }/*}}}*/
 

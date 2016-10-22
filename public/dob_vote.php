@@ -471,17 +471,18 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 	$label_group		  = '그룹';						//__('Delegate voter', DOBslug);
 	$label_direct		  = '직접';						//__('Direct voter', DOBslug);
 	$label_chart		  = '결과 차트';			//__('Direct voter', DOBslug);
-	$label_my				  = '내 투표';				//__('My Vote', DOBslug);
+	$label_my				  = '내';				//__('My Vote', DOBslug);
 	#$label_history	  = '기록';				//__('My Vote', DOBslug);
 	$label_vote			  = '투표';						//__('Vote', DOBslug);
 	$label_influence  = '영향력 관계도';	//__('Direct voter', DOBslug);
 	$label_no_pos		  = '계층이 지정되지 않아, 투표할 수 없습니다.';	//__('Direct voter', DOBslug); 
 	$label_invalid_pos= '소속계층이 투표대상이 아닙니다.';	//__('Direct voter', DOBslug); 
 	$label_login      = '로그인 해주세요';	//__('Please Login', DOBslug);
+  $label_analysis   = '분석';	//__('Direct voter', DOBslug);
 	/*}}}*/
 
-	// build html hierarchy chart
-	$html_hierarchy = '';/*{{{*/
+	// build html vote analysis
+	$html_analysis_full = '';/*{{{*/
 	if ( is_single() ) {
 		$vote_latest = dob_common_get_latest_by_ttids($post_id,$ttids,'offer');	// user_id => rows	// for login_name
 		$myval = empty($vote_latest[$user_id]) ? null : (int)$vote_latest[$user_id]['value'];
@@ -536,15 +537,47 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 				$hierarchies[] = $indent.$v['tname']."({$v['inf']}) : $val <span style='background-color:yellow'>[ {$v['value']} ]</span> ($yes) $no";
 			}
 		}/*}}}*/
-		$content_hierarchy = implode('<br>',$hierarchies);
-		$label_analysis = '투표 분석';	//__('Direct voter', DOBslug);
-		$html_hierarchy = <<<HTML
+		$content_analysis = implode('<br>',$hierarchies);
+		$html_analysis_full = <<<HTML
     <div class="panel panel-default" style="clear:both;">
-      <div class="panel-heading" data-toggle="collapse" data-target="#dob_vote_html_hierarchy">
-        <span class="panel-title">$label_analysis</span>
+      <div class="panel-heading" data-toggle="collapse" data-target="#dob_vote_html_analysis_full">
+        <span class="panel-title">$label_total $label_analysis</span>
       </div>
-      <div id="dob_vote_html_hierarchy" class="panel-collapse collapse in">
-        $content_hierarchy
+      <div id="dob_vote_html_analysis_full" class="panel-collapse collapse">
+        $content_analysis
+      </div>
+    </div>
+HTML;
+	}/*}}}*/
+
+	$html_analysis_my = '';/*{{{*/
+	if ( is_single() ) {
+		$vote_latest = dob_common_get_latest_by_ttids($post_id,$ttids,'offer');	// user_id => rows	// for login_name
+		$myval = empty($vote_latest[$user_id]) ? null : (int)$vote_latest[$user_id]['value'];
+    $my_anc_vals = [];
+    foreach ( explode(',',$myinfo->anc) as $ttid ) {
+      $my_anc_vals[$ttid] = isset($hier_voter[$ttid]['value']) ? $hier_voter[$ttid]['value'] : null;
+    }
+#echo '<pre>'.print_r($myinfo,true).'</pre>';
+#echo '<pre>'.print_r($hier_voter,true).'</pre>';
+#echo '<pre>'.print_r($my_anc_vals,true).'</pre>';
+
+		$content_analysis = '';
+    $content_my_anc = '';
+    $ttids_null = array_keys(array_filter($my_anc_vals, function($v){return $v===null;}));
+    $ttids_null_valid = array_intersect ( $ttids, $ttids_null );
+#echo '<pre>'.print_r($ttids_null_valid,true).'</pre>';
+    foreach( $my_anc_vals as $anc => $val ) {
+      #$content_my_anc
+    }
+		$html_analysis_my = <<<HTML
+    <div class="panel panel-default" style="clear:both;">
+      <div class="panel-heading" data-toggle="collapse" data-target="#dob_vote_html_analysis_my">
+        <span class="panel-title">$label_my $label_vote $label_analysis</span>
+      </div>
+      <div id="dob_vote_html_analysis_my" class="panel-collapse collapse in">
+test
+        $content_analysis
       </div>
     </div>
 HTML;
@@ -590,7 +623,7 @@ HTML;
     $html_form = <<<HTML
     <div class="panel panel-default" style="clear:both;">
       <div class="panel-heading" data-toggle="collapse" data-target="#dob_vote_html_form">
-        <span class="panel-title">$label_my</span>
+        <span class="panel-title">$label_my $label_vote</span>
       </div>
       <div id="dob_vote_html_form" class="panel-collapse collapse in">
         $content_form
@@ -625,7 +658,8 @@ HTML;
 	$dob_vote = <<<HTML
 	$html_stat
 	$html_chart
-	$html_hierarchy
+	$html_analysis_full
+	$html_analysis_my
 	$html_form
 	$html_history 
 HTML;
