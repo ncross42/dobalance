@@ -330,14 +330,36 @@ function dob_common_cart( $user_id, $post_id, $cpt='offer' ) {/*{{{*/
 }/*}}}*/
 
 function dob_common_get_hierarchy_info( $ttids = array() ) {/*{{{*/
- /*
   global $wpdb;
   $t_terms         = $wpdb->prefix.'terms';
   $t_term_taxonomy = $wpdb->prefix.'term_taxonomy';
-  $sql = "SELECT term_taxonomy_id, term_id, name, slug
+  $sql = "SELECT term_taxonomy_id, term_id, name, slug, lvl, inf
     FROM $t_term_taxonomy tt JOIN $t_terms t USING (term_id)
     WHERE term_taxonomy_id IN (".implode(',',$ttids).')';
-	$rows = $wpdb->get_results($sql);
-  */
+	return $wpdb->get_results($sql);
+}/*}}}*/
+
+function dob_common_get_all_group_ttid_values($post_id) {/*{{{*/
+	global $wpdb;
+
+	$t_latest        = $wpdb->prefix.'dob_vote_post_latest';
+	$t_term_taxonomy = $wpdb->prefix.'term_taxonomy';
+	$t_terms         = $wpdb->prefix.'terms';
+	$t_category      = $wpdb->prefix.'dob_user_category';
+	$sql = <<<SQL
+SELECT term_taxonomy_id AS ttid, t.name, l.value, l.ts
+FROM $t_term_taxonomy tt
+	JOIN $t_terms t USING (term_id)
+	JOIN $t_category c USING (term_taxonomy_id)
+	JOIN $t_latest l USING (user_id)
+WHERE tt.taxonomy = 'group' AND c.taxonomy='hierarchy'
+	AND post_id = $post_id
+SQL;
+	$rows = $wpdb->get_results($sql,ARRAY_A);
+	$ret = array();
+	foreach ( $rows as $row ) {
+		$ret[(int)$row['ttid']] = $row;
+	}
+	return $ret;
 }/*}}}*/
 

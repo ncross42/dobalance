@@ -63,8 +63,8 @@ function dob_admin_user_group( $target_user_id ) {/*{{{*/
 		$options .= "\n\t<option value='{$r->ttid}' $selected>{$r->name}</option>";
 	}
 
-	$label_title = '그룹 자유위임'; // __( 'Group Delegation', DOBslug );
-	$label_desc = '활동/지지 그룹에 자유롭게 위임해주세요'; // __( 'Please Delegate to Groups Freely', DOBslug );
+	$label_title = '단체 자유위임'; // __( 'Group Delegation', DOBslug );
+	$label_desc = '활동/지지 단체에 자유롭게 위임해주세요'; // __( 'Please Delegate to Groups Freely', DOBslug );
 	$label_restrict = '단, 대표직의 자유위임 설정은 무시됩니다. (순환위임 방지)'; // __( 'If you're a delegator, all these setting is ignored, for prevent Circular Delegation', DOBslug );
 	return $html = <<<HTML
 		<tr>

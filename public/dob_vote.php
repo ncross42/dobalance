@@ -8,31 +8,7 @@ require_once('dob_common.inc.php');
 //add_action( 'wp', 'dob_vote_wp_init' );
 //function dob_vote_wp_init() { }
 
-function dob_vote_get_gr_vals($post_id) {/*{{{*/
-	global $wpdb;
-
-	$t_latest		= $wpdb->prefix . 'dob_vote_post_latest';
-	$t_term_taxonomy = $wpdb->prefix . 'term_taxonomy';
-	$t_terms		= $wpdb->prefix . 'terms';
-	$t_category = $wpdb->prefix . 'dob_user_category';
-	$sql = <<<SQL
-SELECT term_taxonomy_id AS ttid, t.name, l.value, l.ts
-FROM $t_term_taxonomy tt
-	JOIN $t_terms t USING (term_id)
-	JOIN $t_category c USING (term_taxonomy_id)
-	JOIN $t_latest l USING (user_id)
-WHERE tt.taxonomy = 'group' AND c.taxonomy='hierarchy'
-	AND post_id = $post_id
-SQL;
-	$rows = $wpdb->get_results($sql,ARRAY_A);
-	$ret = array();
-	foreach ( $rows as $row ) {
-		$ret[(int)$row['ttid']] = $row;
-	}
-	return $ret;
-}/*}}}*/
-
-function dob_vote_get_user_group_all_ttid_values($user_id,$gr_vals,$vm_type,$bAll=true) {/*{{{*/
+function dob_vote_get_user_group_ttid_values($user_id,$gr_vals,$vm_type,$bAll=true) {/*{{{*/
 	global $wpdb;
 
 	$t_category = $wpdb->prefix.'dob_user_category';
@@ -296,7 +272,7 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 
   // gr_vals: 신규, 투표, 계층변경
   if ( is_null($gr_vals) || $bVote || $ts_all<$ts_struct ) {
-    $gr_vals = dob_vote_get_gr_vals($post_id);
+    $gr_vals = dob_common_get_all_group_ttid_values($post_id);
   }
 
   #$bVote = true;
@@ -333,7 +309,7 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
         } TODO: WHY??? */
         foreach ( $uv_tmp as $uid ) {
           // get only available group values
-          $tmp_gtid_vals = dob_vote_get_user_group_all_ttid_values($uid,$gr_vals,$vm_type,false);
+          $tmp_gtid_vals = dob_vote_get_user_group_ttid_values($uid,$gr_vals,$vm_type,false);
           if ( !empty($tmp_gtid_vals) && !empty($tmp_gtid_vals['value']) ) {
             $uv_group[$uid] = $tmp_gtid_vals;
           }
@@ -462,132 +438,36 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 
 	$myinfo = $user_id ? dob_common_get_user_info($user_id) : null;
 
-	## build HTML 
-	# labels /*{{{*/
-	//$label_title		= '균형 투표';		//__('Balance Voting', DOBslug);
-	$label_total		  = '전체';						//__('Total Users', DOBslug);
-	$label_valid		  = '유효';						//__('Total Users', DOBslug);
-	$label_hierarchy  = '계층';						//__('Hierarchy voter', DOBslug);
-	$label_group		  = '그룹';						//__('Delegate voter', DOBslug);
-	$label_direct		  = '직접';						//__('Direct voter', DOBslug);
-	$label_chart		  = '결과 차트';			//__('Direct voter', DOBslug);
-	$label_my				  = '내';				//__('My Vote', DOBslug);
-	#$label_history	  = '기록';				//__('My Vote', DOBslug);
-	$label_vote			  = '투표';						//__('Vote', DOBslug);
-	$label_influence  = '영향력 관계도';	//__('Direct voter', DOBslug);
-	$label_no_pos		  = '계층이 지정되지 않아, 투표할 수 없습니다.';	//__('Direct voter', DOBslug); 
-	$label_invalid_pos= '소속계층이 투표대상이 아닙니다.';	//__('Direct voter', DOBslug); 
-	$label_login      = '로그인 해주세요';	//__('Please Login', DOBslug);
-  $label_analysis   = '분석';	//__('Direct voter', DOBslug);
-	/*}}}*/
-
-	// build html vote analysis
-	$html_analysis_full = '';/*{{{*/
-	if ( is_single() ) {
-		$vote_latest = dob_common_get_latest_by_ttids($post_id,$ttids,'offer');	// user_id => rows	// for login_name
-		$myval = empty($vote_latest[$user_id]) ? null : (int)$vote_latest[$user_id]['value'];
-#echo '<pre>'.print_r($myinfo,true).'</pre>';
-		$hierarchies = array();/*{{{*/
-		$all_group_vals = array();
-		foreach( $gr_vals as $gr ) {
-			$all_group_vals[] = $gr['name'].':'.$gr['value'];
-		}
-		$hierarchies[] = " ## $label_total $label_group $label_vote <br> &nbsp; ".implode(', ',$all_group_vals);
-		$hierarchies[] = " ## $label_hierarchy $label_influence";
-
-		foreach ( $hier_voter as $ttid => $v ) {
-			$uv_valid = $v['uv_valid'];
-			$indent = ' &nbsp; '.str_repeat(' -- ',$v['lvl']);
-			$inherit = 0;
-			foreach ( $v['anc'] as $a_ttid ) {
-				if ( !empty($hier_voter[$a_ttid]['value']) ) {
-					$inherit = $hier_voter[$a_ttid]['value'];
-				}
-			}
-			if ( empty($v['chl']) ) {	// leaf
-				$str_mine = '';
-				$grname_vals = array();
-				// info of myval and mygroup
-				if ( $myinfo && $ttid == $myinfo->term_taxonomy_id ) {
-					$mygroup = isset($v['uv_group'][$user_id]) ? $v['uv_group'][$user_id]
-						: dob_vote_get_user_group_all_ttid_values($user_id,$gr_vals,$vm_type,true) ;
-#echo '<pre>'.var_export([$user_id,$gr_vals,$mygroup],true).'</pre>';
-					if ( ! empty($mygroup) ) {
-						$grname_vals[] = "<span style='background-color:yellow'>[ {$mygroup['value']} ]</span>";
-						foreach ( $mygroup['gtid_vals'] as $gtid => $val ) {
-							$grname_vals[] = isset($gr_vals[$gtid]) ? $gr_vals[$gtid]['name'].":<b>$val</b>" : '';
-						}
-					}
-					$str_mine = "<span style='color:red'>@{$myinfo->user_nicename}:<b>".(is_null($myval)?'null':$myval)."</b></span>";
-				}
-				$str_group = empty($grname_vals) ? '' : '// '.implode(', ',$grname_vals);
-				$uvc_valid	= count($v['uv_valid']);
-				$hierarchies[] = $indent.$v['tname']."({$v['inf']}-$uvc_valid) : <u>$inherit</u> $str_mine $str_group";
-			} else {	// branch
-				$yes = $no = array();
-				foreach ( $uv_valid as $uid => $val ) {
-					$str = $vote_latest[$uid]['user_nicename'].":<b>$val</b>";
-					$yes[] = ( $uid==$user_id ) ? "<span style='color:red'>@$str</span>" : $str;
-				}
-				$yes = implode(', ',$yes);
-				$no = array_diff($v['all_ids'],array_keys($uv_valid));
-				$no_ids = dob_vote_get_user_nicenames($no);
-				$no = empty($no_ids) ? '' : '<strike>'.implode(', ',$no_ids).'</strike>';
-				$val = empty($v['value']) ? "<u>$inherit</u>" : "<b>{$v['value']}</b>";
-				$hierarchies[] = $indent.$v['tname']."({$v['inf']}) : $val <span style='background-color:yellow'>[ {$v['value']} ]</span> ($yes) $no";
-			}
-		}/*}}}*/
-		$content_analysis = implode('<br>',$hierarchies);
-		$html_analysis_full = <<<HTML
-    <div class="panel panel-default" style="clear:both;">
-      <div class="panel-heading" data-toggle="collapse" data-target="#dob_vote_html_analysis_full">
-        <span class="panel-title">$label_total $label_analysis</span>
-      </div>
-      <div id="dob_vote_html_analysis_full" class="panel-collapse collapse">
-        $content_analysis
-      </div>
-    </div>
-HTML;
-	}/*}}}*/
-
-	$html_analysis_my = '';/*{{{*/
-	if ( is_single() ) {
-		$vote_latest = dob_common_get_latest_by_ttids($post_id,$ttids,'offer');	// user_id => rows	// for login_name
-		$myval = empty($vote_latest[$user_id]) ? null : (int)$vote_latest[$user_id]['value'];
-    $my_anc_vals = [];
-    foreach ( explode(',',$myinfo->anc) as $ttid ) {
-      $my_anc_vals[$ttid] = isset($hier_voter[$ttid]['value']) ? $hier_voter[$ttid]['value'] : null;
-    }
-#echo '<pre>'.print_r($myinfo,true).'</pre>';
-#echo '<pre>'.print_r($hier_voter,true).'</pre>';
-#echo '<pre>'.print_r($my_anc_vals,true).'</pre>';
-
-		$content_analysis = '';
-    $content_my_anc = '';
-    $ttids_null = array_keys(array_filter($my_anc_vals, function($v){return $v===null;}));
-    $ttids_null_valid = array_intersect ( $ttids, $ttids_null );
-#echo '<pre>'.print_r($ttids_null_valid,true).'</pre>';
-    foreach( $my_anc_vals as $anc => $val ) {
-      #$content_my_anc
-    }
-		$html_analysis_my = <<<HTML
-    <div class="panel panel-default" style="clear:both;">
-      <div class="panel-heading" data-toggle="collapse" data-target="#dob_vote_html_analysis_my">
-        <span class="panel-title">$label_my $label_vote $label_analysis</span>
-      </div>
-      <div id="dob_vote_html_analysis_my" class="panel-collapse collapse in">
-test
-        $content_analysis
-      </div>
-    </div>
-HTML;
-	}/*}}}*/
+  ## build HTML 
+  # labels /*{{{*/
+  $label_for_devel  = '개발자용';       //__('Balance Voting', DOBslug);
+  $label_total      = '전체';           //__('Total Users', DOBslug);
+  $label_valid      = '유효';           //__('Total Users', DOBslug);
+  $label_hierarchy  = '계층';           //__('Hierarchy voter', DOBslug);
+  $label_group      = '단체';           //__('Delegate voter', DOBslug);
+  $label_direct     = '직접';           //__('Direct voter', DOBslug);
+  $label_result     = '결과';           //__('Direct voter', DOBslug);
+  $label_chart      = '차트';           //__('Direct voter', DOBslug);
+  $label_my         = '내';             //__('My Vote', DOBslug);
+  $label_other      = '다른';           //__('My Vote', DOBslug);
+  $label_history    = '기록';           //__('My Vote', DOBslug);
+  $label_vote       = '투표';           //__('Vote', DOBslug);
+  $label_influence  = '영향력 관계도';  //__('Direct voter', DOBslug);
+  $label_no_pos     = '계층이 지정되지 않아,';  //__('Direct voter', DOBslug); 
+  $label_no_vote    = '투표할 수 없습니다.';  //__('Direct voter', DOBslug); 
+  $label_no_analysis= '분석할 수 없습니다.';  //__('Direct voter', DOBslug); 
+  $label_invalid_pos= '소속계층이 투표대상이 아닙니다.';  //__('Direct voter', DOBslug); 
+  $label_login      = '로그인 해주세요'; //__('Please Login', DOBslug);
+  $label_analysis   = '분석';            //__('Direct voter', DOBslug);
+  $label_3rd        = '3순위';           //__('3rd Priority', DOBslug);
+  $label_2rd        = '2순위';           //__('2rd Priority', DOBslug);
+  $label_1rd        = '1순위';           //__('1rd Priority', DOBslug);
+  /*}}}*/
 
 	$html_stat = ''; // dob_vote_html_stat($stat_sum);
 
-	$html_chart = $html_form = $html_history = '';/*{{{*/
-	if ( is_single() ) {
-		$content_form = '';
+  $html_chart = $html_analysis = $html_myvote = $html_history = '';
+  if ( is_single() ) { /*{{{*/
 		$vm_legend = ($vm_type=='updown') ? 
 			array( -1=>'반대', 0=>'기권' ) : array( -1=>'모두반대', 0=>'기권' );
 		if ( $vm_type == 'updown' ) {
@@ -597,13 +477,12 @@ HTML;
 				$vm_legend[$k+1] = $v;
 			}
 		}
-    #echo '<pre>'.print_r($stat_sum,true).'</pre>';
     #echo '<pre>'.print_r($stat_detail,true).'</pre>';
 		$content_chart = dob_vote_html_chart($stat_detail,$vm_legend,$nTotal);
     $html_chart = <<<HTML
     <div class="panel panel-default" style="clear:both;">
       <div class="panel-heading" data-toggle="collapse" data-target="#dob_vote_html_chart">
-        <span class="panel-title">$label_chart</span>
+        <span class="panel-title">$label_result $label_chart</span>
       </div>
       <div id="dob_vote_html_chart" class="panel-collapse collapse in">
         $content_chart
@@ -611,61 +490,208 @@ HTML;
     </div>
 HTML;
 
-		if ( empty($user_id) ) {
-			$content_form = "<a href='/wp-login.php' style='color:red; font-weight:bold'>$label_login</a>";
-		} else if ( empty($myinfo->term_taxonomy_id) ) {
-			$content_form = "<span style='color:red; font-size:1.2em; font-weight:bold'>$label_no_pos</span>";
-		} else if ( ! in_array($myinfo->term_taxonomy_id,$ttids) ) {
-			$content_form = "<span style='color:red; font-size:1.2em; font-weight:bold'>$label_invalid_pos</span>";
-		} else {
-			$content_form = dob_vote_display_mine($post_id,$vm_type,$vm_legend,$myval,$user_id);
-		}
-    $html_form = <<<HTML
+    ############################
+    # build html vote analysis #
+    ############################
+    $content_analysis_all = ''; /*{{{*/
+    $vote_latest = dob_common_get_latest_by_ttids($post_id,$ttids,'offer');	// user_id => rows	// for login_name
+    $myval = empty($vote_latest[$user_id]) ? null : (int)$vote_latest[$user_id]['value'];
+    #echo '<pre>'.print_r($myinfo,true).'</pre>';
+    $hierarchies = array();/*{{{*/
+    $all_group_vals = array();
+    foreach( $gr_vals as $gtid => $gr ) {
+      $all_group_vals[$gtid] = $gr['name'].':'.$gr['value'];
+    }
+    $hierarchies[] = " ## $label_total $label_group $label_vote <br> &nbsp; ".implode(', ',$all_group_vals);
+    $hierarchies[] = " ## $label_hierarchy $label_influence";
+
+    foreach ( $hier_voter as $ttid => $v ) {
+      $uv_valid = $v['uv_valid'];
+      $indent = ' &nbsp; '.str_repeat(' -- ',$v['lvl']);
+      $inherit = 0;
+      foreach ( $v['anc'] as $a_ttid ) {
+        if ( !empty($hier_voter[$a_ttid]['value']) ) {
+          $inherit = $hier_voter[$a_ttid]['value'];
+        }
+      }
+      if ( empty($v['chl']) ) {	// leaf
+        $str_mine = '';
+        $grname_vals = array();
+        // info of myval and mygroup
+        if ( $myinfo && $ttid == $myinfo->term_taxonomy_id ) {
+          $mygroup = isset($v['uv_group'][$user_id]) ? $v['uv_group'][$user_id]
+            : dob_vote_get_user_group_ttid_values($user_id,$gr_vals,$vm_type,true) ;
+          #echo '<pre>'.var_export([$user_id,$gr_vals,$mygroup],true).'</pre>';
+          if ( ! empty($mygroup) ) {
+            $grname_vals[] = "<span style='background-color:yellow'>[ {$mygroup['value']} ]</span>";
+            foreach ( $mygroup['gtid_vals'] as $gtid => $val ) {
+              $grname_vals[] = isset($gr_vals[$gtid]) ? $gr_vals[$gtid]['name'].":<b>$val</b>" : '';
+            }
+          }
+          $str_mine = "<span style='color:red'>@{$myinfo->user_nicename}:<b>".(is_null($myval)?'null':$myval)."</b></span>";
+        }
+        $str_group = empty($grname_vals) ? '' : '// '.implode(', ',$grname_vals);
+        $uvc_valid	= count($v['uv_valid']);
+        $hierarchies[] = $indent.$v['tname']."({$v['inf']}-$uvc_valid) : <u>$inherit</u> $str_mine $str_group";
+      } else {	// branch
+        $yes = $no = array();
+        foreach ( $uv_valid as $uid => $val ) {
+          $str = $vote_latest[$uid]['user_nicename'].":<b>$val</b>";
+          $yes[] = ( $uid==$user_id ) ? "<span style='color:red'>@$str</span>" : $str;
+        }
+        $yes = implode(', ',$yes);
+        $no = array_diff($v['all_ids'],array_keys($uv_valid));
+        $no_ids = dob_vote_get_user_nicenames($no);
+        $no = empty($no_ids) ? '' : '<strike>'.implode(', ',$no_ids).'</strike>';
+        $val = empty($v['value']) ? "<u>$inherit</u>" : "<b>{$v['value']}</b>";
+        $hierarchies[] = $indent.$v['tname']."({$v['inf']}) : $val <span style='background-color:yellow'>[ {$v['value']} ]</span> ($yes) $no";
+      }
+    }/*}}}*/
+    $content_analysis_all = implode('<br>',$hierarchies);
+    /*}}}*/
+
+    $content_analysis_myhier = $content_analysis_mygroup = "$label_no_pos $label_no_analysis";
+    if ( $myinfo ) { 
+      // content_analysis_myhier /*{{{*/
+      $vote_latest = dob_common_get_latest_by_ttids($post_id,$ttids,'offer');	// user_id => rows	// for login_name
+      $hierarchies = [];
+      #echo '<pre>'.print_r([$myinfo->anc],true).'</pre>';
+      $my_ttids = explode(',',$myinfo->anc);
+      $my_ttids[] = $myinfo->term_taxonomy_id;
+      $inherit = 0;
+      foreach ( $my_ttids as $ttid ) {
+        $v = empty($hier_voter[$ttid]) ? null : $hier_voter[$ttid];
+        #echo '<pre>'.print_r($v['anc'],true).'</pre>';
+        #echo '<pre>'.print_r($v['uv_group'],true).'</pre>';
+        if ( empty($v) ) {  // get only ttid's info
+          list($v) = dob_common_get_hierarchy_info([$ttid]);  // get only one tt info.
+          #echo '<pre>'.print_r([$ttid,$v],true).'</pre>';
+          $indent = ' &nbsp; '.str_repeat(' -- ',$v->lvl);
+          $hierarchies[] = $indent.$v->name." ({$v->inf}) : <u>$inherit</u>";
+        } elseif ( ! empty($v['chl']) ) {	// branch
+          foreach ( $v['anc'] as $a_ttid ) {
+            if ( !empty($hier_voter[$a_ttid]['value']) ) {
+              $inherit = $hier_voter[$a_ttid]['value'];
+            }
+          }
+          $uv_valid = $v['uv_valid'];
+          $indent = ' &nbsp; '.str_repeat(' -- ',$v['lvl']);
+          $yes = $no = array();
+          foreach ( $uv_valid as $uid => $val ) {
+            $str = $vote_latest[$uid]['user_nicename'].":<b>$val</b>";
+            $yes[] = ( $uid==$user_id ) ? "<span style='color:red'>@$str</span>" : $str;
+          }
+          $yes = implode(', ',$yes);
+          $no = array_diff($v['all_ids'],array_keys($uv_valid));
+          $no_ids = dob_vote_get_user_nicenames($no);
+          $no = empty($no_ids) ? '' : '<strike>'.implode(', ',$no_ids).'</strike>';
+          $val = empty($v['value']) ? "<u>$inherit</u>" : "<b>{$v['value']}</b>";
+          $hierarchies[] = $indent.$v['tname']."({$v['inf']}) : $val <span style='background-color:yellow'>[ {$v['value']} ]</span> ($yes) $no";
+        }
+      }
+      $content_analysis_myhier = empty($hierarchies) ? '' : implode('<br>',$hierarchies);
+      /*}}}*/
+
+      // content_analysis_mygroup /*{{{*/
+      // info of myval and mygroup
+      $ttid = $myinfo->term_taxonomy_id;
+      $mygroup = empty($hier_voter[$ttid]['uv_group'][$user_id]) ? null : $hier_voter[$ttid]['uv_group'][$user_id];
+      $my_group_final = $html_group_my = $html_group_other = '';
+      if ( isset($mygroup['value']) && isset($mygroup['gtid_vals']) ) {
+        $my_group_final = $mygroup['value'];
+        $arr_group_my = $arr_group_other = [];
+        foreach ( $mygroup['gtid_vals'] as $gtid => $val ) {
+          if ( ! empty($all_group_vals[$gtid]) ) {
+            #$arr_group_my[] = $all_group_vals[$gtid]['name'].":<b>$val</b>";
+            $arr_group_my[] = $all_group_vals[$gtid];
+            unset($all_group_vals[$gtid]);
+          }
+        }
+        $html_group_my = implode(', ',$arr_group_my);
+      }
+      foreach ( $all_group_vals as $gtid => $group ) {
+        #$arr_group_other[] = $group['name'].":<b>${group['value']}</b>";
+        $arr_group_other[] = $group;
+      }
+      $html_group_other = implode(', ',$arr_group_other);
+      $content_analysis_mygroup = <<<HTML
+            $label_my $label_group $label_vote $label_result : <b>$my_group_final</b> <br>
+            $label_my $label_group $label_vote : $html_group_my <br>
+            $label_other $label_group $label_vote : $html_group_other
+HTML;
+      /*}}}*/
+    }
+
+    /*{{{*/ $html_analysis = <<<HTML
     <div class="panel panel-default" style="clear:both;">
-      <div class="panel-heading" data-toggle="collapse" data-target="#dob_vote_html_form">
-        <span class="panel-title">$label_my $label_vote</span>
+      <div class="panel-heading" data-toggle="collapse" data-target="#dob_vote_html_analysis_section">
+        <span class="panel-title">$label_vote $label_analysis</span>
       </div>
-      <div id="dob_vote_html_form" class="panel-collapse collapse in">
-        $content_form
+      <div id="dob_vote_html_analysis_section" class="panel-collapse collapse in">
+        <div class="panel panel-default" style="clear:both;margin-left:20px;margin-right:20px">
+          <div class="panel-heading collapsed" data-toggle="collapse" data-target="#dob_vote_html_analysis_all">
+            <span class="panel-title">$label_total $label_analysis ($label_for_devel)</span>
+          </div>
+          <div id="dob_vote_html_analysis_all" class="panel-collapse collapse">
+            $content_analysis_all
+          </div>
+        </div>
+        <div class="panel panel-default" style="clear:both;margin-left:20px;margin-right:20px">
+          <div class="panel-heading" data-toggle="collapse" data-target="#dob_vote_html_analysis_my_hier">
+            <span class="panel-title">$label_my $label_hierarchy $label_analysis ($label_3rd)</span>
+          </div>
+          <div id="dob_vote_html_analysis_my_hier" class="panel-collapse collapse in">
+            $content_analysis_myhier
+          </div>
+        </div>
+        <div class="panel panel-default" style="clear:both;margin-left:20px;margin-right:20px">
+          <div class="panel-heading" data-toggle="collapse" data-target="#dob_vote_html_analysis_my_group">
+            <span class="panel-title">$label_my $label_group $label_analysis ($label_2rd)</span>
+          </div>
+          <div id="dob_vote_html_analysis_my_group" class="panel-collapse collapse in">
+            $content_analysis_mygroup
+          </div>
+        </div>
       </div>
     </div>
 HTML;
+/*}}}*/
 
-		/*{{{*/ /*if ( $user_id ) {
-			$html_history = <<<HTML
-			<li class='toggle'>
-				<h3># $label_my $label_history<span class='toggler'>[open]</span></h3>
-				<div class='panel' style='display:none'>
-					<table id='table_log'>
-						<tr><th>date_time</th><th>value</th><th>ip</th></tr>
-HTML;
-			foreach ( dob_common_get_log($post_id,$user_id,'offer') as $log ) {
-				$html_history .= <<<HTML
-						<tr><td>{$log->ts}</td><td>{$log->value}</td><td>{$log->ip}</td></tr>
-HTML;
-			}
-			$html_history .= <<<HTML
-					</table>
-<style>
-#table_log th { background-color:#eee; text-transform:none; text-align:center; padding:0; }
-</style>
-				</div>
-			</li>
-HTML;
-		}*/ /*}}}*/
-	}/*}}}*/
+    $content_myform = ''; /*{{{*/
+    if ( empty($user_id) ) {
+      $content_myform = "<a href='/wp-login.php' style='color:red; font-weight:bold'>$label_login</a>";
+    } else if ( empty($myinfo->term_taxonomy_id) ) {
+      $content_myform = "<span style='color:red; font-size:1.2em; font-weight:bold'>$label_no_pos $label_no_vote</span>";
+    } else if ( !empty($ttids) && ! in_array($myinfo->term_taxonomy_id,$ttids) ) {
+      $content_myform = "<span style='color:red; font-size:1.2em; font-weight:bold'>$label_invalid_pos</span>";
+    } else {
+      $content_myform = dob_vote_display_mine($post_id,$vm_type,$vm_legend,$myval,$user_id);
+    }
 
-	$dob_vote = <<<HTML
-	$html_stat
-	$html_chart
-	$html_analysis_full
-	$html_analysis_my
-	$html_form
-	$html_history 
+    $html_myvote = <<<HTML
+    <div class="panel panel-default" style="clear:both;">
+      <div class="panel-heading" data-toggle="collapse" data-target="#dob_vote_html_myvote">
+        <span class="panel-title">$label_my $label_vote ($label_1rd)</span>
+      </div>
+      <div id="dob_vote_html_myvote" class="panel-collapse collapse in">
+        $content_myform
+      </div>
+    </div>
+HTML;
+    /*}}}*/
+
+  }/*}}}*/
+
+  $dob_vote = <<<HTML
+  $html_stat
+  $html_chart
+  $html_analysis
+  $html_myvote
+  $html_history 
 HTML;
 
-	if ($bEcho) echo $dob_vote;
-	else return $dob_vote;
+  if ($bEcho) echo $dob_vote;
+  else return $dob_vote;
 }
 
 function dob_vote_html_stat($stat_sum) {/*{{{*/
@@ -677,7 +703,7 @@ function dob_vote_html_stat($stat_sum) {/*{{{*/
 	$label_total		= '전체';						//__('Total Users', DOBslug);
 	$label_valid		= '유효';						//__('Total Users', DOBslug);
 	$label_hierarchy= '계층';						//__('Hierarchy voter', DOBslug);
-	$label_group		= '그룹';						//__('Delegate voter', DOBslug);
+	$label_group		= '단체';						//__('Delegate voter', DOBslug);
 	$label_direct		= '직접';						//__('Direct voter', DOBslug);
 
   $fValid = $fFixed = $fGroup = $fDirect = '0.0%';
@@ -726,7 +752,7 @@ function dob_vote_html_chart($stat_detail,$vm_legend,$nTotal) {/*{{{*/
 
 	$str_di = '직접'; //__('Direct', DOBslug),
 	$str_hi = '계층'; //__('Hierarchy', DOBslug),
-	$str_gr = '그룹'; //__('Group', DOBslug),
+	$str_gr = '단체'; //__('Group', DOBslug),
 	$str_un = '미투표';	//__('Blank', DOBslug)
 	$td_format = "<td width='%s' title='%s' class='%s'><div class='%s'>%s</div></td>";
 	ksort($stat_detail,SORT_NUMERIC);
