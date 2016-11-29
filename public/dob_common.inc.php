@@ -333,7 +333,7 @@ function dob_common_get_hierarchy_info( $ttids = array() ) {/*{{{*/
   global $wpdb;
   $t_terms         = $wpdb->prefix.'terms';
   $t_term_taxonomy = $wpdb->prefix.'term_taxonomy';
-  $sql = "SELECT term_taxonomy_id, term_id, name, slug, lvl, inf
+  $sql = "SELECT term_taxonomy_id, term_id, name, slug, lvl, inf, parent
     FROM $t_term_taxonomy tt JOIN $t_terms t USING (term_id)
     WHERE term_taxonomy_id IN (".implode(',',$ttids).')';
 	return $wpdb->get_results($sql);

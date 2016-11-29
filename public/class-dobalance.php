@@ -376,6 +376,7 @@ class DoBalance {
 	 */
 	public function enqueue_styles() {
 		wp_enqueue_style( $this->get_plugin_slug() . '-plugin-styles', plugins_url( 'assets/css/public.css', __FILE__ ), array(), self::VERSION );
+		wp_enqueue_style( $this->get_plugin_slug() . '-jquery-treetable-css', plugins_url( 'assets/css/jquery.treetable.theme.default.css', __FILE__ ), array(), self::VERSION );
 	}
 
 	/**
@@ -385,6 +386,7 @@ class DoBalance {
 	 */
 	public function enqueue_scripts() {
 		wp_enqueue_script( $this->get_plugin_slug() . '-plugin-script', plugins_url( 'assets/js/public.js', __FILE__ ), array( 'jquery' ), self::VERSION );
+		wp_enqueue_script( $this->get_plugin_slug() . '-jquery-treetable', plugins_url( 'assets/js/jquery.treetable.js', __FILE__ ), array( 'jquery' ), self::VERSION );
 	}
 
 	/**

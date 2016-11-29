@@ -38,6 +38,8 @@
           // JavaScript to be fired on the home page
           DOB_PUBLIC.vote();
           //console.log('single_offer');
+          $('#table_analysis_myhier').treetable( {expandable:true} );
+          $('#table_analysis_myhier').treetable( 'expandAll' );
         }
       },
       single_elect: { // Elect page

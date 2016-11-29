@@ -88,7 +88,7 @@ function dob_vote_get_hierarchy_voter( $post_id, $ttids=array() ) {/*{{{*/
 	$sql = <<<SQL
 SELECT
 	term_taxonomy_id, lft, name, slug, lvl, user_id, value
-	, inf, chl, anc
+	, inf, chl, anc, parent
 FROM $t_user_category c
 	JOIN $t_term_taxonomy USING (taxonomy,term_taxonomy_id)
 	JOIN $t_terms USING (term_id)
@@ -116,6 +116,7 @@ SQL;
 				'inf'			=> (int)$r->inf,
 				'chl'			=> (int)$r->chl,
 				'anc'			=> empty($r->anc) ? array() : explode(',',$r->anc),
+        'parent'  => $r->parent,
 			);
 		}
 	}
@@ -452,7 +453,7 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
   $label_other      = '다른';           //__('My Vote', DOBslug);
   $label_history    = '기록';           //__('My Vote', DOBslug);
   $label_vote       = '투표';           //__('Vote', DOBslug);
-  $label_influence  = '영향력 관계도';  //__('Direct voter', DOBslug);
+  $label_influence  = '영향력';         //__('Direct voter', DOBslug);
   $label_no_pos     = '계층이 지정되지 않아,';  //__('Direct voter', DOBslug); 
   $label_no_vote    = '투표할 수 없습니다.';  //__('Direct voter', DOBslug); 
   $label_no_analysis= '분석할 수 없습니다.';  //__('Direct voter', DOBslug); 
@@ -503,7 +504,7 @@ HTML;
       $all_group_vals[$gtid] = $gr['name'].':'.$gr['value'];
     }
     $hierarchies[] = " ## $label_total $label_group $label_vote <br> &nbsp; ".implode(', ',$all_group_vals);
-    $hierarchies[] = " ## $label_hierarchy $label_influence";
+    $hierarchies[] = " ## $label_hierarchy $label_influence $label_chart";
 
     foreach ( $hier_voter as $ttid => $v ) {
       $uv_valid = $v['uv_valid'];
@@ -554,7 +555,7 @@ HTML;
     if ( $myinfo ) { 
       // content_analysis_myhier /*{{{*/
       $vote_latest = dob_common_get_latest_by_ttids($post_id,$ttids,'offer');	// user_id => rows	// for login_name
-      $hierarchies = [];
+      $h_pre_list = $h_tr_obj = [];
       #echo '<pre>'.print_r([$myinfo->anc],true).'</pre>';
       $my_ttids = explode(',',$myinfo->anc);
       $my_ttids[] = $myinfo->term_taxonomy_id;
@@ -567,8 +568,11 @@ HTML;
           list($v) = dob_common_get_hierarchy_info([$ttid]);  // get only one tt info.
           #echo '<pre>'.print_r([$ttid,$v],true).'</pre>';
           $indent = ' &nbsp; '.str_repeat(' -- ',$v->lvl);
-          $hierarchies[] = $indent.$v->name." ({$v->inf}) : <u>$inherit</u>";
+          $h_pre_list[] = $indent.$v->name." ({$v->inf}) : <u>$inherit</u>";
+          $h_tr_obj[$ttid] = ['lvl'=>$v->lvl, 'name'=>$v->name, 'inf'=>$v->inf
+            , 'inherit'=>$inherit, 'parent'=>$v->parent ];
         } elseif ( ! empty($v['chl']) ) {	// branch
+          #echo '<pre>'.print_r([$ttid,$v],true).'</pre>';
           foreach ( $v['anc'] as $a_ttid ) {
             if ( !empty($hier_voter[$a_ttid]['value']) ) {
               $inherit = $hier_voter[$a_ttid]['value'];
@@ -586,10 +590,13 @@ HTML;
           $no_ids = dob_vote_get_user_nicenames($no);
           $no = empty($no_ids) ? '' : '<strike>'.implode(', ',$no_ids).'</strike>';
           $val = empty($v['value']) ? "<u>$inherit</u>" : "<b>{$v['value']}</b>";
-          $hierarchies[] = $indent.$v['tname']."({$v['inf']}) : $val <span style='background-color:yellow'>[ {$v['value']} ]</span> ($yes) $no";
+          $h_pre_list[] = $indent.$v['tname']."({$v['inf']}) : $val <span style='background-color:yellow'>[ {$v['value']} ]</span> ($yes) $no";
+          $h_tr_obj[$ttid] = ['lvl'=>$v['lvl'], 'name'=>$v['tname'], 'inf'=>$v['inf'], 
+            'decision'=>$val, 'inherit'=>$inherit, 'yes'=>$yes, 'no'=>$no, 'parent'=>$v['parent'] ];
         }
       }
-      $content_analysis_myhier = empty($hierarchies) ? '' : implode('<br>',$hierarchies);
+      $content_analysis_myhier = empty($h_pre_list) ? '' : implode('<br>',$h_pre_list);
+      $content_analysis_myhier .= dob_vote_get_heir_table('table_analysis_myhier',$h_tr_obj);
       /*}}}*/
 
       // content_analysis_mygroup /*{{{*/
@@ -750,10 +757,10 @@ function dob_vote_html_chart($stat_detail,$vm_legend,$nTotal) {/*{{{*/
 .barchart .gr  { background-color: #EEE; }
 </style>"; /*}}}*/
 
-	$str_di = '직접'; //__('Direct', DOBslug),
-	$str_hi = '계층'; //__('Hierarchy', DOBslug),
-	$str_gr = '단체'; //__('Group', DOBslug),
-	$str_un = '미투표';	//__('Blank', DOBslug)
+	$label_direct    = '직접';   //__('Direct', DOBslug),
+	$label_hierarchy = '계층';   //__('Hierarchy', DOBslug),
+	$label_group     = '단체';   //__('Group', DOBslug),
+	$label_abstain   = '기권'; //__('Blank', DOBslug)
 	$td_format = "<td width='%s' title='%s' class='%s'><div class='%s'>%s</div></td>";
 	ksort($stat_detail,SORT_NUMERIC);
 
@@ -768,23 +775,23 @@ function dob_vote_html_chart($stat_detail,$vm_legend,$nTotal) {/*{{{*/
 		$tr1[] = sprintf($td_format, $ratio, $text, 'c'.$i, 'c'.$i, $text );
 		if ( $di ) { // row2-direct
 			$ratio = sprintf('%0.1f%%',100*$di/$nTotal);
-			$text  = $str_di." $ratio ($di)";
+			$text  = $label_direct." $ratio ($di)";
 			$tr2[] = sprintf($td_format, $ratio, $text, 'c'.$i, 'c'.$i, $text );
 		}
 		if ( $hi ) { // row2-hierarchy
 			$ratio = sprintf('%0.1f%%',100*$hi/$nTotal);
-			$text  = $str_hi." $ratio ($hi)";
+			$text  = $label_hierarchy." $ratio ($hi)";
 			$tr2[] = sprintf($td_format, $ratio, $text, '', '', $text );
 		}
 		if ( $gr ) { // row2-group
 			$ratio = sprintf('%0.1f%%',100*$gr/$nTotal);
-			$text  = $str_gr." $ratio ($gr)";
+			$text  = $label_group." $ratio ($gr)";
 			$tr2[] = sprintf($td_format, $ratio, $text, 'gr', 'gr', $text );
 		}
 	}
 	if ( $nBlank ) {
 		$ratio = sprintf('%0.1f%%',100*$nBlank/$nTotal);
-		$text  = $str_un." $ratio ($nBlank)";
+		$text  = $label_abstain." $ratio ($nBlank)";
 		$un = sprintf($td_format, $ratio, $text, '', '', $text );
 		$tr1[] = $un; $tr2[] = $un;
 	}
@@ -867,4 +874,43 @@ HTML;
 	$ret = ob_get_contents();
 	ob_end_clean();
 	return $ret;
+}/*}}}*/
+
+function dob_vote_get_heir_table($id,$h_tr_obj) {/*{{{*/
+
+  $label_hierarchy = '계층';      //__('Hierarchy voter', DOBslug);
+  $label_influence = '영향력';    //__('Direct voter', DOBslug);
+  $label_decision  = '결정';    //__('Direct voter', DOBslug);
+  $label_vote      = '투표';    //__('Direct voter', DOBslug);
+  $label_abstain   = '기권';    //__('Direct voter', DOBslug);
+  $label_inherit   = '상속';      //__('Direct voter', DOBslug);
+
+  $html_tr = '';
+  foreach( $h_tr_obj as $ttid => $v ) {
+    $parent = empty($v['parent']) ? '' : "data-tt-parent-id='{$v['parent']}'";
+    $voter = empty($v['yes']) ? '' : $v['yes'];
+    $abstain = empty($v['no']) ? '' : $v['no'];
+    $decision = empty($v['decision']) ? 0 : $v['decision'];
+    $html_tr .= <<<HTML
+      <tr data-tt-id="$ttid" $parent>
+        <td>{$v['name']}</td> <td>{$v['inf']}</td> <td>{$decision}</td>
+        <td>{$voter}</td> <td>{$abstain}</td> <td>{$v['inherit']}</td>
+      </tr>
+HTML;
+  }
+
+	return <<<HTML
+  <table id="$id" class="treetable">
+    <thead>
+      <tr>
+        <th>$label_hierarchy</th> <th>$label_influence</th> <th>$label_decision</th> 
+        <th>$label_vote</th> <th>$label_abstain</th> <th>$label_inherit</th>
+      </tr>
+    </thead>
+    <tbody>
+      $html_tr
+    </tbody>
+  </table>
+HTML;
+
 }/*}}}*/
