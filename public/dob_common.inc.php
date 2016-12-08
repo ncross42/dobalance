@@ -363,3 +363,37 @@ SQL;
 	return $ret;
 }/*}}}*/
 
+function dob_common_value_tooltip( $vm_type, $vm_legend, $value, $bInherit=false ) {/*{{{*/
+  if ( empty($value) ) $value = 0;
+  $label_total = '전체';
+  $str_val = 'ERROR';
+  switch ( $vm_type ) {
+  case 'updown':
+    if ( in_array($value,[-1,0,1]) ) {
+      $str_val = $vm_legend[$value];
+    }
+    break;
+  case 'choice':
+    if ( is_numeric($value) && -1<=$value && $value<count($vm_legend)-1 ) {
+      $str_val = $vm_legend[$value];
+    }
+    break;
+  case 'plural':
+    if ( in_array($value,[-1,0]) ) {
+      $str_val = $vm_legend[$value];
+    } else if ( is_numeric($value) ) {
+      $vals = str_split(strrev(base_convert($value,10,2)));
+      foreach ( $vals as $k => $v ) {
+        if ( $v == '1' ) $str_val .= ','.$vm_legend[$k+1];
+      }
+      $str_val = substr($str_val,1);
+    }
+    break;
+  }
+  $html_title = htmlentities($str_val);
+  $html = <<<HTML
+    <a href="javascript:void(0);" data-toggle="tooltip" title="$html_title">$value</a>
+HTML;
+  return $bInherit ? "<u>$html</u>" : "<b>$html</b>";
+
+}/*}}}*/

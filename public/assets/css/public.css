@@ -1,6 +1,9 @@
 /* This stylesheet is used to style the public-facing components of the plugin. */
 
 /* TreeTable */
+table.treetable.no-margin {
+  margin: 0;
+}
 table.treetable span.indenter {
   display: inline-block;
   margin: 0;
@@ -39,19 +42,22 @@ table th { text-align:center; background-color:#eee; min-width:20px; }
 /*table td div { overflow: hidden; text-overflow: ellipsis; }*/
 
 /* styles by CLASS  */
-.panel-title { font-weight:bold; }
+div.panel { margin-bottom: 10px; }
+div.panel-title { font-weight:bold; }
 div.panel-heading {
   padding-left: 5px;
   padding-right: 5px;
+  padding-top: 5px;
+  padding-bottom: 5px;
 }
-.panel-heading:hover {
+div.panel-heading:hover {
   cursor: pointer;
 }
-.panel-heading:hover span {
+div.panel-heading:hover span {
   text-decoration: underline;
 }
 
-.panel-heading:before
+div.panel-heading:before
 , .comments-link:before
 , .edit-link:before
 , .byline:before
@@ -64,11 +70,21 @@ div.panel-heading {
 .byline:before        { content: "\e008"; }
 .entry-date:before    { content: "\e023"; }
 
-.panel-heading:before  { content:"\e114"; }
-.panel-heading.collapsed:before { content:"\e080"; }
+div.panel-heading:before  { content:"\e114"; }
+div.panel-heading.collapsed:before { content:"\e080"; }
 
 /* detail styles by Element-ID  */
 #table_log td { text-align:right; }
+
+/* dob_vote.formVote */
+div#dob_vote_html_myvote {
+  padding-left: 10px;
+  padding-right: 10px;
+  padding-top: 5px;
+}
+td#tdVote div.well {
+  margin-bottom: 5px;
+}
 
 /* media query */
 @media (max-width:991px) {

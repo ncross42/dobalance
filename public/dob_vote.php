@@ -463,6 +463,7 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
   $label_3rd        = '3순위';           //__('3rd Priority', DOBslug);
   $label_2rd        = '2순위';           //__('2rd Priority', DOBslug);
   $label_1rd        = '1순위';           //__('1rd Priority', DOBslug);
+  $label_no         = '없음';           //__('1rd Priority', DOBslug);
   /*}}}*/
 
 	$html_stat = ''; // dob_vote_html_stat($stat_sum);
@@ -498,12 +499,15 @@ HTML;
     $vote_latest = dob_common_get_latest_by_ttids($post_id,$ttids,'offer');	// user_id => rows	// for login_name
     $myval = empty($vote_latest[$user_id]) ? null : (int)$vote_latest[$user_id]['value'];
     #echo '<pre>'.print_r($myinfo,true).'</pre>';
-    $hierarchies = array();/*{{{*/
+    $hierarchies = $h_tr_obj = [];/*{{{*/
     $all_group_vals = array();
     foreach( $gr_vals as $gtid => $gr ) {
-      $all_group_vals[$gtid] = $gr['name'].':'.$gr['value'];
+      $group_value_tooltip = dob_common_value_tooltip($vm_type,$vm_legend,$gr['value'],false);
+      $all_group_vals[$gtid] = $gr['name'].':'.$group_value_tooltip;
     }
-    $hierarchies[] = " ## $label_total $label_group $label_vote <br> &nbsp; ".implode(', ',$all_group_vals);
+    $content_analysis_all = "## $label_total $label_group $label_vote<br> &nbsp; "
+      . ( empty($all_group_vals) ? $label_no : implode(', ',$all_group_vals) )
+      . '<br>';
     $hierarchies[] = " ## $label_hierarchy $label_influence $label_chart";
 
     foreach ( $hier_voter as $ttid => $v ) {
@@ -515,29 +519,44 @@ HTML;
           $inherit = $hier_voter[$a_ttid]['value'];
         }
       }
+      // get affected parent
+      $tmp_anc = $v['anc'];
+      $parent = empty($tmp_anc) ? 0 : array_pop($tmp_anc);
+      while( !empty($tmp_anc) && !isset($h_tr_obj[$parent]) ) {
+        $parent = array_pop($tmp_anc);
+      }
       if ( empty($v['chl']) ) {	// leaf
         $str_mine = '';
-        $grname_vals = array();
+        $str_group = $grname_vals = array();
         // info of myval and mygroup
         if ( $myinfo && $ttid == $myinfo->term_taxonomy_id ) {
           $mygroup = isset($v['uv_group'][$user_id]) ? $v['uv_group'][$user_id]
             : dob_vote_get_user_group_ttid_values($user_id,$gr_vals,$vm_type,true) ;
           #echo '<pre>'.var_export([$user_id,$gr_vals,$mygroup],true).'</pre>';
           if ( ! empty($mygroup) ) {
-            $grname_vals[] = "<span style='background-color:yellow'>[ {$mygroup['value']} ]</span>";
+            $grname_vals[] = "<span style='background-color:yellow;padding:0;'>[ {$mygroup['value']} ]</span>";
             foreach ( $mygroup['gtid_vals'] as $gtid => $val ) {
-              $grname_vals[] = isset($gr_vals[$gtid]) ? $gr_vals[$gtid]['name'].":<b>$val</b>" : '';
+              $gr_val_tooltip = dob_common_value_tooltip($vm_type,$vm_legend,$val,false);
+              $grname_vals[] = isset($gr_vals[$gtid]) ? $gr_vals[$gtid]['name'].':'.$gr_val_tooltip : '';
             }
+            $str_group = '// '.implode(', ',$grname_vals);
           }
-          $str_mine = "<span style='color:red'>@{$myinfo->user_nicename}:<b>".(is_null($myval)?'null':$myval)."</b></span>";
+          $myval_tooltip = is_null($myval) ? 'null' : dob_common_value_tooltip($vm_type,$vm_legend,$myval,false);
+          $str_mine = "<span style='color:red;padding:0;'>@{$myinfo->user_nicename}:".$myval_tooltip."</span>";
+          $str_mine .= $str_group;
         }
-        $str_group = empty($grname_vals) ? '' : '// '.implode(', ',$grname_vals);
         $uvc_valid	= count($v['uv_valid']);
-        $hierarchies[] = $indent.$v['tname']."({$v['inf']}-$uvc_valid) : <u>$inherit</u> $str_mine $str_group";
+        $hierarchies[] = $indent.$v['tname']."({$v['inf']}-$uvc_valid) : <u>$inherit</u> $str_mine";
+
+        $value_tooltip = dob_common_value_tooltip($vm_type,$vm_legend,$v['value'],false);
+        $inherit_tooltip = dob_common_value_tooltip($vm_type,$vm_legend,$inherit,true);
+        $decision = empty($v['value']) ? $inherit_tooltip : $value_tooltip;
+        $h_tr_obj[$ttid] = ['lvl'=>$v['lvl'], 'name'=>$v['tname'], 'inf'=>"{$v['inf']}-$uvc_valid", 
+          'decision'=>'', 'inherit'=>$inherit_tooltip, 'detail'=>$str_mine, 'parent'=>$parent ];
       } else {	// branch
         $yes = $no = array();
         foreach ( $uv_valid as $uid => $val ) {
-          $str = $vote_latest[$uid]['user_nicename'].":<b>$val</b>";
+          $str = $vote_latest[$uid]['user_nicename'].':'.dob_common_value_tooltip($vm_type,$vm_legend,$val,false);
           $yes[] = ( $uid==$user_id ) ? "<span style='color:red'>@$str</span>" : $str;
         }
         $yes = implode(', ',$yes);
@@ -545,17 +564,23 @@ HTML;
         $no_ids = dob_vote_get_user_nicenames($no);
         $no = empty($no_ids) ? '' : '<strike>'.implode(', ',$no_ids).'</strike>';
         $val = empty($v['value']) ? "<u>$inherit</u>" : "<b>{$v['value']}</b>";
-        $hierarchies[] = $indent.$v['tname']."({$v['inf']}) : $val <span style='background-color:yellow'>[ {$v['value']} ]</span> ($yes) $no";
+        $hierarchies[] = $indent.$v['tname']."({$v['inf']}) : $val <span style='background-color:yellow;padding:0;'>[ {$v['value']} ]</span> ($yes) $no";
+        $value_tooltip = dob_common_value_tooltip($vm_type,$vm_legend,$v['value'],false);
+        $inherit_tooltip = dob_common_value_tooltip($vm_type,$vm_legend,$inherit,true);
+        $decision = empty($v['value']) ? $inherit_tooltip : $value_tooltip;
+        $h_tr_obj[$ttid] = ['lvl'=>$v['lvl'], 'name'=>$v['tname'], 'inf'=>$v['inf'], 
+          'decision'=>$decision, 'inherit'=>$inherit_tooltip, 'detail'=>$yes.($no?"// $no":''), 'parent'=>$parent ];
       }
     }/*}}}*/
-    $content_analysis_all = implode('<br>',$hierarchies);
+    //$content_analysis_all .= implode('<br>',$hierarchies);
+    $content_analysis_all .= dob_vote_get_allheir_table('table_analysis_allhier',$h_tr_obj);
     /*}}}*/
 
     $content_analysis_myhier = $content_analysis_mygroup = "$label_no_pos $label_no_analysis";
     if ( $myinfo ) { 
       // content_analysis_myhier /*{{{*/
-      $vote_latest = dob_common_get_latest_by_ttids($post_id,$ttids,'offer');	// user_id => rows	// for login_name
-      $h_pre_list = $h_tr_obj = [];
+      $vote_latest = dob_common_get_latest_by_ttids($post_id,$ttids,'offer');	// user_id => rows, for login_name
+      $h_tr_obj = [];
       #echo '<pre>'.print_r([$myinfo->anc],true).'</pre>';
       $my_ttids = explode(',',$myinfo->anc);
       $my_ttids[] = $myinfo->term_taxonomy_id;
@@ -567,10 +592,9 @@ HTML;
         if ( empty($v) ) {  // get only ttid's info
           list($v) = dob_common_get_hierarchy_info([$ttid]);  // get only one tt info.
           #echo '<pre>'.print_r([$ttid,$v],true).'</pre>';
-          $indent = ' &nbsp; '.str_repeat(' -- ',$v->lvl);
-          $h_pre_list[] = $indent.$v->name." ({$v->inf}) : <u>$inherit</u>";
+          $inherit_tooltip = dob_common_value_tooltip($vm_type,$vm_legend,$inherit,true);
           $h_tr_obj[$ttid] = ['lvl'=>$v->lvl, 'name'=>$v->name, 'inf'=>$v->inf
-            , 'inherit'=>$inherit, 'parent'=>$v->parent ];
+            , 'decision'=>$inherit_tooltip, 'inherit'=>$inherit_tooltip, 'parent'=>$v->parent ];
         } elseif ( ! empty($v['chl']) ) {	// branch
           #echo '<pre>'.print_r([$ttid,$v],true).'</pre>';
           foreach ( $v['anc'] as $a_ttid ) {
@@ -579,24 +603,27 @@ HTML;
             }
           }
           $uv_valid = $v['uv_valid'];
-          $indent = ' &nbsp; '.str_repeat(' -- ',$v['lvl']);
           $yes = $no = array();
           foreach ( $uv_valid as $uid => $val ) {
-            $str = $vote_latest[$uid]['user_nicename'].":<b>$val</b>";
+            $val_tooltip = dob_common_value_tooltip($vm_type,$vm_legend,$val,false);
+            $str = $vote_latest[$uid]['user_nicename'].":$val_tooltip";
             $yes[] = ( $uid==$user_id ) ? "<span style='color:red'>@$str</span>" : $str;
           }
           $yes = implode(', ',$yes);
           $no = array_diff($v['all_ids'],array_keys($uv_valid));
           $no_ids = dob_vote_get_user_nicenames($no);
           $no = empty($no_ids) ? '' : '<strike>'.implode(', ',$no_ids).'</strike>';
-          $val = empty($v['value']) ? "<u>$inherit</u>" : "<b>{$v['value']}</b>";
-          $h_pre_list[] = $indent.$v['tname']."({$v['inf']}) : $val <span style='background-color:yellow'>[ {$v['value']} ]</span> ($yes) $no";
+          // jquery treetable
+          $value_tooltip = dob_common_value_tooltip($vm_type,$vm_legend,$v['value'],false);
+          $inherit_tooltip = dob_common_value_tooltip($vm_type,$vm_legend,$inherit,true);
+          $decision = empty($v['value']) ? $inherit_tooltip : $value_tooltip;
           $h_tr_obj[$ttid] = ['lvl'=>$v['lvl'], 'name'=>$v['tname'], 'inf'=>$v['inf'], 
-            'decision'=>$val, 'inherit'=>$inherit, 'yes'=>$yes, 'no'=>$no, 'parent'=>$v['parent'] ];
+            'decision'=>$decision, 'inherit'=>$inherit_tooltip, 'yes'=>$yes, 'no'=>$no,
+            'parent'=> empty($v['anc']) ? 0 : $v['anc'][count($v['anc'])-1]
+          ];
         }
       }
-      $content_analysis_myhier = empty($h_pre_list) ? '' : implode('<br>',$h_pre_list);
-      $content_analysis_myhier .= dob_vote_get_heir_table('table_analysis_myhier',$h_tr_obj);
+      $content_analysis_myhier = dob_vote_get_myheir_table('table_analysis_myhier',$h_tr_obj);
       /*}}}*/
 
       // content_analysis_mygroup /*{{{*/
@@ -604,25 +631,25 @@ HTML;
       $ttid = $myinfo->term_taxonomy_id;
       $mygroup = empty($hier_voter[$ttid]['uv_group'][$user_id]) ? null : $hier_voter[$ttid]['uv_group'][$user_id];
       $my_group_final = $html_group_my = $html_group_other = '';
+      $arr_group_other = [];
       if ( isset($mygroup['value']) && isset($mygroup['gtid_vals']) ) {
         $my_group_final = $mygroup['value'];
-        $arr_group_my = $arr_group_other = [];
+        $arr_group_my = [];
         foreach ( $mygroup['gtid_vals'] as $gtid => $val ) {
           if ( ! empty($all_group_vals[$gtid]) ) {
-            #$arr_group_my[] = $all_group_vals[$gtid]['name'].":<b>$val</b>";
             $arr_group_my[] = $all_group_vals[$gtid];
             unset($all_group_vals[$gtid]);
           }
         }
         $html_group_my = implode(', ',$arr_group_my);
       }
+      $my_group_final_tooltip = dob_common_value_tooltip($vm_type,$vm_legend,$my_group_final,false);
       foreach ( $all_group_vals as $gtid => $group ) {
-        #$arr_group_other[] = $group['name'].":<b>${group['value']}</b>";
         $arr_group_other[] = $group;
       }
       $html_group_other = implode(', ',$arr_group_other);
       $content_analysis_mygroup = <<<HTML
-            $label_my $label_group $label_vote $label_result : <b>$my_group_final</b> <br>
+            $label_my $label_group $label_vote $label_result : <b>$my_group_final_tooltip</b> <br>
             $label_my $label_group $label_vote : $html_group_my <br>
             $label_other $label_group $label_vote : $html_group_other
 HTML;
@@ -666,7 +693,8 @@ HTML;
 
     $content_myform = ''; /*{{{*/
     if ( empty($user_id) ) {
-      $content_myform = "<a href='/wp-login.php' style='color:red; font-weight:bold'>$label_login</a>";
+      $login_url = wp_login_url( $_SERVER['REQUEST_URI'] );
+      $content_myform = "<a href='$login_url' style='color:red; font-weight:bold'>$label_login</a>";
     } else if ( empty($myinfo->term_taxonomy_id) ) {
       $content_myform = "<span style='color:red; font-size:1.2em; font-weight:bold'>$label_no_pos $label_no_vote</span>";
     } else if ( !empty($ttids) && ! in_array($myinfo->term_taxonomy_id,$ttids) ) {
@@ -836,7 +864,7 @@ function dob_vote_display_mine($post_id,$vm_type,$vm_legend,$myval='',$user_id) 
 				$label_secret : <input type="text" name="dob_vote_secret" value="$secret" style="width:300px" READONLY>
 				<br><b>$label_remember</b>
 			</td></tr-->
-			<tr><td id="tdVote">
+			<tr><td id="tdVote"><div class="well">
 HTML;
 	wp_nonce_field( 'dob_form_nonce_'.$vm_type, 'dob_form_nonce' );
 	foreach ( $vm_legend as $val => $label ) {
@@ -845,27 +873,26 @@ HTML;
       $control = in_array($val,$myvals) ? 'CHECKED' 
         : ( ($myval===0||$myval===-1) ? 'DISABLED' : '');
       $exp = ($val<1) ? $val : 1<<($val-1);
-			$html_input = "<input type='checkbox' data-idx='$val' value='$exp' $control style='margin-left:9px; margin-right:0px;' >";
+			$html_input = "<input type='checkbox' data-idx='$val' value='$exp' $control>";
 		} else {
 			$checked = ($val===$myval) ? 'CHECKED' : '';
 			$html_input = "<input type='radio' name='dob_form_val' value='$val' $checked>";
 		}
-		echo " <label style='margin-bottom:0px; font-size:1.1em;'>$html_input$label</label> ";
+		echo " <label class='radio-inline checkbox-inline'>$html_input$label</label> ";
 	}
 
 	$html_submit = empty($user_id) ? $label_login : dob_common_get_message($post_id,$user_id,'offer');	// vote_post_latest timestamp
 	if ( $LOGIN_IP == dob_get_real_ip() ) {
 		$label_fast = '바로투표';	//__('Vote', DOBslug);
 		$label_cart = '투표바구니';	//__('Vote', DOBslug);
-		$style = 'width:100px; height:20px; background:#ccc; color:black; text-decoration: none; font-size: 13px; margin: 0; padding: 0 10px 1px;';
-		$html_submit .= " <input id='btn_fast' type='button' value='$label_fast' style='$style' >";
-		$html_submit .= " <input id='btn_cart' type='button' value='$label_cart' style='$style' >";
+		$html_submit .= " <input id='btn_fast' type='button' value='$label_fast' class='btn btn-success btn-sm' >";
+		$html_submit .= " <input id='btn_cart' type='button' value='$label_cart' class='btn btn-warning btn-sm' >";
 	} else {
 		$label_iperr_relogin = '로그인 이후 1시간이 지났거나, 네트워크가 초기화 되었으니, 다시 로그인해 주세요<br>투표시에는 네트워크(WIFI,LTE,3G)를 변경하지 마세요.';	//__('You passed 1-hours after login, or Your network was Changed. Please Login AGAIN.', DOBslug);
 		$html_submit .= '<br>'.$label_iperr_relogin;
 	}
 	echo <<<HTML
-			</td></tr>
+			</div></td></tr>
 			<tr><td style="text-align:right;">$html_submit</td></tr>
 			</form>
 		</table>
@@ -876,14 +903,15 @@ HTML;
 	return $ret;
 }/*}}}*/
 
-function dob_vote_get_heir_table($id,$h_tr_obj) {/*{{{*/
+function dob_vote_get_myheir_table($id,$h_tr_obj) {/*{{{*/
 
   $label_hierarchy = '계층';      //__('Hierarchy voter', DOBslug);
   $label_influence = '영향력';    //__('Direct voter', DOBslug);
   $label_decision  = '결정';    //__('Direct voter', DOBslug);
-  $label_vote      = '투표';    //__('Direct voter', DOBslug);
-  $label_abstain   = '기권';    //__('Direct voter', DOBslug);
+  $label_voter     = '투표자';    //__('Direct voter', DOBslug);
+  $label_abstainer = '기권자';    //__('Direct voter', DOBslug);
   $label_inherit   = '상속';      //__('Direct voter', DOBslug);
+  $label_value     = '값';      //__('Direct voter', DOBslug);
 
   $html_tr = '';
   foreach( $h_tr_obj as $ttid => $v ) {
@@ -894,17 +922,56 @@ function dob_vote_get_heir_table($id,$h_tr_obj) {/*{{{*/
     $html_tr .= <<<HTML
       <tr data-tt-id="$ttid" $parent>
         <td>{$v['name']}</td> <td>{$v['inf']}</td> <td>{$decision}</td>
-        <td>{$voter}</td> <td>{$abstain}</td> <td>{$v['inherit']}</td>
+        <td>{$v['inherit']}</td> <td>{$voter}</td> <td>{$abstain}</td>
       </tr>
 HTML;
   }
 
 	return <<<HTML
-  <table id="$id" class="treetable">
+  <table id="$id" class="treetable no-margin">
     <thead>
       <tr>
-        <th>$label_hierarchy</th> <th>$label_influence</th> <th>$label_decision</th> 
-        <th>$label_vote</th> <th>$label_abstain</th> <th>$label_inherit</th>
+        <th>$label_hierarchy</th> <th width="75px">$label_influence</th> <th width="75px">$label_decision</th> 
+        <th width="75px">$label_inherit</th> <th>$label_voter</th> <th>$label_abstainer</th> 
+      </tr>
+    </thead>
+    <tbody>
+      $html_tr
+    </tbody>
+  </table>
+HTML;
+
+}/*}}}*/
+
+function dob_vote_get_allheir_table($id,$h_tr_obj) {/*{{{*/
+
+  $label_hierarchy = '계층';      //__('Hierarchy voter', DOBslug);
+  $label_influence = '영향력';    //__('Direct voter', DOBslug);
+  $label_decision  = '결정';    //__('Direct voter', DOBslug);
+  $label_inherit   = '상속';      //__('Direct voter', DOBslug);
+  $label_value     = '값';      //__('Direct voter', DOBslug);
+  $label_detail    = '상세';    //__('Direct voter', DOBslug);
+
+  $html_tr = '';
+  foreach( $h_tr_obj as $ttid => $v ) {
+    $parent = empty($v['parent']) ? '' : "data-tt-parent-id='{$v['parent']}'";
+    $voter = empty($v['yes']) ? '' : $v['yes'];
+    $abstain = empty($v['no']) ? '' : $v['no'];
+    $decision = empty($v['decision']) ? 0 : $v['decision'];
+    $html_tr .= <<<HTML
+      <tr data-tt-id="$ttid" $parent>
+        <td>{$v['name']}</td> <td>{$v['inf']}</td> <td>{$decision}</td>
+        <td>{$v['inherit']}</td> <td>{$v['detail']}</td>
+      </tr>
+HTML;
+  }
+
+	return <<<HTML
+  <table id="$id" class="treetable no-margin">
+    <thead>
+      <tr>
+        <th>$label_hierarchy</th> <th width="75px">$label_influence</th> <th width="75px">$label_decision</th> 
+        <th width="75px">$label_inherit</th> <th>$label_detail</th> 
       </tr>
     </thead>
     <tbody>

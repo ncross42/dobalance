@@ -36,10 +36,21 @@
       single_offer: { // Offer page
         init: function() {
           // JavaScript to be fired on the home page
-          DOB_PUBLIC.vote();
           //console.log('single_offer');
-          $('#table_analysis_myhier').treetable( {expandable:true} );
-          $('#table_analysis_myhier').treetable( 'expandAll' );
+          DOB_PUBLIC.vote();
+          var table_analysis_myhier = document.getElementById('table_analysis_myhier');
+          if ( table_analysis_myhier ) {
+            var $table_analysis_myhier = $(table_analysis_myhier);
+            $table_analysis_myhier.treetable( {expandable:true} );
+            $table_analysis_myhier.treetable( 'expandAll' );
+          }
+          var table_analysis_allhier = document.getElementById('table_analysis_allhier');
+          if ( table_analysis_allhier ) {
+            var $table_analysis_allhier = $(table_analysis_allhier);
+            $table_analysis_allhier.treetable( {expandable:false} );
+            //$table_analysis_allhier.treetable( 'expandAll' );
+          }
+          $('[data-toggle="tooltip"]').tooltip();
         }
       },
       single_elect: { // Elect page
@@ -105,8 +116,15 @@
 
         $('#btn_fast,#btn_cart').click( function (e) {
           this.form.dob_form_cart.value = (this.id=='btn_cart') ? 1 : 0;
-          if ( check_dup() ) window.location = window.location.href;
-          else this.form.submit();
+          if ( check_dup() ) {
+            if (window.location.hash) {
+              window.location.reload(true); // reload from server with POST
+            } else {
+              window.location.href = window.location.href;
+            }
+          } else {
+            this.form.submit();
+          }
         });
       }
     };

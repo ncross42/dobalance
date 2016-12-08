@@ -153,7 +153,7 @@ function dob_elect_contents( $post_id, $bEcho = false) {
 			$label_result .= ' : '.$label_before;
 		} elseif ( strtotime($vm_begin) < $ts && $ts < strtotime($vm_end) ) { // VOTING /*{{{*/
 			$label_result .= ' : '.$label_ing;
-			$content_form = "<a href='/wp-login.php' style='color:red; font-weight:bold'>$label_login</a>";
+			$content_form = "<a href='".wp_login_url($_SERVER['REQUEST_URI'])."' style='color:red; font-weight:bold'>$label_login</a>";
 			if ( $user_id ) {
         if ( is_null($ttids) ) {
 					$content_form = '선거대상 계층이 지정되지 않았습니다.';	//__('Election Hierarchy does not selected.', DOBslug);
@@ -439,11 +439,10 @@ HTML;
 	$html_submit = '';
 	if ( $user_id ) {
 		$html_submit = dob_common_get_message($post_id,$user_id,'elect');	// vote_post_latest timestamp
-		$label_vote = '바로투표';	//__('Vote', DOBslug);
+		$label_fast = '바로투표';	//__('Vote', DOBslug);
 		$label_cart = '투표바구니';	//__('Vote', DOBslug);
-		$style = 'width:100px; height:20px; background:#ccc; color:black; text-decoration: none; font-size: 13px; margin: 0; padding: 0 10px 1px;';
-		$html_submit .= " <input id='btn_fast' type='button' value='$label_vote' style='$style' >";
-		$html_submit .= " <input id='btn_cart' type='button' value='$label_cart' style='$style' >";
+		$html_submit .= " <input id='btn_fast' type='button' value='$label_fast' class='btn btn-success btn-sm' >";
+		$html_submit .= " <input id='btn_cart' type='button' value='$label_cart' class='btn btn-warning btn-sm' >";
 	}
 	echo <<<HTML
 			</td></tr>

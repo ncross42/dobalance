@@ -53,12 +53,14 @@ function dob_add_auto_nav_menu( $items, $args ){
     $label_settings = __('Settings');
     $label_login    = __('Log in');
     $label_register = __('Register');
+    $login_url = wp_login_url( $_SERVER['REQUEST_URI'] );
+    $register_url = wp_registration_url();
     $html = <<<HTML
 <li id="menu-item-settings" class="menu-item menu-item-settings menu-item-has-children $dd" aria-haspopup="true" >
   <a href="#" $dt aria-haspopup="true">$label_settings$span_caret</a>
   <ul class="$ul_class">
-    <li class="menu-item"><a href="/wp-login.php">$label_login</a></li>
-    <li class="menu-item"><a href="/wp-login.php?action=register">$label_register</a></li>
+    <li class="menu-item"><a href="$login_url">$label_login</a></li>
+    <li class="menu-item"><a href="$register_url">$label_register</a></li>
   </ul>
 </li>
 HTML;
@@ -68,6 +70,7 @@ HTML;
       $label_favorite  = '즐겨찾기';   //__('Favorites',DOBslug);
       $label_cart      = '투표바구니'; //__('my voting cart',DOBslug);
       $label_user      = '유저 계층도';//__('jsTree user hierarchy',DOBslug),
+      $logout_url = wp_logout_url();
       $html = <<<HTML
 <li id="menu-item-settings" class="menu-item menu-item-settings menu-item-has-children $dd" aria-haspopup="true">
   <a href="/wp-admin/" $dt aria-haspopup="true">$label_settings$span_caret</a>
@@ -77,7 +80,7 @@ HTML;
     <li class="menu-item"><a href="/wp-admin/admin.php?page=dobalance_cart">$label_cart</a></li>
     <li class="menu-item"><a href="/wp-admin/admin.php?page=dobalance_jstree_user">$label_user</a></li>
     <li class="menu-item" style="height:5px; background-color:silver;"><!--span class="icon-bar"></span--></li> <!-- dashicons dashicons-minus -->
-    <li class="menu-item"><a href="/wp-login.php?action=logout">$label_logout</a></li>
+    <li class="menu-item"><a href="$logout_url">$label_logout</a></li>
   </ul>
 </li>
 HTML;
