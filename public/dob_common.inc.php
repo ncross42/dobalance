@@ -56,8 +56,8 @@ SQL;
 function dob_common_get_message($post_id,$user_id,$cpt='offer') {/*{{{*/
 	$message = '투표해 주세요';		//__('Please Vote', DOBslug);
 	if ( $ret = dob_common_get_latest_by_user($post_id,$user_id,$cpt) ) {
-		$label_last = '마지막 투표';		//__('Last Voted', DOBslug);
-		$message = $label_last.' : '.$ret['ts'];
+		$label_last = '지난투표';		//__('Last Voted', DOBslug);
+		$message = $label_last.' : '.substr($ret['ts'],2);
   }
 	return $message;
 }/*}}}*/

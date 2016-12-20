@@ -42,6 +42,8 @@ table th { text-align:center; background-color:#eee; min-width:20px; }
 /*table td div { overflow: hidden; text-overflow: ellipsis; }*/
 
 /* styles by CLASS  */
+th, table.table-hierarchy td { white-space: nowrap; }
+div.scrollable { overflow: auto; }
 div.panel { margin-bottom: 10px; }
 div.panel-title { font-weight:bold; }
 div.panel-heading {

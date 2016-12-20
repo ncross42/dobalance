@@ -453,7 +453,7 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
   $label_other      = '다른';           //__('My Vote', DOBslug);
   $label_history    = '기록';           //__('My Vote', DOBslug);
   $label_vote       = '투표';           //__('Vote', DOBslug);
-  $label_influence  = '영향력';         //__('Direct voter', DOBslug);
+  $label_influence  = '영향';         //__('Direct voter', DOBslug);
   $label_no_pos     = '계층이 지정되지 않아,';  //__('Direct voter', DOBslug); 
   $label_no_vote    = '투표할 수 없습니다.';  //__('Direct voter', DOBslug); 
   $label_no_analysis= '분석할 수 없습니다.';  //__('Direct voter', DOBslug); 
@@ -649,7 +649,7 @@ HTML;
       }
       $html_group_other = implode(', ',$arr_group_other);
       $content_analysis_mygroup = <<<HTML
-            $label_my $label_group $label_vote $label_result : <b>$my_group_final_tooltip</b> <br>
+            $label_my $label_group $label_result : <b>$my_group_final_tooltip</b> <br>
             $label_my $label_group $label_vote : $html_group_my <br>
             $label_other $label_group $label_vote : $html_group_other
 HTML;
@@ -666,7 +666,7 @@ HTML;
           <div class="panel-heading collapsed" data-toggle="collapse" data-target="#dob_vote_html_analysis_all">
             <span class="panel-title">$label_total $label_analysis ($label_for_devel)</span>
           </div>
-          <div id="dob_vote_html_analysis_all" class="panel-collapse collapse">
+          <div id="dob_vote_html_analysis_all" class="panel-collapse scrollable collapse">
             $content_analysis_all
           </div>
         </div>
@@ -674,7 +674,7 @@ HTML;
           <div class="panel-heading" data-toggle="collapse" data-target="#dob_vote_html_analysis_my_hier">
             <span class="panel-title">$label_my $label_hierarchy $label_analysis ($label_3rd)</span>
           </div>
-          <div id="dob_vote_html_analysis_my_hier" class="panel-collapse collapse in">
+          <div id="dob_vote_html_analysis_my_hier" class="panel-collapse scrollable collapse in">
             $content_analysis_myhier
           </div>
         </div>
@@ -682,7 +682,7 @@ HTML;
           <div class="panel-heading" data-toggle="collapse" data-target="#dob_vote_html_analysis_my_group">
             <span class="panel-title">$label_my $label_group $label_analysis ($label_2rd)</span>
           </div>
-          <div id="dob_vote_html_analysis_my_group" class="panel-collapse collapse in">
+          <div id="dob_vote_html_analysis_my_group" class="panel-collapse scrollable collapse in">
             $content_analysis_mygroup
           </div>
         </div>
@@ -893,7 +893,7 @@ HTML;
 	}
 	echo <<<HTML
 			</div></td></tr>
-			<tr><td style="text-align:right;">$html_submit</td></tr>
+			<tr><td nowrap style="text-align:right;">$html_submit</td></tr>
 			</form>
 		</table>
 		</div>
@@ -906,7 +906,7 @@ HTML;
 function dob_vote_get_myheir_table($id,$h_tr_obj) {/*{{{*/
 
   $label_hierarchy = '계층';      //__('Hierarchy voter', DOBslug);
-  $label_influence = '영향력';    //__('Direct voter', DOBslug);
+  $label_influence = '영향';    //__('Direct voter', DOBslug);
   $label_decision  = '결정';    //__('Direct voter', DOBslug);
   $label_voter     = '투표자';    //__('Direct voter', DOBslug);
   $label_abstainer = '기권자';    //__('Direct voter', DOBslug);
@@ -921,17 +921,17 @@ function dob_vote_get_myheir_table($id,$h_tr_obj) {/*{{{*/
     $decision = empty($v['decision']) ? 0 : $v['decision'];
     $html_tr .= <<<HTML
       <tr data-tt-id="$ttid" $parent>
-        <td>{$v['name']}</td> <td>{$v['inf']}</td> <td>{$decision}</td>
+        <td nowrap>{$v['name']}</td> <td>{$v['inf']}</td> <td>{$decision}</td>
         <td>{$v['inherit']}</td> <td>{$voter}</td> <td>{$abstain}</td>
       </tr>
 HTML;
   }
 
 	return <<<HTML
-  <table id="$id" class="treetable no-margin">
+  <table id="$id" class="treetable no-margin table-hierarchy">
     <thead>
       <tr>
-        <th>$label_hierarchy</th> <th width="75px">$label_influence</th> <th width="75px">$label_decision</th> 
+        <th>$label_hierarchy</th> <th>$label_influence</th> <th>$label_decision</th> 
         <th width="75px">$label_inherit</th> <th>$label_voter</th> <th>$label_abstainer</th> 
       </tr>
     </thead>
@@ -946,7 +946,7 @@ HTML;
 function dob_vote_get_allheir_table($id,$h_tr_obj) {/*{{{*/
 
   $label_hierarchy = '계층';      //__('Hierarchy voter', DOBslug);
-  $label_influence = '영향력';    //__('Direct voter', DOBslug);
+  $label_influence = '영향';    //__('Direct voter', DOBslug);
   $label_decision  = '결정';    //__('Direct voter', DOBslug);
   $label_inherit   = '상속';      //__('Direct voter', DOBslug);
   $label_value     = '값';      //__('Direct voter', DOBslug);
@@ -967,7 +967,7 @@ HTML;
   }
 
 	return <<<HTML
-  <table id="$id" class="treetable no-margin">
+  <table id="$id" class="treetable no-margin table-hierarchy">
     <thead>
       <tr>
         <th>$label_hierarchy</th> <th width="75px">$label_influence</th> <th width="75px">$label_decision</th> 
