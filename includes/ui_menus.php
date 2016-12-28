@@ -117,7 +117,9 @@ function dob_make_menu_favorite($bBS,$taxonomy,$slug) {
       <li class='menu-item menu-item-type-favorite $active'><a href='/?{$m->taxonomy}={$m->slug}'>{$m->name}</a></li>";
   }
   $dd = $children = $a_attr = $ul_cls = '';
-  if ( $html_sub ) {
+  if ( ! $html_sub ) {
+    return '';
+  } else {
     $dd       = $bBS ? 'dropdown' : '';
     $children = 'menu-item-has-children';
     $a_attr   = ($bBS?'data-toggle="dropdown"':'').' aria-haspopup="true"';
