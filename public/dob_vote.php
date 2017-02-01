@@ -480,13 +480,15 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 			}
 		}
     #echo '<pre>'.print_r($stat_detail,true).'</pre>';
-		$content_chart = dob_vote_html_chart($stat_detail,$vm_legend,$nTotal);
+    $content_chart = ($vm_type=='plural') ?
+      dob_vote_column_chart($stat_detail,$vm_legend,$nTotal)
+      : dob_vote_bar_chart($stat_detail,$vm_legend,$nTotal);
     $html_chart = <<<HTML
     <div class="panel panel-default" style="clear:both;">
-      <div class="panel-heading" data-toggle="collapse" data-target="#dob_vote_html_chart">
+      <div class="panel-heading" data-toggle="collapse" data-target="#dob_vote_chart">
         <span class="panel-title">$label_result $label_chart</span>
       </div>
-      <div id="dob_vote_html_chart" class="panel-collapse collapse in">
+      <div id="dob_vote_chart" class="panel-collapse collapse in">
         $content_chart
       </div>
     </div>
@@ -769,7 +771,153 @@ HTML;
 
 }/*}}}*/
 
-function dob_vote_html_chart($stat_detail,$vm_legend,$nTotal) {/*{{{*/
+function dob_vote_column_chart($stat_detail,$vm_legend,$nTotal) {/*{{{*/
+/*{{{*/ /*$example = <<<HTML
+<ul>
+  <li>
+    <span style="height:100%" title="가나다라마바사asdfqwer">100%</span>
+  </li>
+  <li>
+    <div style="height:80%" title="HTML 80%">
+      <span style="height:30%" class="di">windows<br>30%</span>
+      <span style="height:50%" class="hi">linux<br>50%</span>
+      <span style="height:20%" class="gr">macos<br>20%</span>
+    </div>
+  </li>
+</ul>
+HTML;*/ /*}}}*/
+
+  $ret = "<style> /*{{{*/
+.column-chart {
+  display: table;
+  table-layout: fixed;
+  width: 90%;
+  max-width: 700px;
+  height: 200px;
+  margin: 0 auto;
+  background-image: linear-gradient(to top, rgba(0, 0, 0, 0.5) 2%, rgba(0, 0, 0, 0) 2%);
+  background-size: 100% 50px;
+  background-position: left top;
+  font-size: 0.85em;
+  padding-bottom: 4em;
+}
+.column-chart li {
+  position: relative;
+  display: table-cell;
+  vertical-align: bottom;
+  height: 200px;
+}
+.column-chart span {
+  margin: 0 0.5em;
+  text-align: center;
+  display: block;
+  background: rgba(204, 221, 255, 0.75);
+  animation: draw 1s ease-in-out;
+}
+.column-chart span:before {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  padding: 5px 1em 0;
+  display: block;
+  text-align: center;
+  content: attr(title);
+  word-wrap: break-word;
+}
+.column-chart div {
+  margin: 0 1em;
+  display: block;
+  background: rgba(204, 221, 255, 0.75);
+  animation: draw 1s ease-in-out;
+}
+.column-chart div:before {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  padding: 5px 1em 0;
+  display: block;
+  text-align: center;
+  content: attr(title);
+  word-wrap: break-word;
+}
+.column-chart div span {
+  width: 100%;
+  margin: 0;
+  text-align: center;
+  display: block;
+  animation: draw 1s ease-in-out;
+}
+.column-chart div span.di {
+  background: rgba(221, 153, 153, 0.75);
+}
+.column-chart div span.hi {
+  background: rgba(153, 221, 153, 0.75);
+}
+.column-chart div span.gr {
+  background: rgba(153, 153, 221, 0.75);
+}
+.column-chart div span:before {
+  left: 0;
+  right: 0;
+  top: 100%;
+  display: block;
+  text-align: center;
+  content: attr(title);
+  word-wrap: break-word;
+}
+
+@keyframes draw {
+  0% {
+    height: 0;
+  }
+}
+
+.barchart { width: 100%; height:25px; border-collapse: collapse; }
+.barchart td div { height:20px; text-align:center; overflow: hidden; text-overflow: ellipsis; }
+</style>"; /*}}}*/
+
+  $label_direct    = '직접';   //__('Direct', DOBslug),
+  $label_hierarchy = '계층';   //__('Hierarchy', DOBslug),
+  $label_group     = '단체';   //__('Group', DOBslug),
+  $label_abstain   = '기권'; //__('Blank', DOBslug)
+  $span_format = "<span style='height:%s' class='%s'>%s</span>";
+  ksort($stat_detail,SORT_NUMERIC);
+
+  $nBlank = $nTotal;
+  $arrLI = array();
+//echo '<pre>'.print_r($stat_detail,true).'</pre>';
+  foreach ( $stat_detail as $i => $data ) {
+    extract($data);  // 'all', 'di', 'hi'
+    // ul-div
+    $ratio = sprintf('%0.1f%%',100*$all/$nTotal);
+    $text  = $vm_legend[$i]." $ratio ($all)";
+    $li_div = "<li><div style='height:$ratio' title='$text'>";
+    if ( $di ) { // span-direct
+      $ratio = sprintf('%0.1f%%',100*$di/$all);
+      $text  = $label_direct." $ratio ($di)";
+      $li_div .= sprintf($span_format, $ratio, 'di', $text );
+    }
+    if ( $hi ) { // span-hierarchy
+      $ratio = sprintf('%0.1f%%',100*$hi/$nTotal);
+      $text  = $label_hierarchy." $ratio ($hi)";
+      $li_div .= sprintf($span_format, $ratio, 'hi', $text );
+    }
+    if ( $gr ) { // span-group
+      $ratio = sprintf('%0.1f%%',100*$gr/$nTotal);
+      $text  = $label_group." $ratio ($gr)";
+      $li_div .= sprintf($span_format, $ratio, 'gr', $text );
+    }
+    $li_div .= "</div></li>";
+    $arrLI[] = $li_div;
+  }
+  $ret .= '<ul class="column-chart">'.implode(' ',$arrLI).'</ul>';
+
+  return $ret;
+}/*}}}*/
+
+function dob_vote_bar_chart($stat_detail,$vm_legend,$nTotal) {/*{{{*/
 	$ret = "<style> /*{{{*/
 .barchart { width: 100%; height:25px; border-collapse: collapse; }
 .barchart td div { height:20px; text-align:center; overflow: hidden; text-overflow: ellipsis; }

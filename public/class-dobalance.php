@@ -28,7 +28,7 @@ class DoBalance {
 	 * @since   1.0.0
 	 * @var     string
 	 */
-	const VERSION = '170114.08';
+	const VERSION = '170201.09';
 
 	/**
 	 * Unique identifier for your plugin.
@@ -385,8 +385,10 @@ class DoBalance {
 	 * @since    1.0.0
 	 */
 	public function enqueue_scripts() {
+		wp_enqueue_script( $this->get_plugin_slug() . '-browser', plugins_url( 'assets/js/browser.js', __FILE__ ), array( ), self::VERSION );
 		wp_enqueue_script( $this->get_plugin_slug() . '-plugin-script', plugins_url( 'assets/js/public.js', __FILE__ ), array( 'jquery' ), self::VERSION );
 		wp_enqueue_script( $this->get_plugin_slug() . '-jquery-treetable', plugins_url( 'assets/js/jquery.treetable.js', __FILE__ ), array( 'jquery' ), self::VERSION );
+		//wp_enqueue_script( $this->get_plugin_slug() . '-highcharts', plugins_url( 'assets/js/highcharts.js', __FILE__ ), array( 'jquery' ), self::VERSION );
 	}
 
 	/**
