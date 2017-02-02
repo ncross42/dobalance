@@ -28,7 +28,7 @@ class DoBalance {
 	 * @since   1.0.0
 	 * @var     string
 	 */
-	const VERSION = '170201.09';
+	const VERSION = '170201.10';
 
 	/**
 	 * Unique identifier for your plugin.

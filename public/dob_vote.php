@@ -788,33 +788,33 @@ function dob_vote_column_chart($stat_detail,$vm_legend,$nTotal) {/*{{{*/
 HTML;*/ /*}}}*/
 
   $ret = "<style> /*{{{*/
-.column-chart {
+ul.column-chart {
   display: table;
   table-layout: fixed;
-  width: 90%;
-  max-width: 700px;
+  width: 97%;
   height: 200px;
   margin: 0 auto;
   background-image: linear-gradient(to top, rgba(0, 0, 0, 0.5) 2%, rgba(0, 0, 0, 0) 2%);
   background-size: 100% 50px;
   background-position: left top;
   font-size: 0.85em;
+  padding-left: 0;
   padding-bottom: 4em;
 }
-.column-chart li {
+ul.column-chart li {
   position: relative;
   display: table-cell;
   vertical-align: bottom;
   height: 200px;
 }
-.column-chart span {
+ul.column-chart span {
   margin: 0 0.5em;
   text-align: center;
   display: block;
   background: rgba(204, 221, 255, 0.75);
   animation: draw 1s ease-in-out;
 }
-.column-chart span:before {
+ul.column-chart span:before {
   position: absolute;
   left: 0;
   right: 0;
@@ -825,13 +825,14 @@ HTML;*/ /*}}}*/
   content: attr(title);
   word-wrap: break-word;
 }
-.column-chart div {
-  margin: 0 1em;
-  display: block;
+ul.column-chart div {
+  margin: 0 0.6em;
+  display: table;
   background: rgba(204, 221, 255, 0.75);
   animation: draw 1s ease-in-out;
+  vertical-align: middle;
 }
-.column-chart div:before {
+ul.column-chart div:before {
   position: absolute;
   left: 0;
   right: 0;
@@ -842,23 +843,23 @@ HTML;*/ /*}}}*/
   content: attr(title);
   word-wrap: break-word;
 }
-.column-chart div span {
+ul.column-chart div span {
   width: 100%;
   margin: 0;
   text-align: center;
   display: block;
   animation: draw 1s ease-in-out;
 }
-.column-chart div span.di {
+ul.column-chart div span.di {
   background: rgba(221, 153, 153, 0.75);
 }
-.column-chart div span.hi {
+ul.column-chart div span.hi {
   background: rgba(153, 221, 153, 0.75);
 }
-.column-chart div span.gr {
+ul.column-chart div span.gr {
   background: rgba(153, 153, 221, 0.75);
 }
-.column-chart div span:before {
+ul.column-chart > div > span:before {
   left: 0;
   right: 0;
   top: 100%;
@@ -866,6 +867,8 @@ HTML;*/ /*}}}*/
   text-align: center;
   content: attr(title);
   word-wrap: break-word;
+  display: table-cell;
+  vertical-align: middle;
 }
 
 @keyframes draw {
@@ -874,7 +877,6 @@ HTML;*/ /*}}}*/
   }
 }
 
-.barchart { width: 100%; height:25px; border-collapse: collapse; }
 .barchart td div { height:20px; text-align:center; overflow: hidden; text-overflow: ellipsis; }
 </style>"; /*}}}*/
 
@@ -882,7 +884,7 @@ HTML;*/ /*}}}*/
   $label_hierarchy = '계층';   //__('Hierarchy', DOBslug),
   $label_group     = '단체';   //__('Group', DOBslug),
   $label_abstain   = '기권'; //__('Blank', DOBslug)
-  $span_format = "<span style='height:%s' class='%s'>%s</span>";
+  $span_format = "<span style='height:%s' class='stack %s' data-toggle='tooltip' title='%d'>%s</span>";
   ksort($stat_detail,SORT_NUMERIC);
 
   $nBlank = $nTotal;
@@ -895,19 +897,20 @@ HTML;*/ /*}}}*/
     $text  = $vm_legend[$i]." $ratio ($all)";
     $li_div = "<li><div style='height:$ratio' title='$text'>";
     if ( $di ) { // span-direct
-      $ratio = sprintf('%0.1f%%',100*$di/$all);
-      $text  = $label_direct." $ratio ($di)";
-      $li_div .= sprintf($span_format, $ratio, 'di', $text );
+      //$ratio = sprintf('%0.0f%%',100*$di/$all);
+      $ratio = sprintf('%d%%',100*$di/$all);
+      $text  = $label_direct." $ratio";
+      $li_div .= sprintf($span_format, $ratio, 'di', $di, $text );
     }
     if ( $hi ) { // span-hierarchy
-      $ratio = sprintf('%0.1f%%',100*$hi/$nTotal);
-      $text  = $label_hierarchy." $ratio ($hi)";
-      $li_div .= sprintf($span_format, $ratio, 'hi', $text );
+      $ratio = sprintf('%d%%',100*$hi/$all);
+      $text  = $label_hierarchy." $ratio";
+      $li_div .= sprintf($span_format, $ratio, 'hi', $hi, $text );
     }
     if ( $gr ) { // span-group
-      $ratio = sprintf('%0.1f%%',100*$gr/$nTotal);
-      $text  = $label_group." $ratio ($gr)";
-      $li_div .= sprintf($span_format, $ratio, 'gr', $text );
+      $ratio = sprintf('%d%%',100*$gr/$all);
+      $text  = $label_group." $ratio";
+      $li_div .= sprintf($span_format, $ratio, 'gr', $gr, $text );
     }
     $li_div .= "</div></li>";
     $arrLI[] = $li_div;
