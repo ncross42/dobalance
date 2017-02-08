@@ -821,11 +821,10 @@ HTML;*/ /*}}}*/
   left: 0;
   right: 0;
   top: 0;
-  padding: 1em 1em 0;
+  padding: 1em 0em 0;
   display: block;
   text-align: center;
   content: attr(title);
-  word-wrap: break-word;
 }
 .column-chart div.one-column span {
   position: relative;
