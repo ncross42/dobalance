@@ -788,87 +788,76 @@ function dob_vote_column_chart($stat_detail,$vm_legend,$nTotal) {/*{{{*/
 HTML;*/ /*}}}*/
 
   $ret = "<style> /*{{{*/
-ul.column-chart {
+.column-chart {
   display: table;
   table-layout: fixed;
-  width: 97%;
-  height: 200px;
+  width: 95%;
+  /*max-width: 700px;*/
   margin: 0 auto;
-  background-image: linear-gradient(to top, rgba(0, 0, 0, 0.5) 2%, rgba(0, 0, 0, 0) 2%);
-  background-size: 100% 50px;
-  background-position: left top;
-  font-size: 0.85em;
-  padding-left: 0;
-  padding-bottom: 4em;
+  padding: 0;
 }
-ul.column-chart li {
+.column-chart li {
   position: relative;
   display: table-cell;
   vertical-align: bottom;
+}
+.column-chart.chart-series {
+  background-image: linear-gradient(to top, rgba(0, 0, 0, 0.1) 2%, rgba(0, 0, 0, 0) 2%);
+  background-size: 100% 50px;
+  background-position: left top;
+}
+.column-chart.chart-series li {
   height: 200px;
 }
-ul.column-chart span {
+.column-chart div.one-column {
+  text-align: center;
+  margin: 0 0.5em;
+  display: block;
+  background: rgba(204, 221, 255, 0.75);
+  animation: draw 1s ease-in-out;
+}
+.column-chart div.one-column:before {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  padding: 1em 1em 0;
+  display: block;
+  text-align: center;
+  content: attr(title);
+  word-wrap: break-word;
+}
+.column-chart div.one-column span {
+  position: relative;
+  width: 100%;
+  margin: 0;
+  display: block;
+  font-size: 0.85em;
+}
+.column-chart div.one-column span.di {
+  background: rgba(221, 153, 153, 0.75);
+}
+.column-chart div.one-column span.hi {
+  background: rgba(153, 221, 153, 0.75);
+}
+.column-chart div.one-column span.gr {
+  background: rgba(153, 153, 221, 0.75);
+}
+.column-chart div.one-column span:before {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  padding: 0em 0em 0;
+  display: block;
+  text-align: center;
+  content: attr(title);
+  word-wrap: break-word;
+}
+.column-chart.chart-legend span {
   margin: 0 0.5em;
   text-align: center;
   display: block;
-  background: rgba(204, 221, 255, 0.75);
-  animation: draw 1s ease-in-out;
-}
-ul.column-chart span:before {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 100%;
-  padding: 5px 1em 0;
-  display: block;
-  text-align: center;
-  content: attr(title);
-  word-wrap: break-word;
-}
-ul.column-chart div {
-  margin: 0 0.6em;
-  display: table;
-  background: rgba(204, 221, 255, 0.75);
-  animation: draw 1s ease-in-out;
-  vertical-align: middle;
-}
-ul.column-chart div:before {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 100%;
-  padding: 5px 1em 0;
-  display: block;
-  text-align: center;
-  content: attr(title);
-  word-wrap: break-word;
-}
-ul.column-chart div span {
-  width: 100%;
-  margin: 0;
-  text-align: center;
-  display: block;
-  animation: draw 1s ease-in-out;
-}
-ul.column-chart div span.di {
-  background: rgba(221, 153, 153, 0.75);
-}
-ul.column-chart div span.hi {
-  background: rgba(153, 221, 153, 0.75);
-}
-ul.column-chart div span.gr {
-  background: rgba(153, 153, 221, 0.75);
-}
-ul.column-chart > div > span:before {
-  left: 0;
-  right: 0;
-  top: 100%;
-  display: block;
-  text-align: center;
-  content: attr(title);
-  word-wrap: break-word;
-  display: table-cell;
-  vertical-align: middle;
 }
 
 @keyframes draw {
@@ -884,38 +873,41 @@ ul.column-chart > div > span:before {
   $label_hierarchy = '계층';   //__('Hierarchy', DOBslug),
   $label_group     = '단체';   //__('Group', DOBslug),
   $label_abstain   = '기권'; //__('Blank', DOBslug)
-  $span_format = "<span style='height:%s' class='stack %s' data-toggle='tooltip' title='%d'>%s</span>";
+  $span_format = "<span style='height:%s' class='%s' data-toggle='tooltip' title='%s'>%s</span>";
   ksort($stat_detail,SORT_NUMERIC);
 
   $nBlank = $nTotal;
   $arrLI = array();
 //echo '<pre>'.print_r($stat_detail,true).'</pre>';
   foreach ( $stat_detail as $i => $data ) {
-    extract($data);  // 'all', 'di', 'hi'
+    extract($data);  // $all, $di, $hi, $gr
     // ul-div
-    $ratio = sprintf('%0.1f%%',100*$all/$nTotal);
-    $text  = $vm_legend[$i]." $ratio ($all)";
-    $li_div = "<li><div style='height:$ratio' title='$text'>";
+    $ratio = sprintf('%0.0f%%',100*$all/$nTotal);
+    $legend = $vm_legend[$i]." ($all)";
+    $li_div = "<li><div class='one-column' style='height:$ratio' title='$ratio'>";
     if ( $di ) { // span-direct
       //$ratio = sprintf('%0.0f%%',100*$di/$all);
       $ratio = sprintf('%d%%',100*$di/$all);
       $text  = $label_direct." $ratio";
-      $li_div .= sprintf($span_format, $ratio, 'di', $di, $text );
+      $li_div .= sprintf($span_format, $ratio, 'di', "$text ($di)", $label_direct );
     }
     if ( $hi ) { // span-hierarchy
       $ratio = sprintf('%d%%',100*$hi/$all);
       $text  = $label_hierarchy." $ratio";
-      $li_div .= sprintf($span_format, $ratio, 'hi', $hi, $text );
+      $li_div .= sprintf($span_format, $ratio, 'hi', "$text ($hi)", $label_hierarchy );
     }
     if ( $gr ) { // span-group
       $ratio = sprintf('%d%%',100*$gr/$all);
       $text  = $label_group." $ratio";
-      $li_div .= sprintf($span_format, $ratio, 'gr', $gr, $text );
+      $li_div .= sprintf($span_format, $ratio, 'gr', "$text ($gr)", $label_group );
     }
     $li_div .= "</div></li>";
-    $arrLI[] = $li_div;
+    $arrLI[$legend] = $li_div;
   }
-  $ret .= '<ul class="column-chart">'.implode(' ',$arrLI).'</ul>';
+  $ret .= '<ul class="column-chart chart-series">'.implode(' ',$arrLI).'</ul>';
+  $ret .= '<ul class="column-chart chart-legend"> <li><span>'
+    .implode( '</span></li> <li><span>', array_keys($arrLI) )
+    .'</span></li></ul>';
 
   return $ret;
 }/*}}}*/
