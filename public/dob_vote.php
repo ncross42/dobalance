@@ -238,7 +238,6 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
 		$LOGIN_IP = empty($_SESSION['LOGIN_IP']) ? '' : $_SESSION['LOGIN_IP'];
 		if ( ! empty($_POST) && $LOGIN_IP == dob_get_real_ip() ) {
       $bVote = true;
-#echo '<pre>'.print_r($_POST,true).'</pre>';
 			if ( (int)$_POST['dob_form_cart'] ) {
 				$debug = dob_common_cart($user_id,$post_id,'offer');
 			} else {
@@ -267,9 +266,10 @@ function dob_vote_contents( $vm_type, $post_id, $dob_vm_data, $bEcho = false) {
   }
 
   // nTotal: 신규, 포스트변경, 계층변경
-  if ( is_null($nTotal) || $ts_all<$ts_post || $ts_all<$ts_struct ) {
-    $nTotal = dob_common_get_users_count($ttids);	// get all user count
-  }
+  #if ( is_null($nTotal) || $ts_all<$ts_post || $ts_all<$ts_struct ) {
+  #  $nTotal = dob_common_get_users_count($ttids);	// get all user count
+  #}  // 현재는 사용자 계층변경/할당이 체크가 안되므로 single 페이지에서는 매번 계산한다.
+  $nTotal = dob_common_get_users_count($ttids);	// get all user count
 
   // gr_vals: 신규, 투표, 계층변경
   if ( is_null($gr_vals) || $bVote || $ts_all<$ts_struct ) {
@@ -696,11 +696,11 @@ HTML;
     $content_myform = ''; /*{{{*/
     if ( empty($user_id) ) {
       $login_url = wp_login_url( $_SERVER['REQUEST_URI'] );
-      $content_myform = "<a href='$login_url' style='color:red; font-weight:bold'>$label_login</a>";
+      $content_myform = "<a href='$login_url' style='text-decoration:underline; color:red; font-weight:bold'>$label_login</a>";
     } else if ( empty($myinfo->term_taxonomy_id) ) {
-      $content_myform = "<span style='color:red; font-size:1.2em; font-weight:bold'>$label_no_pos $label_no_vote</span>";
+      $content_myform = "<a href='/wp-admin/admin.php?page=dobalance' style='text-decoration:underline; color:red; font-size:1.2em; font-weight:bold'>$label_no_pos $label_no_vote</a>";
     } else if ( !empty($ttids) && ! in_array($myinfo->term_taxonomy_id,$ttids) ) {
-      $content_myform = "<span style='color:red; font-size:1.2em; font-weight:bold'>$label_invalid_pos</span>";
+      $content_myform = "<a href='/wp-admin/admin.php?page=dobalance' style='text-decoration:underline; color:red; font-size:1.2em; font-weight:bold'>$label_invalid_pos</a>";
     } else {
       $content_myform = dob_vote_display_mine($post_id,$vm_type,$vm_legend,$myval,$user_id);
     }

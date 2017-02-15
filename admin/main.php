@@ -105,32 +105,38 @@ function dob_admin_add_menu() {/*{{{*/
 
 	// MAIN menu
 	$dob_screen_hook[] = add_menu_page( 
-    __('DoBalance',DOBslug), __('DoBalance',DOBslug), 
-    'edit_posts' , DOBslug, 'dob_admin_page', 'dashicons-hammer', 3
+    __('DoBalance',DOBslug), __('균형민주주의',DOBslug), 
+    'edit_posts' , DOBslug, 'dob_admin_page', plugins_url('dobalance/assets/DoBalanceKR_24.png'), 2
 	);
 
 	// SUB menu : jsTree favorite (default)
 	$dob_screen_hook[] = add_submenu_page( 
-		DOBslug, __('DoBalance',DOBslug), '즐겨찾기',//__('favorite categories',DOBslug),
-		'read', DOBslug.'_jstree_favorite', 'dob_admin_jstree_favorite'
+		DOBslug, __('균형민주주의',DOBslug), '투표 설정',//__('Vote Settings',DOBslug),
+		'edit_posts', DOBslug, 'dob_admin_page'
+	);
+
+	// SUB menu : jsTree favorite (default)
+	$dob_screen_hook[] = add_submenu_page( 
+		DOBslug, __('균형민주주의',DOBslug), '즐겨찾기',//__('favorite categories',DOBslug),
+		'edit_posts', DOBslug.'_jstree_favorite', 'dob_admin_jstree_favorite'
 	);
 
 	// roles : contributor
 	$dob_screen_hook[] = add_submenu_page(	// SUB menu : cart
-		DOBslug, __('DoBalance',DOBslug), '투표바구니',//__('my voting cart',DOBslug),
+		DOBslug, __('균형민주주의',DOBslug), '투표바구니',//__('my voting cart',DOBslug),
 		'edit_posts', DOBslug.'_cart', 'dob_admin_cart'
 	);
 
 	// SUB menu : jsTree user list
 	$dob_screen_hook[] = add_submenu_page( 
-		DOBslug, __('DoBalance',DOBslug), '유저 계층도',//__('jsTree user hierarchy',DOBslug),
+		DOBslug, __('균형민주주의',DOBslug), '유저 계층도',//__('jsTree user hierarchy',DOBslug),
 		'edit_posts', DOBslug.'_jstree_user', 'dob_admin_jstree_user'
 	);
 
 	// roles : author
 	// SUB menu : config
 	$dob_screen_hook[] = add_submenu_page( 
-		DOBslug, __('DoBalance',DOBslug), __('config',DOBslug),
+		DOBslug, __('균형민주주의',DOBslug), __('admin config',DOBslug),
 		'manage_options', DOBslug.'_config', 'dob_admin_config'
 	);
 
